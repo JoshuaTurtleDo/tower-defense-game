@@ -1,0 +1,16 @@
+# Installed dependencies can be restored from package.json and pnpm-lock.yaml.
+node_modules/
+
+# Local logs and temporary files.
+*.log
+*.tmp
+*.temp
+
+# Operating-system metadata.
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor-specific workspace settings.
+.vscode/
+.idea/
