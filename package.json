@@ -1,5 +1,28 @@
 {
-	"dependencies": {
-		"three": "0.160.1"
-	}
+  "name": "stonewatch-keep",
+  "productName": "Stonewatch Keep",
+  "version": "1.0.0",
+  "description": "A medieval 3D tower-defense game.",
+  "author": "JoshuaTurtleDo",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "smoke": "electron . --smoke-test",
+    "capture": "electron scripts/capture-preview.js",
+    "icon": "node scripts/build-icon.mjs",
+    "package": "npm run icon && electron-forge package",
+    "make": "npm run icon && electron-forge make"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "1.0.1",
+    "three": "0.160.1"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.11.2",
+    "@electron-forge/maker-squirrel": "7.11.2",
+    "electron": "44.0.0",
+    "png-to-ico": "3.0.2"
+  }
 }

@@ -1238,6 +1238,15 @@ canvas.addEventListener("pointerup", event => finishCameraDrag(event));
 canvas.addEventListener("pointercancel", event => finishCameraDrag(event, true));
 canvas.addEventListener("pointerleave", () => { if (!cameraDrag.active) hoverCell = null; });
 canvas.addEventListener("contextmenu", event => event.preventDefault());
+canvas.addEventListener("wheel", event => {
+  event.preventDefault();
+  const delta = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+    ? event.deltaY * 16
+    : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+      ? event.deltaY * canvas.clientHeight
+      : event.deltaY;
+  graphics3D.zoomBy(delta);
+}, { passive: false });
 
 canvas.addEventListener("click", event => {
   if (cameraDrag.suppressClick) {

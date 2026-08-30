@@ -1,5 +1,9 @@
-# Installed dependencies can be restored from package.json and pnpm-lock.yaml.
+# Installed dependencies can be restored from package.json and package-lock.json.
 node_modules/
+node_modules.pnpm-backup/
+
+# Electron Forge build output.
+out/
 
 # Local logs and temporary files.
 *.log

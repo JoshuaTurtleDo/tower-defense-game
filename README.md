@@ -1,8 +1,12 @@
 # Stonewatch Keep
 
-A medieval tower-defense game that runs directly in a web browser. The battlefield is rendered as a fully lit 3D low-poly diorama using WebGL and a local copy of Three.js. There is nothing to install and no build step.
+A medieval tower-defense game for Windows that can also run directly in a web browser. The battlefield is rendered as a fully lit 3D low-poly diorama using WebGL and a local copy of Three.js. Electron provides the Windows desktop application while the editable game remains ordinary HTML, CSS, and JavaScript.
 
-## Play the game
+## Play the Windows game
+
+Run `Stonewatch Keep Setup.exe` and then launch **Stonewatch Keep** from its Desktop or Start Menu shortcut. Press `F11` or `Alt+Enter` to switch between windowed and fullscreen play.
+
+## Play in a browser
 
 Double-click `index.html`. It will open in your usual browser.
 
@@ -12,7 +16,16 @@ Double-click `index.html`. It will open in your usual browser.
 4. Click a built tower to upgrade or sell it.
 5. Survive all 10 waves without losing all 20 keep health.
 
-The pause, game-speed, and reset-camera controls are in the lower-left of the battlefield. Hold the right mouse button and drag over the battlefield to orbit around it; the platform remains the fixed center of the view. The reset button returns to the centered isometric overview. You can also press `Esc` to cancel tower placement and the space bar to begin the next wave.
+The pause, game-speed, and reset-camera controls are in the lower-left of the battlefield. Hold the right mouse button and drag over the battlefield to orbit around it, and use the scroll wheel to zoom in or out; the platform remains the fixed center of the view. The reset button returns both the angle and zoom to the centered isometric overview. You can also press `Esc` to cancel tower placement and the space bar to begin the next wave.
+
+## Desktop development
+
+- `npm start` launches the editable source as an Electron desktop game.
+- `npm run smoke` runs an invisible load test of the game and desktop wrapper.
+- `npm run make` creates the x64 Windows installer in `out/make`.
+- `npm run icon` rebuilds the Windows icon from the source PNG.
+
+The generated `out` directory is intentionally excluded from Git. Make changes to the source files, test them, and rebuild the installer rather than editing the packaged `.exe`.
 
 ## Enemy threat levels
 
@@ -46,7 +59,11 @@ At level 2, each Mage Spire gains a permanent final-upgrade choice:
 - `styles.css` controls the visual design and responsive layout.
 - `game.js` contains the gameplay, waves, enemies, towers, upgrades, and combat logic.
 - `graphics3d.js` builds and animates the 3D terrain, models, lighting, shadows, health bars, and effects.
-- `package.json` records the local Three.js rendering dependency.
+- `electron-main.js` creates and secures the Windows game window.
+- `forge.config.js` configures the x64 Windows package and Squirrel installer.
+- `assets/stonewatch-keep.png` is the source artwork for the application icon.
+- `scripts/build-icon.mjs` converts the icon artwork into Windows `.ico` format.
+- `package.json` records the game dependencies and desktop development commands.
 
 ## Good next additions
 
