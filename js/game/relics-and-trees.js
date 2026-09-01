@@ -3,12 +3,24 @@
 // Merchant relic store, inventory/equipment, and removable tree obstacles.
 
 function openMerchantStore() {
+  state.merchantStorePending = false;
   state.storeOpen = true;
   state.merchantStoreStock = Object.keys(merchantRelics);
   state.selectedRelic = null;
   document.getElementById("merchantStoreModal").classList.remove("hidden");
   renderMerchantStore();
   renderInventory();
+}
+
+function queueMerchantStore() {
+  state.merchantStorePending = true;
+  if (state.bossDefeatedThisWave) openMerchantStore();
+  else showAnnouncement("Merchant defeated — defeat the boss to unlock his relic shop");
+}
+
+function recordBossDefeat() {
+  state.bossDefeatedThisWave = true;
+  if (state.merchantStorePending) openMerchantStore();
 }
 
 function closeMerchantStore() {

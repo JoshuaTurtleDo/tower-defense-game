@@ -78,10 +78,10 @@ function towerStats(tower) {
     stats.splash *= 1.22;
   }
   if (tower.type === "archer" && tower.specialization === "riflemen") {
-    stats.damage *= 2.15;
+    stats.damage *= base.rifleDamageMultiplier;
     stats.cooldown *= 1.7;
   } else if (tower.type === "archer" && tower.specialization === "slingshooters") {
-    stats.damage *= 1.5;
+    stats.damage = base.slingshooterDamage;
     stats.cooldown *= 1.85;
     stats.splash = 72;
     stats.projectileSpeed = 310;
@@ -101,7 +101,8 @@ function towerStats(tower) {
 
 function upgradeCost(tower) {
   if (tower.type === "mine") return null;
-  return tower.level >= 3 ? null : Math.round(towerTypes[tower.type].cost * (.85 + tower.level * .55));
+  const base = towerTypes[tower.type];
+  return tower.level >= 3 ? null : Math.round(base.cost * (.85 + tower.level * .55) * (base.upgradeCostMultiplier || 1));
 }
 
 function upgradeTower() {

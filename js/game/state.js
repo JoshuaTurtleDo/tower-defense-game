@@ -46,6 +46,8 @@ function freshState() {
     inventory: [],
     selectedRelic: null,
     merchantStoreStock: [],
+    merchantStorePending: false,
+    bossDefeatedThisWave: false,
     storeOpen: false,
     monsterIndexOpen: false,
     waveActive: false,
@@ -98,6 +100,8 @@ function startWave() {
   if (state.waveActive || state.ended || state.menuOpen || !wave) return;
   const event = getWaveEvent(waveNumber);
   state.waveActive = true;
+  state.merchantStorePending = false;
+  state.bossDefeatedThisWave = false;
   state.activeEvent = event;
   state.spawnQueue = event
     ? combineWaveAndEvent(wave.units, event.units)

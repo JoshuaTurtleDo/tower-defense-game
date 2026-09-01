@@ -71,6 +71,7 @@ function damageEnemy(enemy, amount, owner, damageType = "physical", source = own
   enemy.hitFlash = .09;
   if (enemy.hp <= 0 && !enemy.dead) {
     const merchantDefeated = enemy.type === "merchant";
+    const bossDefeated = enemy.isBoss;
     enemy.dead = true;
     awardGold(enemy.reward);
     state.totalKills++;
@@ -80,7 +81,8 @@ function damageEnemy(enemy, amount, owner, damageType = "physical", source = own
     burst(enemy.x, enemy.y, "#e2b958", 9);
     if (state.selectedTower === owner) showInspectPanel(owner);
     updateUI();
-    if (merchantDefeated) openMerchantStore();
+    if (bossDefeated) recordBossDefeat();
+    if (merchantDefeated) queueMerchantStore();
   }
 }
 

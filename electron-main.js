@@ -186,7 +186,7 @@ function createWindow() {
             graphics3D.render(state, hoverCell, canPlace, towerStats);
             const archerModel = graphics3D.towerMeshes.get(archers);
             const hillRendered = Boolean(archerModel?.userData.archerHill) && archerModel.userData.archers.every(archer => archer.baseY === .28);
-            return archers.volleyShotsRemaining === 0 && archers.archerShotTimers[2] > 0 && hillRendered;
+            return towerTypes.archer.damage === 16.8 && archers.volleyShotsRemaining === 0 && archers.archerShotTimers[2] > 0 && hillRendered;
           })(),
           archerPaths: (() => {
             try {
@@ -210,7 +210,7 @@ function createWindow() {
               graphics3D.render(state, hoverCell, canPlace, towerStats);
               const rifleProjectile = state.projectiles.find(projectile => projectile.variant === "rifle");
               const rifleModel = graphics3D.towerMeshes.get(rifleTower);
-              const riflePathWorks = rifleTower.specialization === "riflemen" && rifleStats.damage > unbranchedLevelThree.damage * 2 && rifleStats.cooldown > unbranchedLevelThree.cooldown && Boolean(rifleProjectile) && Boolean(rifleModel?.userData.rifleSquad) && rifleModel.userData.riflemen.length === 3;
+              const riflePathWorks = rifleTower.specialization === "riflemen" && Math.abs(rifleStats.damage - 95.45613) < .001 && rifleStats.cooldown > unbranchedLevelThree.cooldown && Boolean(rifleProjectile) && Boolean(rifleModel?.userData.rifleSquad) && rifleModel.userData.riflemen.length === 3;
 
               resetGame();
               state.gold = 9999;
@@ -236,7 +236,7 @@ function createWindow() {
               if (slingProjectile) hitEnemy(slingProjectile, slingProjectile.target);
               const areaDamaged = state.enemies.every((enemy, index) => enemy.hp < startingHealth[index]);
               const slingModel = graphics3D.towerMeshes.get(slingTower);
-              const slingPathWorks = slingTower.specialization === "slingshooters" && slingStats.splash === 72 && slingStats.cooldown > unbranchedLevelThree.cooldown && Boolean(slingModel?.userData.slingshot) && slingModel.userData.slingWorkers.length === 3 && projectileRendered && areaDamaged;
+              const slingPathWorks = slingTower.specialization === "slingshooters" && slingStats.damage === 120 && slingStats.splash === 72 && slingStats.cooldown > unbranchedLevelThree.cooldown && Boolean(slingModel?.userData.slingshot) && slingModel.userData.slingWorkers.length === 3 && projectileRendered && areaDamaged;
 
               return riflePathWorks && slingPathWorks;
             } catch (error) {
@@ -250,7 +250,9 @@ function createWindow() {
               state.selectedBuild = "ballista";
               placeTower(1, 1);
               const ballista = state.towers[0];
+              const firstUpgradeDiscounted = towerTypes.ballista.upgradeCostMultiplier === .9 && upgradeCost(ballista) === 202;
               upgradeTower();
+              const finalUpgradeDiscounted = upgradeCost(ballista) === 281;
               upgradeTower();
               spawnEnemy("ogre");
               const target = state.enemies[0];
@@ -267,7 +269,7 @@ function createWindow() {
               if (projectile) hitEnemy(projectile, target);
               const impactFire = state.particles.some(particle => particle.color === "#ff5b20") && state.particles.some(particle => particle.color === "#ffd35a");
               const damageCorrect = Math.abs(startingHealth - target.hp - towerStats(ballista).damage) < .001;
-              return ballista.level === 3 && projectile?.damageType === "physical" && projectileModel?.userData.flamingBolt === true && projectileModel.userData.fireLight.intensity > 0 && impactFire && damageCorrect;
+              return firstUpgradeDiscounted && finalUpgradeDiscounted && ballista.level === 3 && projectile?.damageType === "physical" && projectileModel?.userData.flamingBolt === true && projectileModel.userData.fireLight.intensity > 0 && impactFire && damageCorrect;
             } catch (error) {
               return "Ballista flame error: " + (error.stack || error.message);
             }
@@ -441,9 +443,9 @@ function createWindow() {
               state.selectedBuild = "mage";
               placeTower(1, 1);
               const wizard = state.towers[0];
-              const wizardCostsScale = towerTypes.mage.cost === 150 && upgradeCost(wizard) === 210;
+              const wizardCostsScale = towerTypes.mage.cost === 130 && towerTypes.mage.upgradeCostMultiplier === .9 && upgradeCost(wizard) === 164;
               upgradeTower();
-              const finalWizardUpgradeScales = wizard.level === 2 && upgradeCost(wizard) === 293;
+              const finalWizardUpgradeScales = wizard.level === 2 && upgradeCost(wizard) === 228;
 
               spawnEnemy("skeleton");
               const skeleton = state.enemies[0];
@@ -455,7 +457,7 @@ function createWindow() {
               damageEnemy(skeleton, 40, testOwner, "magic");
               const magicDamage = 100 - skeleton.hp;
 
-              return towerTypes.ballista.damage === 120 && wizardCostsScale && finalWizardUpgradeScales &&
+              return towerTypes.ballista.damage === 120 && towerTypes.mage.damage === 35 && wizardCostsScale && finalWizardUpgradeScales &&
                 enemyTypes.skeleton.physicalResistance === 0 && enemyTypes.skeleton.magicResistance === .25 &&
                 physicalDamage === 40 && magicDamage === 30;
             } catch (error) {
@@ -480,7 +482,7 @@ function createWindow() {
               state.selectedTower = secondOgre;
               sellTower();
 
-              return towerTypes.ogre.damage === 200 && firstCost === 185 && secondCost === 241 && thirdCost === 313 &&
+              return towerTypes.ogre.damage === 200 && firstCost === 150 && secondCost === 195 && thirdCost === 254 &&
                 firstOgre.spent === firstCost && secondOgre.spent === secondCost &&
                 startingGold - firstOgre.spent - secondOgre.spent + Math.round(secondOgre.spent * .65) === state.gold &&
                 placementCost("ogre") === thirdCost && displayedCost === String(thirdCost) && placementCost("mage") === towerTypes.mage.cost;
@@ -711,12 +713,17 @@ function createWindow() {
             try {
               resetGame();
               state.gold = 2000;
+              spawnEnemy("dragon");
               spawnEnemy("merchant");
-              const merchant = state.enemies[0];
+              const boss = state.enemies[0];
+              const merchant = state.enemies[1];
               merchant.hp = 1;
               const testOwner = { type: "archer", kills: 0 };
               damageEnemy(merchant, 10, testOwner, "physical");
-              const shopOpensOnKill = state.storeOpen && !document.getElementById("merchantStoreModal").classList.contains("hidden") && document.querySelectorAll(".merchant-item-card").length === 5;
+              const shopWaitsForBoss = state.merchantStorePending && !state.storeOpen && document.getElementById("merchantStoreModal").classList.contains("hidden");
+              boss.hp = 1;
+              damageEnemy(boss, 10, testOwner, "physical");
+              const shopOpensAfterBoss = state.bossDefeatedThisWave && !state.merchantStorePending && state.storeOpen && !document.getElementById("merchantStoreModal").classList.contains("hidden") && document.querySelectorAll(".merchant-item-card").length === 5;
               Object.keys(merchantRelics).forEach(type => buyMerchantRelic(type));
               const purchasesWork = state.inventory.length === 5 && state.merchantStoreStock.length === 0 && document.querySelectorAll(".merchant-item-card:disabled").length === 5;
               closeMerchantStore();
@@ -766,17 +773,21 @@ function createWindow() {
               const ringBoostsMine = ringEquipped && firstRingSecondCarriesFraction && state.gold - beforeProduction === 3 && mine.goldMined === 3 && state.goldIncomeRemainder === 0 && Number.isInteger(state.gold);
 
               resetGame();
+              spawnEnemy("dragon");
+              const defeatedBoss = state.enemies[0];
+              defeatedBoss.hp = 1;
+              damageEnemy(defeatedBoss, 10, { type: "archer", kills: 0 }, "physical");
               spawnEnemy("merchant");
-              const escapedMerchant = state.enemies[0];
+              const escapedMerchant = state.enemies[1];
               const finish = pathPoints[pathPoints.length - 1];
               escapedMerchant.x = finish.x;
               escapedMerchant.y = finish.y;
               escapedMerchant.pathIndex = pathPoints.length - 1;
               escapedMerchant.speed = 100;
               update(.01);
-              const escapeGivesNoShop = escapedMerchant.reached && !state.storeOpen && document.getElementById("merchantStoreModal").classList.contains("hidden");
+              const escapeGivesNoShop = escapedMerchant.reached && !state.merchantStorePending && !state.storeOpen && document.getElementById("merchantStoreModal").classList.contains("hidden");
 
-              return shopOpensOnKill && purchasesWork && swordEquipped && amuletEquipped && bootsEquipped && fourthRejected && threeSlotUi && universalBonusesWork && shieldBoostsTroops && ringBoostsMine && escapeGivesNoShop;
+              return shopWaitsForBoss && shopOpensAfterBoss && purchasesWork && swordEquipped && amuletEquipped && bootsEquipped && fourthRejected && threeSlotUi && universalBonusesWork && shieldBoostsTroops && ringBoostsMine && escapeGivesNoShop;
             } catch (error) {
               return "Merchant relic store error: " + (error.stack || error.message);
             }

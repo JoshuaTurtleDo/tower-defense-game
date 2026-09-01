@@ -3,11 +3,11 @@
 // Editable tower, enemy, campaign-wave, event, and endless-mode definitions.
 
 const towerTypes = {
-  archer: { name: "Royal Archers", cost: 70, range: 145, damage: 14, damageType: "physical", cooldown: 1.35, projectileSpeed: 480, color: "#d6d19c", splash: 0, emblem: "➶", className: "archer-emblem" },
-  mage: { name: "Royal Wizard", cost: 150, range: 128, damage: 28, damageType: "magic", cooldown: 1.15, projectileSpeed: 330, color: "#a788eb", splash: 62, emblem: "✦", className: "mage-emblem" },
-  ballista: { name: "Royal Ballista", cost: 160, range: 215, damage: 120, damageType: "physical", cooldown: 2.05, projectileSpeed: 650, color: "#e5a654", splash: 0, emblem: "✧", className: "ballista-emblem" },
+  archer: { name: "Royal Archers", cost: 70, range: 145, damage: 16.8, rifleDamageMultiplier: 2.365, slingshooterDamage: 120, damageType: "physical", cooldown: 1.35, projectileSpeed: 480, color: "#d6d19c", splash: 0, emblem: "➶", className: "archer-emblem" },
+  mage: { name: "Royal Wizard", cost: 130, upgradeCostMultiplier: .9, range: 128, damage: 35, damageType: "magic", cooldown: 1.15, projectileSpeed: 330, color: "#a788eb", splash: 62, emblem: "✦", className: "mage-emblem" },
+  ballista: { name: "Royal Ballista", cost: 160, upgradeCostMultiplier: .9, range: 215, damage: 120, damageType: "physical", cooldown: 2.05, projectileSpeed: 650, color: "#e5a654", splash: 0, emblem: "✧", className: "ballista-emblem" },
   barracks: { name: "Royal Barracks", cost: 135, range: 138, damage: 12, damageType: "physical", cooldown: .85, projectileSpeed: 0, color: "#b9c8cf", splash: 0, emblem: "⚔", className: "barracks-emblem" },
-  ogre: { name: "Stoneback Ogre", cost: 185, range: 132, damage: 200, damageType: "physical", cooldown: 3.8, projectileSpeed: 0, color: "#8e8050", splash: 0, knockback: 150, emblem: "✊", className: "ogre-emblem" },
+  ogre: { name: "Stoneback Ogre", cost: 150, range: 132, damage: 200, damageType: "physical", cooldown: 3.8, projectileSpeed: 0, color: "#8e8050", splash: 0, knockback: 150, emblem: "✊", className: "ogre-emblem" },
   ghost: { name: "Dread Ghost", cost: 175, range: 145, damage: 0, damageType: "control", cooldown: 3.8, projectileSpeed: 0, color: "#9be3d6", splash: 0, fearDuration: 2, fearCount: 3, emblem: "◉", className: "ghost-emblem" },
   vampire: { name: "Crimson Vampire", cost: 205, range: 142, damage: 72, damageType: "magic", cooldown: 2.85, projectileSpeed: 0, color: "#c83645", splash: 0, emblem: "♠", className: "vampire-emblem" },
   mine: { name: "Gold Mine", cost: 150, range: 0, damage: 0, damageType: "economy", cooldown: 1, projectileSpeed: 0, color: "#e2b84f", splash: 0, emblem: "⚒", className: "mine-emblem" }
