@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#17140f" />
     <title>Stonewatch Keep</title>
-    <link rel="stylesheet" href="styles.css?v=20260831-main-menu-endless" />
+    <link rel="stylesheet" href="styles.css?v=20260831-mine-income" />
   </head>
   <body>
     <main class="game-shell">
@@ -36,6 +36,11 @@
             <button id="speedButton" class="speed-button" title="Change game speed" aria-label="Change game speed">1×</button>
             <button id="cameraResetButton" class="icon-button" title="Reset camera view" aria-label="Reset camera view">↻</button>
           </div>
+          <button id="monsterIndexButton" class="monster-index-button" title="Open Monster Index" aria-label="Open Monster Index">
+            <span class="monster-index-button-icon">☠</span>
+            <span>Monster Index</span>
+            <strong id="monsterIndexCount">0/18</strong>
+          </button>
         </div>
 
         <aside class="command-panel">
@@ -53,7 +58,7 @@
               <button class="tower-card" data-tower="mage">
                 <span class="tower-emblem mage-emblem">✦</span>
                 <span class="tower-info"><strong>Royal Wizard</strong><small>Magic • area damage</small></span>
-                <span class="tower-cost">110</span>
+                <span class="tower-cost">150</span>
               </button>
               <button class="tower-card" data-tower="ballista">
                 <span class="tower-emblem ballista-emblem">✧</span>
@@ -83,7 +88,7 @@
               <button class="tower-card" data-tower="mine">
                 <span class="tower-emblem mine-emblem">⚒</span>
                 <span class="tower-info"><strong>Gold Mine</strong><small>Hire workers for income</small></span>
-                <span class="tower-cost">125</span>
+                <span class="tower-cost">150</span>
               </button>
             </div>
 
@@ -116,8 +121,9 @@
             <button id="slingUpgradeButton" class="action-button sling-action hidden"><span>Slingshooters Path</span><span id="slingUpgradeCost">150 gold</span></button>
             <button id="nightspawnUpgradeButton" class="action-button nightspawn-action hidden"><span>Nightspawn Path</span><span id="nightspawnUpgradeCost">400 gold</span></button>
             <div id="mineControls" class="mine-controls hidden">
-              <p>Workers produce gold every 3 seconds while an assault is underway.</p>
+              <p id="mineControlCopy">Each worker produces 1 gold every second while an assault is underway.</p>
               <button id="hireWorkerButton" class="action-button worker-action"><span>Hire worker</span><span id="workerCost">45 gold</span></button>
+              <button id="treasureCoveUpgradeButton" class="action-button cove-action hidden"><span>Establish Treasure Cove</span><span id="treasureCoveUpgradeCost">420 gold</span></button>
             </div>
             <button id="sellButton" class="sell-button">Sell tower <span id="sellValue">42 gold</span></button>
           </section>
@@ -140,7 +146,7 @@
           <section id="relicInventoryPanel" class="relic-inventory-panel">
             <div class="relic-panel-heading"><span>Relic satchel</span><strong id="relicInventoryCount">0</strong></div>
             <div id="relicInventoryItems" class="relic-inventory-items"></div>
-            <p id="relicInventoryHint">Defeat a Boss Merchant to unlock relics.</p>
+            <p id="relicInventoryHint">Defeat a Boss Merchant or establish a Treasure Cove to uncover relics.</p>
           </section>
 
           <div class="wave-card">
@@ -180,6 +186,28 @@
         <p class="merchant-store-copy">The Merchant dropped one of each relic. Buy any you can afford; purchased relics move into your satchel and can be equipped to compatible defenses.</p>
         <div id="merchantStoreItems" class="merchant-store-items"></div>
         <button id="closeMerchantStoreButton" class="start-wave-button">Return to battle</button>
+      </div>
+    </div>
+
+    <div id="monsterIndexModal" class="modal monster-index-modal hidden" role="dialog" aria-modal="true" aria-labelledby="monsterIndexTitle">
+      <div class="monster-index-card">
+        <div class="monster-index-heading">
+          <div class="monster-index-heading-icon">☠</div>
+          <div>
+            <p class="panel-kicker">STONEWATCH BESTIARY</p>
+            <h2 id="monsterIndexTitle">Monster Index</h2>
+            <p>Enemies are recorded here the first time they enter the battlefield.</p>
+          </div>
+          <strong id="monsterIndexProgress" class="monster-index-progress">0 of 18 discovered</strong>
+        </div>
+        <p class="monster-index-note">Displayed health and speed are base values. Both increase as later waves grow stronger.</p>
+        <div id="monsterIndexEmpty" class="monster-index-empty">
+          <span>?</span>
+          <strong>No monsters discovered</strong>
+          <p>Begin the first wave to record your first enemy.</p>
+        </div>
+        <div id="monsterIndexGrid" class="monster-index-grid hidden"></div>
+        <button id="closeMonsterIndexButton" class="start-wave-button">Return to battle</button>
       </div>
     </div>
 
@@ -228,21 +256,22 @@
     </div>
 
     <script src="node_modules/three/build/three.min.js"></script>
-    <script src="graphics3d.js?v=20260831-modular-game"></script>
+    <script src="graphics3d.js?v=20260831-mine-income"></script>
     <!-- Game modules are deliberately ordered from shared data through startup. -->
-    <script src="js/game/config.js?v=20260831-modular-game"></script>
-    <script src="js/game/content.js?v=20260831-modular-game"></script>
-    <script src="js/game/state.js?v=20260831-modular-game"></script>
-    <script src="js/game/defenses.js?v=20260831-modular-game"></script>
-    <script src="js/game/troops.js?v=20260831-modular-game"></script>
-    <script src="js/game/upgrade-paths.js?v=20260831-modular-game"></script>
-    <script src="js/game/relics-and-trees.js?v=20260831-modular-game"></script>
-    <script src="js/game/control-effects.js?v=20260831-modular-game"></script>
-    <script src="js/game/simulation.js?v=20260831-modular-game"></script>
-    <script src="js/game/combat.js?v=20260831-modular-game"></script>
-    <script src="js/game/fallback-renderer.js?v=20260831-modular-game"></script>
-    <script src="js/game/interface.js?v=20260831-modular-game"></script>
-    <script src="js/game/input.js?v=20260831-modular-game"></script>
-    <script src="js/game/main.js?v=20260831-modular-game"></script>
+    <script src="js/game/config.js?v=20260901-placement-scaling"></script>
+    <script src="js/game/content.js?v=20260901-boss-balance"></script>
+    <script src="js/game/state.js?v=20260901-placement-scaling"></script>
+    <script src="js/game/defenses.js?v=20260901-placement-scaling"></script>
+    <script src="js/game/troops.js?v=20260831-mine-income"></script>
+    <script src="js/game/upgrade-paths.js?v=20260831-mine-income"></script>
+    <script src="js/game/relics-and-trees.js?v=20260831-mine-income"></script>
+    <script src="js/game/control-effects.js?v=20260831-mine-income"></script>
+    <script src="js/game/simulation.js?v=20260831-mine-rate"></script>
+    <script src="js/game/combat.js?v=20260831-mine-income"></script>
+    <script src="js/game/fallback-renderer.js?v=20260831-mine-income"></script>
+    <script src="js/game/interface.js?v=20260901-placement-scaling"></script>
+    <script src="js/game/monster-index.js?v=20260831-mine-income"></script>
+    <script src="js/game/input.js?v=20260831-mine-income"></script>
+    <script src="js/game/main.js?v=20260831-mine-income"></script>
   </body>
 </html>

@@ -4,24 +4,24 @@
 
 const towerTypes = {
   archer: { name: "Royal Archers", cost: 70, range: 145, damage: 14, damageType: "physical", cooldown: 1.35, projectileSpeed: 480, color: "#d6d19c", splash: 0, emblem: "➶", className: "archer-emblem" },
-  mage: { name: "Royal Wizard", cost: 110, range: 128, damage: 28, damageType: "magic", cooldown: 1.15, projectileSpeed: 330, color: "#a788eb", splash: 62, emblem: "✦", className: "mage-emblem" },
-  ballista: { name: "Royal Ballista", cost: 160, range: 215, damage: 62, damageType: "physical", cooldown: 2.05, projectileSpeed: 650, color: "#e5a654", splash: 0, emblem: "✧", className: "ballista-emblem" },
+  mage: { name: "Royal Wizard", cost: 150, range: 128, damage: 28, damageType: "magic", cooldown: 1.15, projectileSpeed: 330, color: "#a788eb", splash: 62, emblem: "✦", className: "mage-emblem" },
+  ballista: { name: "Royal Ballista", cost: 160, range: 215, damage: 120, damageType: "physical", cooldown: 2.05, projectileSpeed: 650, color: "#e5a654", splash: 0, emblem: "✧", className: "ballista-emblem" },
   barracks: { name: "Royal Barracks", cost: 135, range: 138, damage: 12, damageType: "physical", cooldown: .85, projectileSpeed: 0, color: "#b9c8cf", splash: 0, emblem: "⚔", className: "barracks-emblem" },
-  ogre: { name: "Stoneback Ogre", cost: 185, range: 132, damage: 52, damageType: "physical", cooldown: 3.8, projectileSpeed: 0, color: "#8e8050", splash: 0, knockback: 150, emblem: "✊", className: "ogre-emblem" },
+  ogre: { name: "Stoneback Ogre", cost: 185, range: 132, damage: 200, damageType: "physical", cooldown: 3.8, projectileSpeed: 0, color: "#8e8050", splash: 0, knockback: 150, emblem: "✊", className: "ogre-emblem" },
   ghost: { name: "Dread Ghost", cost: 175, range: 145, damage: 0, damageType: "control", cooldown: 3.8, projectileSpeed: 0, color: "#9be3d6", splash: 0, fearDuration: 2, fearCount: 3, emblem: "◉", className: "ghost-emblem" },
   vampire: { name: "Crimson Vampire", cost: 205, range: 142, damage: 72, damageType: "magic", cooldown: 2.85, projectileSpeed: 0, color: "#c83645", splash: 0, emblem: "♠", className: "vampire-emblem" },
-  mine: { name: "Gold Mine", cost: 125, range: 0, damage: 0, damageType: "economy", cooldown: 1, projectileSpeed: 0, color: "#e2b84f", splash: 0, emblem: "⚒", className: "mine-emblem" }
+  mine: { name: "Gold Mine", cost: 150, range: 0, damage: 0, damageType: "economy", cooldown: 1, projectileSpeed: 0, color: "#e2b84f", splash: 0, emblem: "⚒", className: "mine-emblem" }
 };
 
 const enemyTypes = {
   goblin: { name: "Goblin", hp: 48, speed: 78, reward: 8, damage: 1, color: "#66833e", physicalResistance: 0, magicResistance: 0, symbol: "G", scale: .82, barWidth: 27, barOffset: 23 },
-  skeleton: { name: "Skeleton", hp: 88, speed: 59, reward: 11, damage: 1, color: "#d8d0b7", physicalResistance: .25, magicResistance: 0, symbol: "☠", scale: .94, barWidth: 30, barOffset: 27 },
+  skeleton: { name: "Skeleton", hp: 88, speed: 59, reward: 11, damage: 1, color: "#d8d0b7", physicalResistance: 0, magicResistance: .25, symbol: "☠", scale: .94, barWidth: 30, barOffset: 27 },
   orc: { name: "Armored Orc", hp: 178, speed: 43, reward: 17, damage: 2, color: "#536f3c", physicalResistance: .3, magicResistance: .1, symbol: "O", scale: 1.08, barWidth: 35, barOffset: 30 },
   ogre: { name: "Ogre", hp: 340, speed: 31, reward: 31, damage: 3, color: "#7b7045", physicalResistance: .4, magicResistance: .05, symbol: "Ω", scale: 1.34, barWidth: 43, barOffset: 35 },
-  dragon: { name: "Ancient Dragon", hp: 4320, speed: 34, reward: 130, damage: 8, color: "#9b382d", physicalResistance: .22, magicResistance: .35, symbol: "D", scale: 1.65, barWidth: 58, barOffset: 43, modelScale: 1.25, boss: true },
+  dragon: { name: "Ancient Dragon", hp: 2160, speed: 34, reward: 130, damage: 8, color: "#9b382d", physicalResistance: .22, magicResistance: .35, symbol: "D", scale: 1.65, barWidth: 58, barOffset: 43, modelScale: 1.25, boss: true },
   horseman: { name: "Headless Horseman", hp: 6480, speed: 38, reward: 220, damage: 12, color: "#6a8d83", physicalResistance: .32, magicResistance: .48, symbol: "H", scale: 2.05, barWidth: 72, barOffset: 55, modelScale: 1.35, boss: true },
   cyclops: { name: "Titan Cyclops", hp: 9720, speed: 25, reward: 360, damage: 16, color: "#806f4d", physicalResistance: .48, magicResistance: .18, symbol: "C", scale: 2.35, barWidth: 82, barOffset: 62, modelScale: 1.5, boss: true },
-  merchant: { name: "Boss Merchant", hp: 520, speed: 105, reward: 160, damage: 1, color: "#b7803d", physicalResistance: .1, magicResistance: .1, symbol: "$", scale: 1.12, barWidth: 40, barOffset: 34, modelScale: 1.08, ignoresBarracks: true },
+  merchant: { name: "Boss Merchant", hp: 624, speed: 52.5, reward: 160, damage: 1, color: "#b7803d", physicalResistance: .1, magicResistance: .1, symbol: "$", scale: 1.12, barWidth: 40, barOffset: 34, modelScale: 1.08, ignoresBarracks: true },
   pirate: { name: "Pirate Cutthroat", hp: 105, speed: 62, reward: 13, damage: 1, color: "#8f3530", physicalResistance: .08, magicResistance: 0, symbol: "P", scale: .96, barWidth: 31, barOffset: 27 },
   werewolf: { name: "Moonfang Werewolf", hp: 155, speed: 72, reward: 18, damage: 2, color: "#635b55", physicalResistance: .12, magicResistance: .08, symbol: "W", scale: 1.05, barWidth: 34, barOffset: 30 },
   viking: { name: "Frost Viking", hp: 225, speed: 46, reward: 25, damage: 2, color: "#527184", physicalResistance: .3, magicResistance: .05, symbol: "V", scale: 1.08, barWidth: 36, barOffset: 31 },

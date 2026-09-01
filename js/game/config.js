@@ -9,16 +9,21 @@ const H = canvas.height;
 const CELL = 80;
 const COLS = 12;
 const ROWS = 8;
-const GOLD_INCOME_RATE = .25;
+const GOLD_INCOME_RATE = .3;
+const REPEAT_PLACEMENT_MULTIPLIER = 1.3;
 const TREE_REMOVAL_COST = 400;
 const MAX_RELICS_PER_TOWER = 3;
+const MAX_MINE_WORKERS = 5;
+const MINE_GOLD_PER_WORKER_PER_SECOND = 1;
+const TREASURE_COVE_COST = 420;
+const TREASURE_COVE_RELIC_INTERVAL = 24;
 
 const merchantRelics = {
-  sword: { name: "Mercenary Sword", icon: "⚔", cost: 160, description: "+25% damage", allowed: tower => tower.type !== "mine" && tower.type !== "ghost" },
-  amulet: { name: "Sun Amulet", icon: "◈", cost: 140, description: "+20% range", allowed: tower => tower.type !== "mine" },
-  boots: { name: "Swift Boots", icon: "➟", cost: 150, description: "18% faster attacks", allowed: tower => tower.type !== "mine" },
-  shield: { name: "Guardian Shield", icon: "⬟", cost: 180, description: "+30% Barracks troop health", allowed: tower => tower.type === "barracks" },
-  ring: { name: "Fortune Ring", icon: "●", cost: 175, description: "+50% Gold Mine production", allowed: tower => tower.type === "mine" }
+  sword: { name: "Mercenary Sword", icon: "⚔", color: "#df5f48", cost: 160, description: "+25% damage", allowed: tower => tower.type !== "mine" && tower.type !== "ghost" },
+  amulet: { name: "Sun Amulet", icon: "◈", color: "#f1c65d", cost: 140, description: "+20% range", allowed: tower => tower.type !== "mine" },
+  boots: { name: "Swift Boots", icon: "➟", color: "#7fcf79", cost: 150, description: "18% faster attacks", allowed: tower => tower.type !== "mine" },
+  shield: { name: "Guardian Shield", icon: "⬟", color: "#9fc6d4", cost: 180, description: "+30% Barracks troop health", allowed: tower => tower.type === "barracks" },
+  ring: { name: "Fortune Ring", icon: "●", color: "#c99cf2", cost: 175, description: "+50% Mine income or 20% faster Cove excavation", allowed: tower => tower.type === "mine" }
 };
 
 const TREE_LAYOUT = [

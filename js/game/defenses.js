@@ -2,12 +2,19 @@
 
 // Defense placement, validation, derived stats, upgrades, and Gold Mine workers.
 
+function placementCost(type) {
+  const placements = state.placementCounts[type] || 0;
+  return Math.round(towerTypes[type].cost * Math.pow(REPEAT_PLACEMENT_MULTIPLIER, placements));
+}
+
 function placeTower(col, row) {
   if (!state.selectedBuild || !canPlace(col, row)) return;
-  const type = towerTypes[state.selectedBuild];
-  if (state.gold < type.cost) return;
+  const towerType = state.selectedBuild;
+  const type = towerTypes[towerType];
+  const cost = placementCost(towerType);
+  if (state.gold < cost) return;
   const tower = {
-    type: state.selectedBuild,
+    type: towerType,
     col, row,
     x: col * CELL + CELL / 2,
     y: row * CELL + CELL / 2,
@@ -18,8 +25,10 @@ function placeTower(col, row) {
     specialization: null,
     workers: 0,
     productionTimer: 0,
+    excavationTimer: 0,
     summonTimer: 4,
     goldMined: 0,
+    relicsExcavated: 0,
     throwSwing: 0,
     fearPulse: 0,
     enemiesFeared: 0,
@@ -33,9 +42,10 @@ function placeTower(col, row) {
     bloodParticleTimer: 0,
     minionsRaised: 0,
     items: [],
-    spent: type.cost
+    spent: cost
   };
-  state.gold -= type.cost;
+  state.gold -= cost;
+  state.placementCounts[towerType] = (state.placementCounts[towerType] || 0) + 1;
   state.towers.push(tower);
   if (tower.type === "barracks") ensureBarracksKnights(tower);
   state.selectedBuild = null;
@@ -113,8 +123,8 @@ function upgradeTower() {
 }
 
 function workerCost(mine) {
-  if (!mine || mine.type !== "mine" || mine.workers >= 3) return null;
-  return [45, 65, 85][mine.workers];
+  if (!mine || mine.type !== "mine" || mine.specialization === "treasureCove" || mine.workers >= MAX_MINE_WORKERS) return null;
+  return [45, 65, 85, 110, 140][mine.workers];
 }
 
 function hireWorker() {
@@ -126,7 +136,28 @@ function hireWorker() {
   mine.spent += cost;
   mine.workers++;
   burst(mine.x, mine.y, "#e7bd52", 14);
-  showAnnouncement(`Worker hired — ${mine.workers} of 3 assigned`);
+  showAnnouncement(`Worker hired — ${mine.workers} of ${MAX_MINE_WORKERS} assigned`);
+  showInspectPanel(mine);
+  updateUI();
+}
+
+function treasureCoveExcavationInterval(mine) {
+  return TREASURE_COVE_RELIC_INTERVAL * (mine.items?.includes("ring") ? .8 : 1);
+}
+
+function upgradeTreasureCove() {
+  const mine = state.selectedTower;
+  if (!mine || mine.type !== "mine" || mine.specialization === "treasureCove" || mine.workers < MAX_MINE_WORKERS || state.gold < TREASURE_COVE_COST) return;
+  state.gold -= TREASURE_COVE_COST;
+  mine.spent += TREASURE_COVE_COST;
+  mine.specialization = "treasureCove";
+  mine.level = 2;
+  mine.productionTimer = 0;
+  mine.excavationTimer = 0;
+  burst(mine.x, mine.y, "#8cd6d1", 15);
+  burst(mine.x, mine.y, "#c18bea", 15);
+  burst(mine.x, mine.y, "#efbc55", 15);
+  showAnnouncement("Treasure Cove established — the workers now excavate relics!");
   showInspectPanel(mine);
   updateUI();
 }

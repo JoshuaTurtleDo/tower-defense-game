@@ -108,6 +108,7 @@ document.getElementById("graveUpgradeButton").addEventListener("click", chooseGr
 document.getElementById("slingUpgradeButton").addEventListener("click", chooseSlingshooterPath);
 document.getElementById("nightspawnUpgradeButton").addEventListener("click", chooseNightspawnPath);
 document.getElementById("hireWorkerButton").addEventListener("click", hireWorker);
+document.getElementById("treasureCoveUpgradeButton").addEventListener("click", upgradeTreasureCove);
 document.getElementById("sellButton").addEventListener("click", sellTower);
 document.getElementById("closeMerchantStoreButton").addEventListener("click", closeMerchantStore);
 document.getElementById("digUpTreeButton").addEventListener("click", digUpTree);
@@ -115,6 +116,8 @@ document.getElementById("backButton").addEventListener("click", () => { state.se
 document.getElementById("treeBackButton").addEventListener("click", () => { state.selectedTreeId = null; showBuildPanel(); updateUI(); });
 document.getElementById("restartButton").addEventListener("click", () => resetGame(activeGameMode));
 document.getElementById("cameraResetButton").addEventListener("click", () => graphics3D.resetCamera());
+document.getElementById("monsterIndexButton").addEventListener("click", openMonsterIndex);
+document.getElementById("closeMonsterIndexButton").addEventListener("click", closeMonsterIndex);
 document.getElementById("menuButton").addEventListener("click", openMainMenu);
 document.getElementById("continueGameButton").addEventListener("click", resumeGame);
 document.getElementById("playMenuButton").addEventListener("click", () => showMenuView("play"));
@@ -136,6 +139,10 @@ document.getElementById("speedButton").addEventListener("click", () => {
 });
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") {
+    if (state.monsterIndexOpen) {
+      closeMonsterIndex();
+      return;
+    }
     state.selectedBuild = null;
     state.selectedTower = null;
     state.selectedTreeId = null;

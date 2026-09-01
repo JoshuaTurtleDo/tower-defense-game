@@ -37,6 +37,8 @@ Event mini-bosses have substantially more health, larger models, stronger attack
 
 The pause, game-speed, and reset-camera controls are in the lower-left of the battlefield. Hold the right mouse button and drag over the battlefield to orbit around it, and use the scroll wheel to zoom in or out; the platform remains the fixed center of the view. The reset button returns both the angle and zoom to the centered isometric overview. You can also press `Esc` to cancel tower placement and the space bar to begin the next wave.
 
+The **Monster Index** button sits in the lower-right of the battlefield. Every enemy is permanently recorded the first time it spawns, and the index shows its name, threat class, base health, movement speed, keep damage, physical resistance, and magic resistance. Discoveries remain unlocked across new battles and app restarts. Opening the index pauses the battle until it is closed.
+
 ## Desktop development
 
 - `npm start` launches the editable source as an Electron desktop game.
@@ -49,20 +51,20 @@ The generated `out` directory is intentionally excluded from Git. Make changes t
 ## Enemy threat levels
 
 - **Goblins:** fragile and quick, with no physical or magic resistance.
-- **Skeletons:** resist 25% of physical damage but have no magic resistance.
+- **Skeletons:** resist 25% of magic damage but have no physical resistance.
 - **Armored Orcs:** resist 30% of physical damage and 10% of magic damage.
 - **Ogres:** heavily resist physical damage by 40%, but resist only 5% of magic damage.
-- **Ancient Dragon:** the 4,320-health wave-10 boss resists 22% of physical damage and 35% of magic damage. When blocked, it breathes fire every 2.6 seconds, dealing area damage to every Barracks unit within the blast.
-- **Headless Horseman:** the oversized spectral wave-20 boss has 6,480 base health, 50% more than the Dragon, and rides a neutral white-and-gray voxel skeletal warhorse modeled after a classic block-game skeleton horse, with a hollow rectangular rib cage, square vertebrae and legs, four compact black cube hooves, and a proportionally smaller lowered cuboid skull. Two recessed black sockets form empty eye holes; the mount has no eyes, flame, or aura effects. The rider carries a long halberd with a spear point, broad axe blade, and rear hook, sweeping it through a full attack arc to deal 190 damage to Barracks troops.
+- **Ancient Dragon:** the 2,160-health wave-10 boss resists 22% of physical damage and 35% of magic damage. When blocked, it breathes fire every 2.6 seconds, dealing area damage to every Barracks unit within the blast.
+- **Headless Horseman:** the oversized spectral wave-20 boss has 6,480 base health and rides a neutral white-and-gray voxel skeletal warhorse modeled after a classic block-game skeleton horse, with a hollow rectangular rib cage, square vertebrae and legs, four compact black cube hooves, and a proportionally smaller lowered cuboid skull. Two recessed black sockets form empty eye holes; the mount has no eyes, flame, or aura effects. The rider carries a long halberd with a spear point, broad axe blade, and rear hook, sweeping it through a full attack arc to deal 190 damage to Barracks troops.
 - **Titan Cyclops:** the enormous wave-30 boss has 9,720 base health, 50% more than the Horseman, and carries a massive tree-trunk club.
 
 Every boss causes immediate defeat if it reaches the castle and is too massive for the Stoneback Ogre to throw backward.
 
-Every main boss wave—10, 20, and 30—also brings one Boss Merchant onto the road immediately beside the boss. This fast, loot-laden enemy refuses to fight or stop for Barracks troops, running straight past their blockade toward Stonewatch Keep. Other defenses can still target him, and defeating him grants a valuable reward.
+Every main boss wave—10, 20, and 30—also brings one Boss Merchant onto the road immediately beside the boss. This loot-laden enemy has 624 base health and 52.5 movement speed, refuses to fight or stop for Barracks troops, and walks straight past their blockade toward Stonewatch Keep. Other defenses can still target him, and defeating him grants a valuable reward.
 
-Killing a Boss Merchant pauses the assault and opens his relic store; letting him reach the castle never opens it. Each visit stocks one Mercenary Sword (+25% damage), Sun Amulet (+20% range), Swift Boots (18% faster attacks), Guardian Shield (+30% Barracks troop health), and Fortune Ring (+50% Gold Mine production). Purchased relics enter the Relic Satchel. Select a relic there and click a compatible defense to equip it. Each defense has three slots and may carry only one copy of each relic; click an equipped relic to return it to the satchel. Selling a defense also returns its relics.
+Killing a Boss Merchant pauses the assault and opens his relic store; letting him reach the castle never opens it. Each visit stocks one Mercenary Sword (+25% damage), Sun Amulet (+20% range), Swift Boots (18% faster attacks), Guardian Shield (+30% Barracks troop health), and Fortune Ring (+50% Gold Mine production or 20% faster Treasure Cove excavation). Purchased relics enter the Relic Satchel. Select a relic there and click a compatible defense to equip it. Each defense has three slots and may carry only one copy of each relic; click an equipped relic to return it to the satchel. Selling a defense also returns its relics.
 
-Every main boss wave—10, 20, and 30—also brings one Boss Merchant onto the road immediately beside the boss. This fast, loot-laden enemy refuses to fight or stop for Barracks troops, running straight past their blockade toward Stonewatch Keep. Other defenses can still target him, and defeating him grants a valuable reward.
+Every main boss wave—10, 20, and 30—also brings one Boss Merchant onto the road immediately beside the boss. This loot-laden enemy has 624 base health and 52.5 movement speed, refuses to fight or stop for Barracks troops, and walks straight past their blockade toward Stonewatch Keep. Other defenses can still target him, and defeating him grants a valuable reward.
 
 Enemy attacks against Barracks troops are intentionally dangerous: ordinary and themed enemies deal 50% more clash damage than the original balance. Ancient Dragon fire deals exactly 150 area damage, while the later Headless Horseman and Titan Cyclops deal 190 and 240 damage per hit respectively. Keep-breach damage remains in whole-heart values.
 
@@ -74,16 +76,19 @@ Defeated enemies break into creature-colored block debris. The pieces tumble ont
 - **Royal Wizard:** magic attacks damage groups of enemies and are especially effective against physically resistant troops.
 - **Royal Ballista:** expensive, slow, very long-ranged heavy damage. Its final upgrade replaces ordinary bolts with brightly burning Flaming Greatbolts and a fiery impact burst.
 - **Royal Barracks:** deploys two small knights to the nearest road. Knights block enemies, fight in melee, take damage, and respawn after eight seconds. Level 2 adds a third knight; the final upgrade permanently chooses the Gravestone or Gladiator path.
-- **Stoneback Ogre:** a single-target living tower that grabs one non-boss enemy, pulls it into its hands, and throws it backward along the road. Upgrades improve its impact damage, grab range, recovery time, and throw distance. Bosses are too massive to displace but still take impact damage.
+- **Stoneback Ogre:** a single-target living tower with 200 base physical damage that grabs one non-boss enemy, pulls it into its hands, and throws it backward along the road. Upgrades improve its impact damage, grab range, recovery time, and throw distance. Bosses are too massive to displace but still take impact damage.
 - **Dread Ghost:** a spectral living defense that fears the three nearest enemies in range. Feared enemies turn around, disengage from barracks knights, and retrace the road for exactly two seconds. Afterward, each affected enemy resists further fear for four seconds, even from other Ghosts. Its 3.8-second base recovery matches the Stoneback Ogre, while upgrades improve its range and recovery time.
 - **Crimson Vampire:** a focused single-target magical attacker whose damage is set to 60% of its previous balance. Each strike drains blood from the foremost enemy in range, shown as a stream of glowing crimson cubes flowing from the victim into the Vampire. Its final upgrade permanently chooses the Bloodstorm or Nightspawn path.
-- **Gold Mine:** a non-combat economy building. Hire up to three visible workers; production is processed every 3 seconds while a wave is active.
+- **Gold Mine:** a non-combat economy building. Hire up to five visible workers; each worker produces 1 gold every active-wave second, for a maximum of 5 gold per second. Once fully staffed, it can be permanently converted into a Treasure Cove.
+- **Treasure Cove:** replaces the mine's gold production with relic excavation. Its five workers uncover one random relic every 24 active-wave seconds and place it directly into the Relic Satchel. A Fortune Ring shortens that interval to 19.2 seconds.
 
-Gold Mines cost 125 gold. Their workers cost 45, 65, and 85 gold, making each additional worker a larger investment. Mines and hired workers are included when calculating the building's resale value.
+Gold Mines cost 150 gold. Their five workers cost 45, 65, 85, 110, and 140 gold, making each additional worker a larger investment. Converting a fully staffed mine into a Treasure Cove costs another 420 gold. The mine, every hired worker, and the Cove conversion are included when calculating the building's resale value.
+
+Repeated placements have escalating prices. The first defense of each type uses its listed base price, and every additional defense of that same type costs 30% more than the previous one. Each defense type tracks this increase separately, and selling a defense does not reset its placement history.
 
 Every visible pine tree occupies and blocks its underlying grass tile. Left-click a tree to inspect it, then spend 400 gold to dig it up and permanently open that tile for defense placement during the current battle. Starting a new game restores the forest.
 
-Enemy rewards and Gold Mine production are reduced to 25% of their original values. Fractional quarters are carried forward internally and paid as whole gold later, so the displayed balance never contains decimals. Wave-clear bonuses remain at their original full value. Starting gold, building costs, upgrade costs, worker prices, and tower sale refunds are unchanged.
+Enemy defeat rewards pay 30% of their listed values, which is 20% more gold than the previous 25% rate. Fractional gold is carried forward internally and paid as whole gold later, so the displayed balance never contains decimals. Gold Mines use their separate fixed 1-gold-per-worker-per-second rate, and wave-clear bonuses remain at their original full value.
 
 At level 2, each Royal Wizard gains a permanent final-upgrade choice:
 

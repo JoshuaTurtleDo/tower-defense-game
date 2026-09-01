@@ -487,8 +487,9 @@ class ThreeGraphics {
     this.removeMissing(this.towerMeshes, towers);
     for (const tower of towers) {
       let group = this.towerMeshes.get(tower);
-      const visualSpecialization = tower.type === "barracks" || tower.type === "archer" ? tower.specialization || null : null;
-      if (group && (tower.type === "barracks" || tower.type === "archer") && group.userData.visualSpecialization !== visualSpecialization) {
+      const tracksVisualSpecialization = tower.type === "barracks" || tower.type === "archer" || tower.type === "mine";
+      const visualSpecialization = tracksVisualSpecialization ? tower.specialization || null : null;
+      if (group && tracksVisualSpecialization && group.userData.visualSpecialization !== visualSpecialization) {
         this.scene.remove(group);
         this.towerMeshes.delete(tower);
         group = null;
@@ -522,6 +523,13 @@ class ThreeGraphics {
         });
       }
       if (group.userData.goldVein) group.userData.goldVein.rotation.y += .02;
+      if (group.userData.coveMinerals) {
+        const mineralTime = performance.now() * .001;
+        group.userData.coveMinerals.forEach((mineral, index) => {
+          mineral.rotation.y += .008 + index * .001;
+          mineral.position.y = mineral.userData.baseY + Math.sin(mineralTime * 2 + index * 1.7) * .012;
+        });
+      }
       if (group.userData.graveWisps) {
         const now = performance.now() * .001;
         group.userData.graveWisps.rotation.y = now * .8;
@@ -723,6 +731,7 @@ class ThreeGraphics {
     else if (tower.type === "ogre") this.buildPlayerOgre(group);
     else if (tower.type === "ghost") this.buildGhost(group);
     else if (tower.type === "vampire") this.buildVampire(group);
+    else if (tower.type === "mine" && tower.specialization === "treasureCove") this.buildTreasureCove(group);
     else this.buildGoldMine(group);
     group.userData.levelPips = [];
     if (tower.type !== "mine") {
@@ -733,7 +742,7 @@ class ThreeGraphics {
       }
     }
     group.scale.setScalar(this.towerModelScale);
-    if (tower.type === "barracks" || tower.type === "archer") group.userData.visualSpecialization = tower.specialization || null;
+    if (tower.type === "barracks" || tower.type === "archer" || tower.type === "mine") group.userData.visualSpecialization = tower.specialization || null;
     return group;
   }
 
@@ -1398,7 +1407,63 @@ class ThreeGraphics {
     group.userData.workers = [
       this.buildMiningWorker(group, -.38, .48, .18, 0),
       this.buildMiningWorker(group, .4, .46, -.18, 2.1),
-      this.buildMiningWorker(group, .34, -.32, 2.5, 4.2)
+      this.buildMiningWorker(group, .34, -.32, 2.5, 4.2),
+      this.buildMiningWorker(group, -.4, -.3, -2.2, 5.4),
+      this.buildMiningWorker(group, .02, -.52, Math.PI, 6.5)
+    ];
+  }
+
+  buildTreasureCove(group) {
+    const caveRock = new THREE.MeshStandardMaterial({ color: 0x4e4b4a, roughness: .96, flatShading: true });
+    const caveRockDark = new THREE.MeshStandardMaterial({ color: 0x302f31, roughness: 1, flatShading: true });
+    const caveMouth = new THREE.MeshStandardMaterial({ color: 0x080a0c, roughness: 1, flatShading: true, side: THREE.DoubleSide });
+    const mineralMaterials = [
+      new THREE.MeshStandardMaterial({ color: 0x65d9d0, emissive: 0x174f52, emissiveIntensity: .85, roughness: .28, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0xbd79e0, emissive: 0x48205f, emissiveIntensity: .82, roughness: .28, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0xefb64f, emissive: 0x6c3e0d, emissiveIntensity: .78, roughness: .3, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0xe96a72, emissive: 0x651c2c, emissiveIntensity: .75, roughness: .3, flatShading: true })
+    ];
+
+    const mound = this.mesh(new THREE.DodecahedronGeometry(.56, 1), caveRockDark, 0, .39, .02, group);
+    mound.scale.set(1.16, .88, .92);
+    mound.receiveShadow = true;
+    const mouth = this.mesh(new THREE.CircleGeometry(.3, 14), caveMouth, 0, .36, .53, group);
+    mouth.scale.set(.92, 1.16, 1);
+
+    const archStones = [
+      [-.34, .33, .5, .18], [-.29, .57, .49, .17], [-.14, .73, .47, .16],
+      [.08, .78, .46, .16], [.27, .66, .48, .17], [.35, .43, .5, .18]
+    ];
+    for (const [x, y, z, size] of archStones) {
+      const rock = this.mesh(new THREE.DodecahedronGeometry(size, 0), caveRock, x, y, z, group);
+      rock.scale.set(1.05, .82, .8);
+      rock.rotation.set(x * .7, y * .35, z * .3);
+    }
+
+    this.mesh(new THREE.BoxGeometry(.7, .075, .55), this.mat.lightWood, 0, .08, .53, group);
+    for (const x of [-.25, 0, .25]) this.mesh(new THREE.BoxGeometry(.055, .035, .62), this.mat.iron, x, .13, .53, group);
+
+    const mineralSpecs = [
+      [-.48, .42, .24, .1, .34, -.35, 0], [-.35, .58, -.12, .075, .26, .22, 1],
+      [.47, .46, .08, .095, .32, .3, 2], [.34, .66, -.2, .065, .23, -.28, 3],
+      [-.25, .16, .58, .07, .25, -.18, 1], [.28, .17, .6, .07, .24, .2, 0]
+    ];
+    const minerals = mineralSpecs.map(([x, y, z, radius, height, lean, materialIndex], index) => {
+      const crystal = this.mesh(new THREE.ConeGeometry(radius, height, 5), mineralMaterials[materialIndex], x, y, z, group);
+      crystal.rotation.z = lean;
+      crystal.rotation.y = index * .9;
+      crystal.userData.baseY = y;
+      return crystal;
+    });
+    group.userData.coveMinerals = minerals;
+    group.userData.treasureCove = true;
+
+    group.userData.workers = [
+      this.buildMiningWorker(group, -.48, .44, .32, 0),
+      this.buildMiningWorker(group, .49, .42, -.3, 1.6),
+      this.buildMiningWorker(group, -.43, -.28, 2.3, 3.1),
+      this.buildMiningWorker(group, .43, -.3, -2.3, 4.7),
+      this.buildMiningWorker(group, 0, -.51, Math.PI, 6.2)
     ];
   }
 

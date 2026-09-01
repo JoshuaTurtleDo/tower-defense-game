@@ -39,6 +39,7 @@ function freshState() {
     projectiles: [],
     particles: [],
     trees: TREE_LAYOUT.map(tree => ({ ...tree })),
+    placementCounts: {},
     selectedBuild: null,
     selectedTower: null,
     selectedTreeId: null,
@@ -46,6 +47,7 @@ function freshState() {
     selectedRelic: null,
     merchantStoreStock: [],
     storeOpen: false,
+    monsterIndexOpen: false,
     waveActive: false,
     activeEvent: null,
     spawnQueue: [],
@@ -64,6 +66,7 @@ function resetGame(mode = activeGameMode) {
   state = freshState();
   document.getElementById("modal").classList.add("hidden");
   document.getElementById("merchantStoreModal").classList.add("hidden");
+  document.getElementById("monsterIndexModal").classList.add("hidden");
   document.getElementById("mainMenu").classList.add("hidden");
   document.getElementById("pauseOverlay").classList.add("hidden");
   document.getElementById("pauseButton").textContent = "Ⅱ";
@@ -77,6 +80,14 @@ function awardGold(baseAmount) {
   const scaledAmount = baseAmount * GOLD_INCOME_RATE + state.goldIncomeRemainder;
   const payout = Math.floor(scaledAmount + 1e-9);
   state.goldIncomeRemainder = scaledAmount - payout;
+  state.gold += payout;
+  return payout;
+}
+
+function awardUnscaledGold(amount) {
+  const total = amount + state.goldIncomeRemainder;
+  const payout = Math.floor(total + 1e-9);
+  state.goldIncomeRemainder = total - payout;
   state.gold += payout;
   return payout;
 }
@@ -99,6 +110,7 @@ function startWave() {
 
 function spawnEnemy(type) {
   const base = enemyTypes[type];
+  discoverMonster(type);
   const scale = 1 + Math.max(0, state.wave - 1) * .11;
   state.enemies.push({
     type,

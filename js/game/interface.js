@@ -31,21 +31,32 @@ function showInspectPanel(tower) {
   const specialRow = document.getElementById("specialStatRow");
   const damageTypeRow = document.getElementById("damageTypeStatRow");
   const mineControls = document.getElementById("mineControls");
+  const treasureCoveButton = document.getElementById("treasureCoveUpgradeButton");
   const isMine = tower.type === "mine";
 
   upgradeButton.classList.toggle("hidden", isMine);
   mineControls.classList.toggle("hidden", !isMine);
 
   if (isMine) {
-    document.getElementById("selectedLevel").textContent = "Economic building";
-    document.getElementById("damageLabel").textContent = "Production";
+    const isTreasureCove = tower.specialization === "treasureCove";
+    const excavationInterval = isTreasureCove ? treasureCoveExcavationInterval(tower) : 0;
+    const excavationIntervalLabel = Number.isInteger(excavationInterval) ? excavationInterval : excavationInterval.toFixed(1);
+    const mineIncome = tower.workers * MINE_GOLD_PER_WORKER_PER_SECOND * (tower.items?.includes("ring") ? 1.5 : 1);
+    const mineIncomeLabel = Number.isInteger(mineIncome) ? mineIncome : mineIncome.toFixed(2).replace(/0+$/, "");
+    if (isTreasureCove) {
+      emblem.textContent = "◆";
+      emblem.className = "tower-emblem treasure-cove-emblem";
+      document.getElementById("selectedName").textContent = "Treasure Cove";
+    }
+    document.getElementById("selectedLevel").textContent = isTreasureCove ? "Relic excavation" : "Economic building";
+    document.getElementById("damageLabel").textContent = isTreasureCove ? "Excavation" : "Production";
     document.getElementById("rangeLabel").textContent = "Workers";
     document.getElementById("speedLabel").textContent = "Operation";
-    document.getElementById("killsLabel").textContent = "Gold mined";
-    document.getElementById("damageStat").textContent = tower.workers ? `${tower.workers * 2} gold / 3s` : "No income";
-    document.getElementById("rangeStat").textContent = `${tower.workers} / 3`;
+    document.getElementById("killsLabel").textContent = isTreasureCove ? "Relics unearthed" : "Gold mined";
+    document.getElementById("damageStat").textContent = isTreasureCove ? `1 relic / ${excavationIntervalLabel}s` : tower.workers ? `${mineIncomeLabel} gold / second` : "No income";
+    document.getElementById("rangeStat").textContent = `${tower.workers} / ${MAX_MINE_WORKERS}`;
     document.getElementById("speedStat").textContent = "During waves";
-    document.getElementById("killsStat").textContent = tower.goldMined;
+    document.getElementById("killsStat").textContent = isTreasureCove ? tower.relicsExcavated : tower.goldMined;
     branchHint.classList.add("hidden");
     frostButton.classList.add("hidden");
     graveButton.classList.add("hidden");
@@ -56,8 +67,17 @@ function showInspectPanel(tower) {
     const cost = workerCost(tower);
     const hireButton = document.getElementById("hireWorkerButton");
     hireButton.firstElementChild.textContent = cost === null ? "Fully staffed" : "Hire worker";
-    document.getElementById("workerCost").textContent = cost === null ? "3 / 3" : `${cost} gold`;
+    document.getElementById("workerCost").textContent = cost === null ? `${MAX_MINE_WORKERS} / ${MAX_MINE_WORKERS}` : `${cost} gold`;
     hireButton.disabled = cost === null || state.gold < cost;
+    hireButton.classList.toggle("hidden", isTreasureCove || tower.workers >= MAX_MINE_WORKERS);
+    treasureCoveButton.classList.toggle("hidden", isTreasureCove || tower.workers < MAX_MINE_WORKERS);
+    treasureCoveButton.disabled = isTreasureCove || state.gold < TREASURE_COVE_COST;
+    document.getElementById("treasureCoveUpgradeCost").textContent = `${TREASURE_COVE_COST} gold`;
+    document.getElementById("mineControlCopy").textContent = isTreasureCove
+      ? "All five workers now search the cave for relics while an assault is underway. Gold production has stopped."
+      : tower.workers >= MAX_MINE_WORKERS
+        ? "The mine is fully staffed. Convert it into a Treasure Cove to excavate relics instead of gold."
+        : "Each worker produces 1 gold every second while an assault is underway.";
   } else {
     const stats = towerStats(tower);
     const isBarracks = tower.type === "barracks";
@@ -198,7 +218,9 @@ function updateUI() {
     : `Defend the keep • Survive all ${CAMPAIGN_WAVE_COUNT} waves`;
   document.querySelectorAll(".tower-card").forEach(card => {
     const type = card.dataset.tower;
-    card.disabled = state.gold < towerTypes[type].cost;
+    const cost = placementCost(type);
+    card.querySelector(".tower-cost").textContent = cost;
+    card.disabled = state.gold < cost;
     card.classList.toggle("selected", state.selectedBuild === type);
   });
   const button = document.getElementById("startWaveButton");

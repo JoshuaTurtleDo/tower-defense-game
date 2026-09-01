@@ -69,7 +69,20 @@ function renderInventory() {
   }
   document.getElementById("relicInventoryHint").textContent = state.selectedRelic
     ? `${merchantRelics[state.selectedRelic].name} selected • click a defense`
-    : state.inventory.length ? "Select a relic, then click a defense to equip it." : "Defeat a Boss Merchant to unlock relics.";
+    : state.inventory.length ? "Select a relic, then click a defense to equip it." : "Defeat a Boss Merchant or establish a Treasure Cove to uncover relics.";
+}
+
+function excavateTreasureCoveRelic(cove) {
+  const relicTypes = Object.keys(merchantRelics);
+  const type = relicTypes[Math.floor(Math.random() * relicTypes.length)];
+  const relic = merchantRelics[type];
+  state.inventory.push(type);
+  cove.relicsExcavated++;
+  burst(cove.x, cove.y, relic.color, 20);
+  showAnnouncement(`Treasure Cove uncovered a ${relic.name}!`);
+  renderInventory();
+  updateUI();
+  return type;
 }
 
 function refreshBarracksRelicHealth(tower) {

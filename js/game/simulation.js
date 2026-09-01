@@ -3,7 +3,7 @@
 // The main per-frame world simulation for waves, enemies, defenses, and projectiles.
 
 function update(dt) {
-  if (state.paused || state.ended || state.storeOpen || state.menuOpen) return;
+  if (state.paused || state.ended || state.storeOpen || state.monsterIndexOpen || state.menuOpen) return;
   state.elapsed += dt;
 
   if (state.waveActive && state.spawnQueue.length) {
@@ -101,14 +101,23 @@ function update(dt) {
     tower.bloodDrainTimer = Math.max(0, (tower.bloodDrainTimer || 0) - dt);
     if (tower.type === "mine") {
       if (state.waveActive && tower.workers > 0) {
-        tower.productionTimer += dt;
-        while (tower.productionTimer >= 3) {
-          tower.productionTimer -= 3;
-          const relicMultiplier = tower.items?.includes("ring") ? 1.5 : 1;
-          const earnings = awardGold(tower.workers * 2 * relicMultiplier);
-          tower.goldMined += earnings;
-          burst(tower.x, tower.y, "#e7bd52", 5 + tower.workers * 2);
-          updateUI();
+        if (tower.specialization === "treasureCove") {
+          tower.excavationTimer += dt;
+          const excavationInterval = treasureCoveExcavationInterval(tower);
+          while (tower.excavationTimer >= excavationInterval) {
+            tower.excavationTimer -= excavationInterval;
+            excavateTreasureCoveRelic(tower);
+          }
+        } else {
+          tower.productionTimer += dt;
+          while (tower.productionTimer >= 1) {
+            tower.productionTimer -= 1;
+            const relicMultiplier = tower.items?.includes("ring") ? 1.5 : 1;
+            const earnings = awardUnscaledGold(tower.workers * MINE_GOLD_PER_WORKER_PER_SECOND * relicMultiplier);
+            tower.goldMined += earnings;
+            burst(tower.x, tower.y, "#e7bd52", 5 + tower.workers * 2);
+            updateUI();
+          }
         }
       }
       continue;
