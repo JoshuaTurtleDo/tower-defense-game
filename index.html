@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#17140f" />
     <title>Stonewatch Keep</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260831-main-menu-endless" />
   </head>
   <body>
     <main class="game-shell">
       <header class="topbar">
         <div class="brand-block">
-          <div class="crest" aria-hidden="true">♜</div>
+          <img class="crest" src="assets/stonewatch-keep.png" alt="" aria-hidden="true" />
           <div>
             <p class="eyebrow">A MEDIEVAL TOWER DEFENSE</p>
             <h1>Stonewatch Keep</h1>
@@ -21,7 +21,7 @@
         <div class="resource-bar" aria-label="Game resources">
           <div class="resource"><span class="resource-icon gold">●</span><span><small>Gold</small><strong id="goldValue">250</strong></span></div>
           <div class="resource"><span class="resource-icon lives">♥</span><span><small>Keep</small><strong id="livesValue">20</strong></span></div>
-          <div class="resource"><span class="resource-icon wave">⚑</span><span><small>Wave</small><strong id="waveValue">0 / 10</strong></span></div>
+          <div class="resource"><span class="resource-icon wave">⚑</span><span><small>Wave</small><strong id="waveValue">0 / 30</strong></span></div>
         </div>
       </header>
 
@@ -31,6 +31,7 @@
           <div id="announcement" class="announcement hidden" role="status"></div>
           <div id="pauseOverlay" class="pause-overlay hidden"><strong>Battle Paused</strong><span>Press the pause button to continue</span></div>
           <div class="canvas-controls">
+            <button id="menuButton" class="icon-button" title="Open main menu" aria-label="Open main menu">☰</button>
             <button id="pauseButton" class="icon-button" title="Pause game" aria-label="Pause game">Ⅱ</button>
             <button id="speedButton" class="speed-button" title="Change game speed" aria-label="Change game speed">1×</button>
             <button id="cameraResetButton" class="icon-button" title="Reset camera view" aria-label="Reset camera view">↻</button>
@@ -46,28 +47,38 @@
             <div class="tower-list" id="towerList">
               <button class="tower-card" data-tower="archer">
                 <span class="tower-emblem archer-emblem">➶</span>
-                <span class="tower-info"><strong>Archer Tower</strong><small>Fast, reliable arrows</small></span>
+                <span class="tower-info"><strong>Royal Archers</strong><small>Physical • three-shot volley</small></span>
                 <span class="tower-cost">70</span>
               </button>
               <button class="tower-card" data-tower="mage">
                 <span class="tower-emblem mage-emblem">✦</span>
-                <span class="tower-info"><strong>Mage Spire</strong><small>Slower splash damage</small></span>
+                <span class="tower-info"><strong>Royal Wizard</strong><small>Magic • area damage</small></span>
                 <span class="tower-cost">110</span>
               </button>
               <button class="tower-card" data-tower="ballista">
                 <span class="tower-emblem ballista-emblem">✧</span>
-                <span class="tower-info"><strong>Royal Ballista</strong><small>Long range, heavy hit</small></span>
+                <span class="tower-info"><strong>Royal Ballista</strong><small>Physical • heavy long shot</small></span>
                 <span class="tower-cost">160</span>
               </button>
               <button class="tower-card" data-tower="barracks">
                 <span class="tower-emblem barracks-emblem">⚔</span>
-                <span class="tower-info"><strong>Royal Barracks</strong><small>Deploys blocking knights</small></span>
+                <span class="tower-info"><strong>Royal Barracks</strong><small>Physical • branching warbands</small></span>
                 <span class="tower-cost">135</span>
               </button>
               <button class="tower-card" data-tower="ogre">
                 <span class="tower-emblem ogre-emblem">✊</span>
-                <span class="tower-info"><strong>Stoneback Ogre</strong><small>Throws one enemy backward</small></span>
+                <span class="tower-info"><strong>Stoneback Ogre</strong><small>Physical • throws enemies</small></span>
                 <span class="tower-cost">185</span>
+              </button>
+              <button class="tower-card" data-tower="ghost">
+                <span class="tower-emblem ghost-emblem">◉</span>
+                <span class="tower-info"><strong>Dread Ghost</strong><small>Fears three enemies backward</small></span>
+                <span class="tower-cost">175</span>
+              </button>
+              <button class="tower-card" data-tower="vampire">
+                <span class="tower-emblem vampire-emblem">♠</span>
+                <span class="tower-info"><strong>Crimson Vampire</strong><small>Magic • powerful blood drain</small></span>
+                <span class="tower-cost">205</span>
               </button>
               <button class="tower-card" data-tower="mine">
                 <span class="tower-emblem mine-emblem">⚒</span>
@@ -76,7 +87,7 @@
               </button>
             </div>
 
-            <div class="tip-box"><span>✣</span><p><strong>Commander’s tip</strong> Towers near corners can cover the road for longer.</p></div>
+            <div class="tip-box"><span>✣</span><p><strong>Commander’s tip</strong> Magic excels against physically resistant enemies. Hover the next-wave badges to inspect both resistances.</p></div>
           </section>
 
           <section id="inspectPanel" class="hidden">
@@ -90,12 +101,20 @@
               <div><span id="damageLabel">Damage</span><strong id="damageStat">14</strong></div>
               <div><span id="rangeLabel">Range</span><strong id="rangeStat">145</strong></div>
               <div><span id="speedLabel">Attack time</span><strong id="speedStat">0.65s</strong></div>
+              <div id="damageTypeStatRow"><span>Damage type</span><strong id="damageTypeStat" class="damage-type physical">Physical</strong></div>
               <div><span id="killsLabel">Enemies felled</span><strong id="killsStat">0</strong></div>
               <div id="specialStatRow" class="hidden"><span>Special</span><strong id="specialStat">—</strong></div>
+            </div>
+            <div class="equipped-relics-panel">
+              <div class="relic-panel-heading"><span>Equipped relics</span><strong id="equippedRelicCount">0 / 3</strong></div>
+              <div id="equippedRelics" class="equipped-relics"></div>
             </div>
             <p id="branchHint" class="branch-hint hidden">Choose this spire's final discipline. This choice is permanent.</p>
             <button id="upgradeButton" class="action-button"><span id="upgradeLabel">Upgrade</span><span id="upgradeCost">90 gold</span></button>
             <button id="frostUpgradeButton" class="action-button frost-action hidden"><span>Frost Path</span><span id="frostUpgradeCost">170 gold</span></button>
+            <button id="graveUpgradeButton" class="action-button grave-action hidden"><span>Gravestone Path</span><span id="graveUpgradeCost">255 gold</span></button>
+            <button id="slingUpgradeButton" class="action-button sling-action hidden"><span>Slingshooters Path</span><span id="slingUpgradeCost">150 gold</span></button>
+            <button id="nightspawnUpgradeButton" class="action-button nightspawn-action hidden"><span>Nightspawn Path</span><span id="nightspawnUpgradeCost">400 gold</span></button>
             <div id="mineControls" class="mine-controls hidden">
               <p>Workers produce gold every 3 seconds while an assault is underway.</p>
               <button id="hireWorkerButton" class="action-button worker-action"><span>Hire worker</span><span id="workerCost">45 gold</span></button>
@@ -103,9 +122,31 @@
             <button id="sellButton" class="sell-button">Sell tower <span id="sellValue">42 gold</span></button>
           </section>
 
+          <section id="treePanel" class="hidden">
+            <button id="treeBackButton" class="back-button">← Back to armory</button>
+            <div class="selected-heading">
+              <span class="tower-emblem tree-emblem">♣</span>
+              <div><p class="panel-kicker">NATURAL OBSTACLE</p><h2>Ancient Pine</h2></div>
+            </div>
+            <div class="level-ribbon">Blocked ground</div>
+            <p class="tree-panel-copy">This tree prevents defenses from being built on its tile. Dig it up to permanently clear the ground for this battle.</p>
+            <div class="stat-list tree-stat-list">
+              <div><span>Occupied tile</span><strong id="treeTileStat">—</strong></div>
+              <div><span>Removal cost</span><strong>400 gold</strong></div>
+            </div>
+            <button id="digUpTreeButton" class="action-button tree-action"><span>Dig up tree</span><span>400 gold</span></button>
+          </section>
+
+          <section id="relicInventoryPanel" class="relic-inventory-panel">
+            <div class="relic-panel-heading"><span>Relic satchel</span><strong id="relicInventoryCount">0</strong></div>
+            <div id="relicInventoryItems" class="relic-inventory-items"></div>
+            <p id="relicInventoryHint">Defeat a Boss Merchant to unlock relics.</p>
+          </section>
+
           <div class="wave-card">
             <div class="wave-card-top"><span>Next assault</span><strong id="nextWaveText">Scouts</strong></div>
             <div class="wave-preview" id="wavePreview"></div>
+            <p class="resistance-hint">Hover an enemy badge to view its resistances</p>
             <button id="startWaveButton" class="start-wave-button">Begin wave <span>⚔</span></button>
             <p id="waveStatus" class="wave-status">Build your defenses before the first assault.</p>
           </div>
@@ -113,7 +154,7 @@
       </section>
 
       <footer>
-        <span>Defend the keep • Survive all 10 waves</span>
+        <span id="objectiveText">Defend the keep • Survive all 30 waves</span>
         <span>Right-drag to orbit • Scroll to zoom • <kbd>F11</kbd> fullscreen • <kbd>Esc</kbd> cancels</span>
       </footer>
     </main>
@@ -124,13 +165,84 @@
         <p class="panel-kicker" id="modalKicker">THE KEEP STANDS</p>
         <h2 id="modalTitle">Victory!</h2>
         <p id="modalText">The realm is safe.</p>
-        <div class="final-stats"><span>Waves <strong id="finalWaves">10</strong></span><span>Enemies defeated <strong id="finalKills">0</strong></span></div>
+        <div class="final-stats"><span>Waves <strong id="finalWaves">30</strong></span><span>Enemies defeated <strong id="finalKills">0</strong></span></div>
         <button id="restartButton" class="start-wave-button">Play again</button>
       </div>
     </div>
 
+    <div id="merchantStoreModal" class="modal merchant-store-modal hidden" role="dialog" aria-modal="true" aria-labelledby="merchantStoreTitle">
+      <div class="merchant-store-card">
+        <div class="merchant-store-heading">
+          <div class="merchant-store-icon">⚖</div>
+          <div><p class="panel-kicker">THE FALLEN MERCHANT'S WARES</p><h2 id="merchantStoreTitle">Claim a Relic</h2></div>
+          <div class="merchant-store-gold"><span>Gold</span><strong id="merchantStoreGold">0</strong></div>
+        </div>
+        <p class="merchant-store-copy">The Merchant dropped one of each relic. Buy any you can afford; purchased relics move into your satchel and can be equipped to compatible defenses.</p>
+        <div id="merchantStoreItems" class="merchant-store-items"></div>
+        <button id="closeMerchantStoreButton" class="start-wave-button">Return to battle</button>
+      </div>
+    </div>
+
+    <div id="mainMenu" class="main-menu hidden" role="dialog" aria-modal="true" aria-labelledby="mainMenuTitle">
+      <div class="main-menu-card">
+        <div id="mainMenuHome" class="menu-view">
+          <img src="assets/stonewatch-keep.png" class="menu-crest" alt="Stonewatch Keep crest" />
+          <p class="panel-kicker">DEFEND THE REALM</p>
+          <h2 id="mainMenuTitle">Stonewatch Keep</h2>
+          <p class="menu-subtitle">Raise your defenses. Break the siege. Let no boss reach the keep.</p>
+          <button id="continueGameButton" class="menu-primary-button hidden">Continue</button>
+          <button id="playMenuButton" class="menu-primary-button">Play</button>
+          <button id="settingsMenuButton" class="menu-secondary-button">Settings</button>
+        </div>
+
+        <div id="playModeMenu" class="menu-view hidden">
+          <button class="menu-back-button" data-menu-view="home">← Main menu</button>
+          <p class="panel-kicker">CHOOSE YOUR BATTLE</p>
+          <h2>Game Mode</h2>
+          <div class="mode-card-list">
+            <button id="campaignModeButton" class="mode-card">
+              <span class="mode-icon">♜</span>
+              <span><strong>Thirty-Wave Campaign</strong><small>The original balanced campaign. Defeat all three bosses to win.</small></span>
+              <em>30 waves</em>
+            </button>
+            <button id="endlessModeButton" class="mode-card endless-mode-card">
+              <span class="mode-icon">∞</span>
+              <span><strong>Endless Siege</strong><small>Play the full campaign, then face stronger looping waves, bosses, Merchants, and themed events forever.</small></span>
+              <em>No limit</em>
+            </button>
+          </div>
+          <p class="mode-warning">Starting a mode begins a fresh battle.</p>
+        </div>
+
+        <div id="settingsMenu" class="menu-view hidden">
+          <button class="menu-back-button" data-menu-view="home">← Main menu</button>
+          <p class="panel-kicker">BATTLEFIELD OPTIONS</p>
+          <h2>Settings</h2>
+          <div class="settings-list">
+            <button id="shadowsSettingButton" class="setting-row"><span><strong>Dynamic shadows</strong><small>Detailed lighting beneath units and scenery</small></span><em>On</em></button>
+            <button id="healthBarsSettingButton" class="setting-row"><span><strong>Health bars</strong><small>Show health above enemies and friendly troops</small></span><em>On</em></button>
+            <button id="cameraSpeedSettingButton" class="setting-row"><span><strong>Camera orbit speed</strong><small>Right-drag camera sensitivity</small></span><em>Normal</em></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="node_modules/three/build/three.min.js"></script>
-    <script src="graphics3d.js?v=20260829-camera-zoom"></script>
-    <script src="game.js?v=20260829-camera-zoom"></script>
+    <script src="graphics3d.js?v=20260831-modular-game"></script>
+    <!-- Game modules are deliberately ordered from shared data through startup. -->
+    <script src="js/game/config.js?v=20260831-modular-game"></script>
+    <script src="js/game/content.js?v=20260831-modular-game"></script>
+    <script src="js/game/state.js?v=20260831-modular-game"></script>
+    <script src="js/game/defenses.js?v=20260831-modular-game"></script>
+    <script src="js/game/troops.js?v=20260831-modular-game"></script>
+    <script src="js/game/upgrade-paths.js?v=20260831-modular-game"></script>
+    <script src="js/game/relics-and-trees.js?v=20260831-modular-game"></script>
+    <script src="js/game/control-effects.js?v=20260831-modular-game"></script>
+    <script src="js/game/simulation.js?v=20260831-modular-game"></script>
+    <script src="js/game/combat.js?v=20260831-modular-game"></script>
+    <script src="js/game/fallback-renderer.js?v=20260831-modular-game"></script>
+    <script src="js/game/interface.js?v=20260831-modular-game"></script>
+    <script src="js/game/input.js?v=20260831-modular-game"></script>
+    <script src="js/game/main.js?v=20260831-modular-game"></script>
   </body>
 </html>

@@ -35,8 +35,13 @@ class ThreeGraphics {
     this.knightBars = new Map();
     this.projectileMeshes = new Map();
     this.particleMeshes = new Map();
+    this.treeGroups = new Map();
+    this.animatedScenery = [];
+    this.torchFlames = [];
+    this.flags = [];
     this.towerModelScale = .5;
     this.enemyModelScale = .5;
+    this.showHealthBars = true;
 
     this.makeMaterials();
     this.buildLighting();
@@ -54,7 +59,7 @@ class ThreeGraphics {
     });
     this.mat = {
       grassA: mat(0x3f6d34), grassB: mat(0x315b2d), grassC: mat(0x527d3d), grassEdge: mat(0x294625),
-      soil: mat(0xc69a57), soilEdge: mat(0x745032), earth: mat(0x4e3927),
+      soil: mat(0xc69a57), soilEdge: mat(0x745032), soilMark: mat(0x9e7644), earth: mat(0x4e3927),
       stone: mat(0x8d8a7d, .72), stoneLight: mat(0xb5aa91, .68), darkStone: mat(0x464a45, .82),
       wood: mat(0x4a2c1b, .88), lightWood: mat(0x87522a, .8), iron: mat(0x333b3d, .4, .62),
       gold: mat(0xe1aa3d, .32, .58), goldLight: mat(0xffcf62, .26, .62), goldDark: mat(0x8c5d1f, .46, .42),
@@ -63,6 +68,8 @@ class ThreeGraphics {
       red: mat(0xaf3f2e), roofRed: mat(0x923125), roofLight: mat(0xc85034), darkRed: mat(0x5d201d), cloth: mat(0x673128),
       purple: mat(0x8f6cdd, .28, .08, { emissive: 0x35245f, emissiveIntensity: .85 }),
       frost: mat(0x91e9f3, .22, .12, { emissive: 0x2f8fa8, emissiveIntensity: 1.25 }),
+      spectral: mat(0xf2fff9, .3, .01, { emissive: 0x7caf9f, emissiveIntensity: .72, transparent: true, opacity: .94, depthWrite: false, side: THREE.DoubleSide }),
+      spectralDark: mat(0xc9e5dc, .45, .01, { emissive: 0x4e8177, emissiveIntensity: .5, transparent: true, opacity: .88, depthWrite: false, side: THREE.DoubleSide }),
       eye: mat(0xf1bd4c, .22, .08, { emissive: 0x8e3b12, emissiveIntensity: 1.55 })
     };
   }
@@ -119,8 +126,21 @@ class ThreeGraphics {
     const smoothRoadPoints = roadCurve.getSpacedPoints(220);
     this.createRoadRibbon(smoothRoadPoints, .9, .085, this.mat.soilEdge);
     this.createRoadRibbon(smoothRoadPoints, .72, .125, this.mat.soil);
+    this.createRoadRibbon(this.offsetCurvePoints(smoothRoadPoints, .17), .035, .139, this.mat.soilMark);
+    this.createRoadRibbon(this.offsetCurvePoints(smoothRoadPoints, -.17), .035, .139, this.mat.soilMark);
     this.addRoadStones(smoothRoadPoints);
     this.addScenery();
+  }
+
+  offsetCurvePoints(points, distance) {
+    return points.map((point, index) => {
+      const previous = points[Math.max(0, index - 1)];
+      const next = points[Math.min(points.length - 1, index + 1)];
+      const tangentX = next.x - previous.x;
+      const tangentZ = next.z - previous.z;
+      const length = Math.hypot(tangentX, tangentZ) || 1;
+      return new THREE.Vector3(point.x - tangentZ / length * distance, point.y, point.z + tangentX / length * distance);
+    });
   }
 
   createRoadRibbon(points, width, elevation, material) {
@@ -174,25 +194,34 @@ class ThreeGraphics {
   }
 
   addScenery() {
-    const treeData = [[.3,1.5,.9], [2.8,1.45,.8], [5.5,1.4,1], [8.0,1.5,.8], [11.55,1.35,1.05], [.25,3.5,.9], [3.7,3.4,.8], [6.2,3.5,1], [8.8,3.4,.78], [11.55,3.45,.95], [.3,5.5,1], [3.0,5.45,.8], [5.6,5.5,.95], [8.0,5.4,.8], [11.55,5.3,1], [.35,7.45,.9], [3.2,7.5,.82], [6.1,7.45,1], [8.7,7.5,.85]];
-    treeData.forEach(([x, z, scale], index) => this.createTree(x - 6, z - 4, scale, index));
     this.createCastle(5.22, 3.42);
     this.createEnemyCamp(-5.62, -3.45);
     this.createRocks();
+    this.createGrassDetails();
   }
 
-  createTree(x, z, scale, variant) {
+  createTree(tree) {
+    const { id, x, z, scale, variant } = tree;
     const group = new THREE.Group();
-    group.position.set(x, 0, z);
+    group.position.set(x - this.config.COLS / 2, 0, z - this.config.ROWS / 2);
     group.scale.setScalar(scale);
     this.scene.add(group);
     this.mesh(new THREE.DodecahedronGeometry(.16, 0), this.mat.darkStone, 0, .08, 0, group).scale.set(1.4, .42, 1.1);
     this.mesh(new THREE.CylinderGeometry(.07, .115, .7, 7), this.mat.wood, 0, .35, 0, group);
     this.mesh(new THREE.CylinderGeometry(.09, .09, .055, 8), this.mat.goldDark, 0, .16, 0, group);
+    const crown = new THREE.Group();
+    group.add(crown);
     const crownMat = variant % 2 ? this.mat.leaf : this.mat.leafMid;
-    this.mesh(new THREE.ConeGeometry(.42, .7, 7), crownMat, 0, .64, 0, group);
-    this.mesh(new THREE.ConeGeometry(.34, .66, 7), variant % 3 ? this.mat.leafMid : this.mat.leafLight, 0, .98, 0, group);
-    this.mesh(new THREE.ConeGeometry(.23, .52, 7), this.mat.leafLight, 0, 1.3, 0, group);
+    this.mesh(new THREE.ConeGeometry(.42, .7, 7), crownMat, 0, .64, 0, crown);
+    this.mesh(new THREE.ConeGeometry(.34, .66, 7), variant % 3 ? this.mat.leafMid : this.mat.leafLight, 0, .98, 0, crown);
+    this.mesh(new THREE.ConeGeometry(.23, .52, 7), this.mat.leafLight, 0, 1.3, 0, crown);
+    const animationEntry = { object: crown, phase: variant * .71, strength: .012 + (variant % 3) * .003 };
+    this.animatedScenery.push(animationEntry);
+    group.userData.treeId = id;
+    group.userData.animationEntry = animationEntry;
+    group.traverse(object => object.userData.treeId = id);
+    this.treeGroups.set(id, group);
+    return group;
   }
 
   createCastle(x, z) {
@@ -233,6 +262,9 @@ class ThreeGraphics {
     flagShape.moveTo(0, 0); flagShape.lineTo(.42, .08); flagShape.lineTo(.28, -.12); flagShape.lineTo(0, -.1); flagShape.closePath();
     const flag = this.mesh(new THREE.ShapeGeometry(flagShape), this.mat.roofLight, .02, 1.82, 0, group);
     flag.rotation.y = Math.PI / 2;
+    this.flags.push({ object: flag, baseRotation: flag.rotation.y, phase: .4 });
+    this.createTorch(group, -.27, .56, -.49, 0);
+    this.createTorch(group, .27, .56, -.49, 1.7);
   }
 
   createEnemyCamp(x, z) {
@@ -248,6 +280,8 @@ class ThreeGraphics {
     flagShape.moveTo(0, 0); flagShape.lineTo(.36, .09); flagShape.lineTo(.28, -.12); flagShape.lineTo(0, -.1); flagShape.closePath();
     const flag = this.mesh(new THREE.ShapeGeometry(flagShape), this.mat.red, -.26, .92, 0, group);
     flag.rotation.y = Math.PI / 2;
+    this.flags.push({ object: flag, baseRotation: flag.rotation.y, phase: 2.2 });
+    this.createTorch(group, .34, .28, .28, 3.1);
   }
 
   createRocks() {
@@ -257,6 +291,38 @@ class ThreeGraphics {
       rock.scale.y = .65;
       rock.rotation.set(i, i * .7, 0);
     });
+  }
+
+  createGrassDetails() {
+    const pathSet = new Set(this.config.pathCells.filter(([x, y]) => x >= 0 && x < this.config.COLS && y >= 0 && y < this.config.ROWS).map(([x, y]) => `${x},${y}`));
+    for (let row = 0; row < this.config.ROWS; row++) {
+      for (let col = 0; col < this.config.COLS; col++) {
+        if (pathSet.has(`${col},${row}`) || (col * 19 + row * 23) % 4 !== 0) continue;
+        const tuft = new THREE.Group();
+        tuft.position.set(col - this.config.COLS / 2 + .22 + ((row * 7) % 5) * .11, .09, row - this.config.ROWS / 2 + .2 + ((col * 11) % 5) * .1);
+        tuft.rotation.y = (col + row) * .7;
+        this.scene.add(tuft);
+        for (let blade = 0; blade < 3; blade++) {
+          const grass = this.mesh(new THREE.ConeGeometry(.035, .18 + blade * .025, 4), blade === 1 ? this.mat.grassC : this.mat.leafLight, (blade - 1) * .055, .08, 0, tuft);
+          grass.rotation.z = (blade - 1) * -.22;
+          grass.castShadow = false;
+        }
+        if ((col + row) % 5 === 0) this.mesh(new THREE.OctahedronGeometry(.025, 0), this.mat.goldLight, .08, .14, .02, tuft);
+        this.animatedScenery.push({ object: tuft, phase: col * .53 + row, strength: .018 });
+      }
+    }
+  }
+
+  createTorch(parent, x, y, z, phase) {
+    this.mesh(new THREE.CylinderGeometry(.018, .022, .22, 6), this.mat.iron, x, y - .06, z, parent);
+    const bowl = this.mesh(new THREE.CylinderGeometry(.07, .045, .055, 7), this.mat.goldDark, x, y + .06, z, parent);
+    const flame = this.mesh(new THREE.ConeGeometry(.045, .16, 7), this.mat.eye, x, y + .17, z, parent);
+    flame.castShadow = false;
+    const light = new THREE.PointLight(0xff9b36, 2.4, 2.2, 2);
+    light.position.set(x, y + .2, z);
+    parent.add(light);
+    this.torchFlames.push({ object: flame, light, phase, baseY: y + .17 });
+    return bowl;
   }
 
   buildIndicators() {
@@ -276,6 +342,15 @@ class ThreeGraphics {
     this.hoverTile.position.y = .18;
     this.hoverTile.visible = false;
     this.scene.add(this.hoverTile);
+
+    this.treeSelectionRing = new THREE.Mesh(
+      new THREE.RingGeometry(.42, .52, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffd86a, transparent: true, opacity: .78, side: THREE.DoubleSide, depthWrite: false })
+    );
+    this.treeSelectionRing.rotation.x = -Math.PI / 2;
+    this.treeSelectionRing.position.y = .15;
+    this.treeSelectionRing.visible = false;
+    this.scene.add(this.treeSelectionRing);
   }
 
   worldFromGame(x, y, elevation = 0) {
@@ -293,6 +368,16 @@ class ThreeGraphics {
       col: Math.floor(this.hitPoint.x + this.config.COLS / 2),
       row: Math.floor(this.hitPoint.z + this.config.ROWS / 2)
     };
+  }
+
+  pickTree(clientX, clientY) {
+    if (!this.treeGroups.size) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects([...this.treeGroups.values()], true);
+    return hits[0]?.object?.userData?.treeId || null;
   }
 
   setOrbitFromPosition(position) {
@@ -319,6 +404,14 @@ class ThreeGraphics {
     this.updateOrbitCamera();
   }
 
+  setShadowsEnabled(enabled) {
+    this.renderer.shadowMap.enabled = Boolean(enabled);
+  }
+
+  setHealthBarsVisible(enabled) {
+    this.showHealthBars = Boolean(enabled);
+  }
+
   updateOrbitCamera() {
     const horizontalDistance = this.orbitDistance * Math.cos(this.orbitPitch);
     this.camera.position.set(
@@ -336,6 +429,8 @@ class ThreeGraphics {
 
   render(state, hoverCell, canPlace, towerStats) {
     this.resize();
+    this.syncTrees(state.trees);
+    this.animateWorld(performance.now() * .001);
     this.syncTowers(state.towers);
     this.syncKnights(state.knights);
     this.syncEnemies(state.enemies);
@@ -343,6 +438,23 @@ class ThreeGraphics {
     this.syncParticles(state.particles);
     this.updateIndicators(state, hoverCell, canPlace, towerStats);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  animateWorld(now) {
+    for (const item of this.animatedScenery) {
+      item.object.rotation.z = Math.sin(now * 1.15 + item.phase) * item.strength;
+      item.object.rotation.x = Math.cos(now * .82 + item.phase) * item.strength * .45;
+    }
+    for (const torch of this.torchFlames) {
+      const flicker = Math.sin(now * 11 + torch.phase) * .1 + Math.sin(now * 17.3 + torch.phase) * .06;
+      torch.object.scale.set(1 - flicker * .35, 1 + flicker, 1 - flicker * .35);
+      torch.object.position.y = torch.baseY + Math.sin(now * 13 + torch.phase) * .014;
+      torch.light.intensity = 2.25 + flicker * 2.2;
+    }
+    for (const flag of this.flags) {
+      flag.object.rotation.y = flag.baseRotation + Math.sin(now * 2.2 + flag.phase) * .055;
+      flag.object.scale.y = 1 + Math.sin(now * 3.4 + flag.phase) * .045;
+    }
   }
 
   resize() {
@@ -357,10 +469,30 @@ class ThreeGraphics {
     }
   }
 
+  syncTrees(trees) {
+    const liveIds = new Set(trees.map(tree => tree.id));
+    for (const [id, group] of this.treeGroups) {
+      if (liveIds.has(id)) continue;
+      this.scene.remove(group);
+      this.animatedScenery = this.animatedScenery.filter(item => item !== group.userData.animationEntry);
+      group.traverse(object => object.geometry?.dispose());
+      this.treeGroups.delete(id);
+    }
+    for (const tree of trees) {
+      if (!this.treeGroups.has(tree.id)) this.createTree(tree);
+    }
+  }
+
   syncTowers(towers) {
     this.removeMissing(this.towerMeshes, towers);
     for (const tower of towers) {
       let group = this.towerMeshes.get(tower);
+      const visualSpecialization = tower.type === "barracks" || tower.type === "archer" ? tower.specialization || null : null;
+      if (group && (tower.type === "barracks" || tower.type === "archer") && group.userData.visualSpecialization !== visualSpecialization) {
+        this.scene.remove(group);
+        this.towerMeshes.delete(tower);
+        group = null;
+      }
       if (!group) {
         group = this.createTower(tower);
         this.towerMeshes.set(tower, group);
@@ -368,7 +500,7 @@ class ThreeGraphics {
       }
       const p = this.worldFromGame(tower.x, tower.y);
       group.position.set(p.x, 0, p.z);
-      group.scale.setScalar(this.towerModelScale);
+      group.scale.setScalar(this.towerModelScale * (tower.type === "ogre" ? 1.1 : 1));
       if (group.userData.turret) group.userData.turret.rotation.y = -tower.angle;
       if (group.userData.crystal) {
         group.userData.crystal.rotation.y += .018;
@@ -376,6 +508,8 @@ class ThreeGraphics {
         const frost = tower.specialization === "frost";
         if (group.userData.frost !== frost) {
           group.userData.crystal.material = frost ? this.mat.frost : this.mat.purple;
+          if (group.userData.wizardFocus) group.userData.wizardFocus.material = frost ? this.mat.frost : this.mat.purple;
+          if (group.userData.wizardLight) group.userData.wizardLight.color.setHex(frost ? 0x91e9f3 : 0x9c7de9);
           group.userData.frost = frost;
         }
       }
@@ -388,30 +522,182 @@ class ThreeGraphics {
         });
       }
       if (group.userData.goldVein) group.userData.goldVein.rotation.y += .02;
+      if (group.userData.graveWisps) {
+        const now = performance.now() * .001;
+        group.userData.graveWisps.rotation.y = now * .8;
+        group.userData.graveWisps.children.forEach((wisp, index) => {
+          wisp.position.y = wisp.userData.baseY + Math.sin(now * 2.2 + index * 2.1) * .07;
+        });
+      }
+      if (group.userData.archerSquad) {
+        const squad = group.userData.archerSquad;
+        const now = performance.now() * .001;
+        squad.rotation.y = Math.PI / 2 - tower.angle;
+        group.userData.archers.forEach((archer, index) => {
+          const phase = index * 1.9 + tower.col;
+          const timer = tower.archerShotTimers?.[index] || 0;
+          const shotProgress = timer > 0 ? 1 - timer / .22 : 0;
+          const release = timer > 0 ? Math.sin(THREE.MathUtils.clamp(shotProgress, 0, 1) * Math.PI) : 0;
+          archer.unit.position.y = archer.baseY + Math.sin(now * 1.8 + phase) * .01;
+          archer.unit.rotation.z = Math.sin(now * .85 + phase) * .018;
+          archer.bowArm.rotation.x = -.72 - release * .18;
+          archer.drawArm.rotation.x = -.72 - release * .72;
+          archer.drawArm.rotation.z = .08 + release * .18;
+          archer.body.rotation.y = -release * .12;
+          archer.arrow.visible = timer <= 0 || shotProgress < .48;
+        });
+      }
+      if (group.userData.rifleSquad) {
+        const now = performance.now() * .001;
+        group.userData.rifleSquad.rotation.y = Math.PI / 2 - tower.angle;
+        group.userData.riflemen.forEach((rifleman, index) => {
+          const timer = tower.archerShotTimers?.[index] || 0;
+          const progress = timer > 0 ? 1 - timer / .22 : 0;
+          const recoil = timer > 0 ? Math.sin(THREE.MathUtils.clamp(progress, 0, 1) * Math.PI) : 0;
+          rifleman.unit.position.y = rifleman.baseY + Math.sin(now * 1.55 + index * 1.7) * .009;
+          rifleman.unit.rotation.z = Math.sin(now * .75 + index) * .014;
+          rifleman.body.rotation.x = recoil * .11;
+          rifleman.rifle.position.z = .08 - recoil * .08;
+          rifleman.rifle.rotation.x = -.04 + recoil * .08;
+          rifleman.leftArm.rotation.x = -.92 + recoil * .12;
+          rifleman.rightArm.rotation.x = -.84 + recoil * .2;
+        });
+      }
+      if (group.userData.slingSquad) {
+        const now = performance.now() * .001;
+        const timer = tower.slingShotTimer || 0;
+        const progress = timer > 0 ? 1 - timer / .72 : 0;
+        const launch = timer > 0 ? Math.sin(THREE.MathUtils.clamp(progress, 0, 1) * Math.PI) : 0;
+        group.userData.slingSquad.rotation.y = Math.PI / 2 - tower.angle;
+        group.userData.slingPouch.position.z = -.18 + launch * .34;
+        group.userData.slingPouch.rotation.x = launch * .45;
+        group.userData.slingRock.visible = timer <= 0;
+        group.userData.slingWorkers.forEach((worker, index) => {
+          const effort = Math.sin(now * 2.2 + index * 1.8) * .035;
+          worker.unit.position.y = worker.baseY + Math.sin(now * 1.7 + index) * .008;
+          worker.body.rotation.z = effort + launch * (index - 1) * .055;
+          worker.leftArm.rotation.x = -.7 - launch * .45;
+          worker.rightArm.rotation.x = -.7 - launch * .45;
+        });
+      }
+      if (group.userData.wizardBody) {
+        const wizard = group.userData.wizardBody;
+        const castingArm = group.userData.wizardCastingArm;
+        const staffArm = group.userData.wizardStaffArm;
+        const staff = group.userData.wizardStaff;
+        const head = group.userData.wizardHead;
+        const focus = group.userData.wizardFocus;
+        const now = performance.now() * .001;
+        const breathe = Math.sin(now * 1.9 + tower.col * .5);
+        const gatherMagic = Math.sin(now * 3.1 + tower.row) * .5 + .5;
+        wizard.rotation.y = Math.PI / 2 - tower.angle;
+        wizard.rotation.z = Math.sin(now * .8 + tower.col) * .018;
+        wizard.position.y = -.019 + breathe * .006;
+        staffArm.rotation.z = -.3 + breathe * .035;
+        castingArm.rotation.x = -.92 + breathe * .08;
+        castingArm.rotation.z = .15 + Math.sin(now * 1.25) * .045;
+        staff.rotation.z = -.035 + breathe * .018;
+        head.rotation.y = Math.sin(now * .7 + tower.row) * .09;
+        head.rotation.x = -.035 + breathe * .018;
+        focus.rotation.x += .035;
+        focus.rotation.y += .052;
+        focus.scale.setScalar(.9 + gatherMagic * .22);
+      }
       if (group.userData.playerOgre) {
         const body = group.userData.playerOgre;
         const leftArm = group.userData.ogreLeftArm;
         const rightArm = group.userData.ogreRightArm;
+        const leftForearm = group.userData.ogreLeftForearm;
+        const rightForearm = group.userData.ogreRightForearm;
+        const leftLeg = group.userData.ogreLeftLeg;
+        const rightLeg = group.userData.ogreRightLeg;
+        const leftLowerLeg = group.userData.ogreLeftLowerLeg;
+        const rightLowerLeg = group.userData.ogreRightLowerLeg;
+        const head = group.userData.ogreHead;
+        const torso = group.userData.ogreTorso;
         const now = performance.now() * .001;
         body.rotation.y = Math.PI / 2 - tower.angle;
         if (tower.throwSwing > 0) {
           const progress = THREE.MathUtils.clamp(1 - tower.throwSwing / .9, 0, 1);
           const heave = Math.sin(progress * Math.PI);
-          leftArm.rotation.x = -.35 - heave * 1.45;
-          rightArm.rotation.x = -.35 - heave * 1.45;
+          leftArm.rotation.x = -.52 - heave * 1.28;
+          rightArm.rotation.x = -.52 - heave * 1.28;
           leftArm.rotation.z = -.18 - heave * .22;
           rightArm.rotation.z = .18 + heave * .22;
+          leftForearm.rotation.x = -.82 - heave * .45;
+          rightForearm.rotation.x = -.82 - heave * .45;
+          leftLeg.rotation.x = -.68 - heave * .08;
+          rightLeg.rotation.x = -.68 - heave * .08;
+          leftLowerLeg.rotation.x = 1.24 + heave * .16;
+          rightLowerLeg.rotation.x = 1.24 + heave * .16;
           body.rotation.z = -Math.sin(progress * Math.PI * 2) * .09;
-          body.position.y = .08 + heave * .08;
+          body.position.y = .08 - heave * .045;
+          head.rotation.x = -.08 - heave * .12;
+          head.rotation.y = 0;
+          torso.scale.y = 1.18;
         } else {
-          const idle = Math.sin(now * 2.2 + tower.col) * .035;
-          leftArm.rotation.x = -.08 + idle;
-          rightArm.rotation.x = -.08 - idle;
-          leftArm.rotation.z = -.1;
-          rightArm.rotation.z = .1;
-          body.rotation.z = 0;
-          body.position.y = .08 + Math.sin(now * 1.8 + tower.row) * .018;
+          const breath = Math.sin(now * 1.7 + tower.col * .6);
+          const weightShift = Math.sin(now * .85 + tower.row) * .035;
+          leftArm.rotation.x = -.54 + breath * .045;
+          rightArm.rotation.x = -.54 - breath * .045;
+          leftArm.rotation.z = -.2 + weightShift;
+          rightArm.rotation.z = .2 + weightShift;
+          leftForearm.rotation.x = -.82 - breath * .06;
+          rightForearm.rotation.x = -.82 + breath * .06;
+          leftLeg.rotation.x = -.68 + weightShift * .32;
+          rightLeg.rotation.x = -.68 - weightShift * .32;
+          leftLowerLeg.rotation.x = 1.24 - weightShift * .24;
+          rightLowerLeg.rotation.x = 1.24 + weightShift * .24;
+          body.rotation.z = weightShift * .42;
+          body.position.y = .08 + breath * .009;
+          head.rotation.x = -.06 + breath * .025;
+          head.rotation.y = Math.sin(now * .72 + tower.col) * .075;
+          torso.scale.y = 1.18 + breath * .025;
         }
+      }
+      if (group.userData.ghostBody) {
+        const now = performance.now() * .001;
+        const ghost = group.userData.ghostBody;
+        const pulse = THREE.MathUtils.clamp((tower.fearPulse || 0) / .8, 0, 1);
+        const cast = Math.sin((1 - pulse) * Math.PI);
+        ghost.rotation.y = Math.PI / 2 - tower.angle;
+        ghost.rotation.z = Math.sin(now * 1.45 + tower.col) * .035;
+        ghost.position.y = .09 + Math.sin(now * 2.15 + tower.row * .7) * .055 + cast * .08;
+        ghost.scale.setScalar(1 + cast * .12);
+        group.userData.ghostHead.rotation.y = Math.sin(now * .9 + tower.col) * .12;
+        const blanket = group.userData.ghostBlanket;
+        blanket.rotation.z = Math.sin(now * 1.35 + tower.row) * .018;
+        blanket.scale.set(1 + Math.sin(now * 1.8) * .025 + cast * .18, 1 + cast * .04, 1);
+        group.userData.ghostStreamers.forEach((streamer, index) => {
+          streamer.rotation.z = Math.sin(now * 1.55 + index * 1.3) * .045 + cast * (index - 2) * .012;
+        });
+        group.userData.ghostAura.rotation.y += .035 + cast * .06;
+        group.userData.ghostAura.scale.setScalar(1 + cast * .55);
+        group.userData.ghostAura.material.opacity = .24 + pulse * .36;
+        group.userData.ghostLight.intensity = 2.2 + cast * 5.5;
+      }
+      if (group.userData.vampireBody) {
+        const now = performance.now() * .001;
+        const vampire = group.userData.vampireBody;
+        const timer = tower.bloodDrainTimer || 0;
+        const progress = timer > 0 ? THREE.MathUtils.clamp(1 - timer / .85, 0, 1) : 0;
+        const cast = timer > 0 ? Math.sin(progress * Math.PI) : 0;
+        const breathe = Math.sin(now * 1.65 + tower.col * .6);
+        vampire.rotation.y = Math.PI / 2 - tower.angle;
+        vampire.position.y = .03 + breathe * .008 + cast * .035;
+        vampire.rotation.z = breathe * .012;
+        group.userData.vampireLeftArm.rotation.x = -.62 - cast * .72;
+        group.userData.vampireRightArm.rotation.x = -.62 - cast * .72;
+        group.userData.vampireLeftArm.rotation.z = -.3 + cast * .24;
+        group.userData.vampireRightArm.rotation.z = .3 - cast * .24;
+        group.userData.vampireCape.scale.set(1 + cast * .18, 1 + breathe * .012, 1 + cast * .12);
+        group.userData.vampireCape.rotation.z = Math.sin(now * 1.1) * .018;
+        group.userData.vampireHead.rotation.y = Math.sin(now * .7 + tower.row) * .055;
+        group.userData.vampireBloodOrb.visible = timer > 0;
+        group.userData.vampireBloodOrb.scale.setScalar(.75 + cast * 1.15);
+        group.userData.vampireBloodOrb.rotation.y += .08;
+        group.userData.vampireBloodOrb.rotation.x += .045;
+        group.userData.vampireLight.intensity = timer > 0 ? 2.5 + cast * 6 : .45;
       }
       group.userData.levelPips.forEach((pip, i) => pip.visible = i < tower.level);
     }
@@ -419,71 +705,292 @@ class ThreeGraphics {
 
   createTower(tower) {
     const group = new THREE.Group();
-    const trim = this.mesh(new THREE.CylinderGeometry(.47, .5, .085, 10), this.mat.goldDark, 0, .055, 0, group);
-    trim.receiveShadow = true;
-    const base = this.mesh(new THREE.CylinderGeometry(.39, .46, .24, 10), this.mat.darkStone, 0, .13, 0, group);
-    base.receiveShadow = true;
-    this.mesh(new THREE.CylinderGeometry(.4, .4, .045, 10), this.mat.gold, 0, .255, 0, group);
-    if (tower.type === "archer") this.buildArcherTower(group);
+    if (tower.type !== "ogre" && tower.type !== "mage" && tower.type !== "archer" && tower.type !== "ghost" && tower.type !== "vampire") {
+      const trim = this.mesh(new THREE.CylinderGeometry(.47, .5, .085, 10), this.mat.goldDark, 0, .055, 0, group);
+      trim.receiveShadow = true;
+      const base = this.mesh(new THREE.CylinderGeometry(.39, .46, .24, 10), this.mat.darkStone, 0, .13, 0, group);
+      base.receiveShadow = true;
+      this.mesh(new THREE.CylinderGeometry(.4, .4, .045, 10), this.mat.gold, 0, .255, 0, group);
+    }
+    if (tower.type === "archer" && tower.specialization === "riflemen") this.buildRiflemanTower(group);
+    else if (tower.type === "archer" && tower.specialization === "slingshooters") this.buildSlingshooterTower(group);
+    else if (tower.type === "archer") this.buildArcherTower(group);
     else if (tower.type === "mage") this.buildMageTower(group);
     else if (tower.type === "ballista") this.buildBallista(group);
+    else if (tower.type === "barracks" && tower.specialization === "graveyard") this.buildGravestone(group);
+    else if (tower.type === "barracks" && tower.specialization === "gladiators") this.buildGladiatorCamp(group);
     else if (tower.type === "barracks") this.buildBarracks(group);
     else if (tower.type === "ogre") this.buildPlayerOgre(group);
+    else if (tower.type === "ghost") this.buildGhost(group);
+    else if (tower.type === "vampire") this.buildVampire(group);
     else this.buildGoldMine(group);
     group.userData.levelPips = [];
     if (tower.type !== "mine") {
+      const pipHeight = tower.type === "archer" ? .31 : .08;
       for (let i = 0; i < 3; i++) {
-        const pip = this.mesh(new THREE.OctahedronGeometry(.045), this.mat.gold, -.11 + i * .11, .08, -.48, group);
+        const pip = this.mesh(new THREE.OctahedronGeometry(.045), this.mat.gold, -.11 + i * .11, pipHeight, -.48, group);
         group.userData.levelPips.push(pip);
       }
     }
     group.scale.setScalar(this.towerModelScale);
+    if (tower.type === "barracks" || tower.type === "archer") group.userData.visualSpecialization = tower.specialization || null;
     return group;
   }
 
+  buildArcherHill(group) {
+    const earthMound = this.mesh(new THREE.SphereGeometry(.76, 12, 7), this.mat.earth, 0, .045, 0, group);
+    earthMound.scale.set(1, .28, .78);
+    earthMound.receiveShadow = true;
+    const grassMound = this.mesh(new THREE.SphereGeometry(.71, 12, 7), this.mat.grassC, 0, .095, 0, group);
+    grassMound.scale.set(1, .22, .76);
+    grassMound.receiveShadow = true;
+    for (const [x, z, scale] of [[-.55, .18, .08], [.51, -.22, .065], [-.18, -.52, .055]]) {
+      const stone = this.mesh(new THREE.DodecahedronGeometry(scale, 0), this.mat.stone, x, .22, z, group);
+      stone.scale.y = .65;
+    }
+    return grassMound;
+  }
+
   buildArcherTower(group) {
-    this.mesh(new THREE.CylinderGeometry(.25, .34, .72, 10), this.mat.stone, 0, .52, 0, group);
-    this.mesh(new THREE.CylinderGeometry(.285, .285, .055, 10), this.mat.goldDark, 0, .76, 0, group);
-    for (let i = 0; i < 5; i++) {
-      const a = i / 5 * Math.PI * 2;
-      this.mesh(new THREE.BoxGeometry(.13, .12, .055), this.mat.stoneLight, Math.cos(a) * .27, .55 + (i % 2) * .14, Math.sin(a) * .27, group).rotation.y = -a;
-    }
-    const top = this.mesh(new THREE.CylinderGeometry(.36, .36, .16, 10), this.mat.lightWood, 0, .91, 0, group);
-    this.mesh(new THREE.CylinderGeometry(.39, .39, .045, 10), this.mat.gold, 0, .99, 0, group);
-    for (let i = 0; i < 8; i += 2) {
-      const a = i / 8 * Math.PI * 2;
-      this.mesh(new THREE.BoxGeometry(.12, .18, .12), this.mat.stone, Math.cos(a) * .29, 1.05, Math.sin(a) * .29, group);
-    }
-    const turret = new THREE.Group();
-    turret.position.y = 1.08;
-    group.add(turret);
-    this.mesh(new THREE.BoxGeometry(.5, .055, .055), this.mat.wood, .05, .02, 0, turret);
-    this.mesh(new THREE.CylinderGeometry(.018, .018, .5, 6), this.mat.gold, .2, .02, 0, turret).rotation.z = Math.PI / 2;
-    const bow = new THREE.Mesh(new THREE.TorusGeometry(.2, .025, 5, 12, Math.PI), this.mat.lightWood);
-    bow.rotation.set(Math.PI / 2, 0, Math.PI / 2);
-    bow.position.x = .25;
-    bow.castShadow = true;
-    turret.add(bow);
-    group.userData.turret = turret;
-    top.receiveShadow = true;
+    const grassMound = this.buildArcherHill(group);
+    const squad = new THREE.Group();
+    group.add(squad);
+    const skin = new THREE.MeshStandardMaterial({ color: 0xc89a73, roughness: .9, flatShading: true });
+    const royalBlue = new THREE.MeshStandardMaterial({ color: 0x315f7d, roughness: .76, flatShading: true });
+    const formation = [[-.48, -.12], [0, .2], [.48, -.12]];
+    const archers = formation.map(([x, z], index) => {
+      const unit = new THREE.Group();
+      unit.position.set(x, .28, z);
+      unit.scale.setScalar(1.14);
+      squad.add(unit);
+
+      const body = new THREE.Group();
+      unit.add(body);
+      this.mesh(new THREE.CylinderGeometry(.105, .15, .36, 8), royalBlue, 0, .36, 0, body);
+      this.mesh(new THREE.BoxGeometry(.22, .055, .18), this.mat.goldDark, 0, .39, 0, body);
+      this.mesh(new THREE.BoxGeometry(.1, .12, .035), this.mat.gold, 0, .42, .145, body).rotation.z = Math.PI / 4;
+      const cape = this.mesh(new THREE.BoxGeometry(.23, .34, .035), index === 1 ? this.mat.roofRed : this.mat.darkRed, 0, .37, -.12, body);
+      cape.rotation.x = -.08;
+
+      const head = new THREE.Group();
+      head.position.set(0, .64, .01);
+      body.add(head);
+      this.mesh(new THREE.SphereGeometry(.105, 10, 7), skin, 0, 0, 0, head);
+      this.addEyes(head, .038, .018, .095, .013, 0x252015);
+      this.mesh(new THREE.ConeGeometry(.145, .22, 7), index === 1 ? this.mat.roofRed : this.mat.leafMid, 0, .17, -.015, head);
+      this.mesh(new THREE.CylinderGeometry(.15, .15, .035, 8), this.mat.goldDark, 0, .08, 0, head);
+
+      const leftLeg = this.addJointedLimb(body, -.075, .2, 0, .25, .04, this.mat.darkStone);
+      const rightLeg = this.addJointedLimb(body, .075, .2, 0, .25, .04, this.mat.darkStone);
+      this.mesh(new THREE.BoxGeometry(.09, .055, .15), this.mat.wood, 0, -.24, .035, leftLeg);
+      this.mesh(new THREE.BoxGeometry(.09, .055, .15), this.mat.wood, 0, -.24, .035, rightLeg);
+
+      const bowArm = this.addJointedLimb(body, -.15, .53, .02, .31, .04, royalBlue);
+      const drawArm = this.addJointedLimb(body, .15, .53, .02, .31, .04, royalBlue);
+      bowArm.rotation.x = -.72;
+      bowArm.rotation.z = -.12;
+      drawArm.rotation.x = -.72;
+      drawArm.rotation.z = .08;
+      this.mesh(new THREE.SphereGeometry(.052, 8, 6), skin, 0, -.3, .065, bowArm);
+      this.mesh(new THREE.SphereGeometry(.052, 8, 6), skin, 0, -.3, .01, drawArm);
+
+      const bow = new THREE.Group();
+      bow.position.set(0, -.3, .065);
+      bowArm.add(bow);
+      this.mesh(new THREE.CylinderGeometry(.026, .026, .14, 6), this.mat.wood, 0, 0, 0, bow);
+      this.addBone(bow, new THREE.Vector3(0, .055, 0), new THREE.Vector3(-.085, .18, 0), .018, this.mat.lightWood);
+      this.addBone(bow, new THREE.Vector3(-.085, .18, 0), new THREE.Vector3(-.025, .32, 0), .016, this.mat.lightWood);
+      this.addBone(bow, new THREE.Vector3(0, -.055, 0), new THREE.Vector3(-.085, -.18, 0), .018, this.mat.lightWood);
+      this.addBone(bow, new THREE.Vector3(-.085, -.18, 0), new THREE.Vector3(-.025, -.32, 0), .016, this.mat.lightWood);
+      this.addBone(bow, new THREE.Vector3(-.025, .32, .008), new THREE.Vector3(0, 0, .008), .006, this.mat.bone);
+      this.addBone(bow, new THREE.Vector3(0, 0, .008), new THREE.Vector3(-.025, -.32, .008), .006, this.mat.bone);
+      const arrow = this.mesh(new THREE.CylinderGeometry(.009, .009, .34, 5), this.mat.goldLight, 0, -.28, .16, drawArm);
+      arrow.rotation.x = Math.PI / 2;
+      this.mesh(new THREE.CylinderGeometry(.065, .075, .28, 7), this.mat.wood, .12, .42, -.14, body).rotation.z = -.18;
+      for (const offset of [-.035, .035]) {
+        const spareArrow = this.mesh(new THREE.CylinderGeometry(.007, .007, .34, 5), this.mat.goldLight, .12 + offset, .55, -.14, body);
+        spareArrow.rotation.z = -.18;
+      }
+
+      return { unit, body, bowArm, drawArm, arrow, baseY: unit.position.y };
+    });
+    group.userData.archerSquad = squad;
+    group.userData.archers = archers;
+    group.userData.archerHill = grassMound;
+  }
+
+  buildRiflemanTower(group) {
+    const grassMound = this.buildArcherHill(group);
+    const squad = new THREE.Group();
+    group.add(squad);
+    const skin = new THREE.MeshStandardMaterial({ color: 0xc89a73, roughness: .9, flatShading: true });
+    const rifleBlue = new THREE.MeshStandardMaterial({ color: 0x294c64, roughness: .8, flatShading: true });
+    const formation = [[-.48, -.12], [0, .2], [.48, -.12]];
+    const riflemen = formation.map(([x, z], index) => {
+      const unit = new THREE.Group();
+      unit.position.set(x, .28, z);
+      unit.scale.setScalar(1.14);
+      squad.add(unit);
+
+      const body = new THREE.Group();
+      unit.add(body);
+      this.mesh(new THREE.CylinderGeometry(.105, .15, .36, 8), rifleBlue, 0, .36, 0, body);
+      this.mesh(new THREE.BoxGeometry(.23, .06, .19), this.mat.goldDark, 0, .39, 0, body);
+      this.mesh(new THREE.BoxGeometry(.09, .1, .04), this.mat.gold, 0, .43, .13, body).rotation.z = Math.PI / 4;
+      const cape = this.mesh(new THREE.BoxGeometry(.23, .32, .035), index === 1 ? this.mat.roofRed : this.mat.darkRed, 0, .37, -.12, body);
+      cape.rotation.x = -.08;
+
+      const head = new THREE.Group();
+      head.position.set(0, .64, .01);
+      body.add(head);
+      this.mesh(new THREE.SphereGeometry(.105, 10, 7), skin, 0, 0, 0, head);
+      this.addEyes(head, .038, .018, .095, .013, 0x252015);
+      this.mesh(new THREE.CylinderGeometry(.13, .145, .12, 8), this.mat.darkStone, 0, .1, 0, head);
+      const brim = this.mesh(new THREE.CylinderGeometry(.175, .175, .025, 9), this.mat.goldDark, 0, .055, 0, head);
+      brim.scale.z = .78;
+
+      const leftLeg = this.addJointedLimb(body, -.075, .2, 0, .25, .04, this.mat.darkStone);
+      const rightLeg = this.addJointedLimb(body, .075, .2, 0, .25, .04, this.mat.darkStone);
+      this.mesh(new THREE.BoxGeometry(.09, .055, .15), this.mat.wood, 0, -.24, .035, leftLeg);
+      this.mesh(new THREE.BoxGeometry(.09, .055, .15), this.mat.wood, 0, -.24, .035, rightLeg);
+
+      const leftArm = this.addJointedLimb(body, -.15, .52, .02, .3, .04, rifleBlue);
+      const rightArm = this.addJointedLimb(body, .15, .52, .02, .3, .04, rifleBlue);
+      leftArm.rotation.x = -.92;
+      leftArm.rotation.z = -.2;
+      rightArm.rotation.x = -.84;
+      rightArm.rotation.z = .28;
+      this.mesh(new THREE.SphereGeometry(.05, 8, 6), skin, 0, -.29, .04, leftArm);
+      this.mesh(new THREE.SphereGeometry(.05, 8, 6), skin, 0, -.29, .04, rightArm);
+
+      const rifle = new THREE.Group();
+      rifle.position.set(0, .47, .08);
+      body.add(rifle);
+      this.mesh(new THREE.BoxGeometry(.1, .09, .43), this.mat.wood, 0, 0, .1, rifle);
+      const barrel = this.mesh(new THREE.CylinderGeometry(.018, .022, .48, 7), this.mat.iron, 0, .025, .49, rifle);
+      barrel.rotation.x = Math.PI / 2;
+      this.mesh(new THREE.BoxGeometry(.07, .16, .13), this.mat.darkWood, .07, -.1, -.08, rifle).rotation.z = -.35;
+      const muzzle = this.mesh(new THREE.CylinderGeometry(.03, .03, .05, 7), this.mat.goldDark, 0, .025, .735, rifle);
+      muzzle.rotation.x = Math.PI / 2;
+
+      return { unit, body, rifle, leftArm, rightArm, baseY: unit.position.y };
+    });
+    group.userData.rifleSquad = squad;
+    group.userData.riflemen = riflemen;
+    group.userData.archerHill = grassMound;
+  }
+
+  buildSlingshooterTower(group) {
+    const grassMound = this.buildArcherHill(group);
+    const squad = new THREE.Group();
+    group.add(squad);
+    const frame = new THREE.Group();
+    squad.add(frame);
+    this.addBone(frame, new THREE.Vector3(0, .18, 0), new THREE.Vector3(0, .67, 0), .065, this.mat.darkWood);
+    this.addBone(frame, new THREE.Vector3(0, .58, 0), new THREE.Vector3(-.34, .98, 0), .055, this.mat.wood);
+    this.addBone(frame, new THREE.Vector3(0, .58, 0), new THREE.Vector3(.34, .98, 0), .055, this.mat.wood);
+    this.addBone(frame, new THREE.Vector3(-.43, .12, -.16), new THREE.Vector3(0, .3, 0), .055, this.mat.darkWood);
+    this.addBone(frame, new THREE.Vector3(.43, .12, -.16), new THREE.Vector3(0, .3, 0), .055, this.mat.darkWood);
+    this.addBone(frame, new THREE.Vector3(-.34, .98, .01), new THREE.Vector3(-.07, .72, -.18), .012, this.mat.darkStone);
+    this.addBone(frame, new THREE.Vector3(.34, .98, .01), new THREE.Vector3(.07, .72, -.18), .012, this.mat.darkStone);
+    const pouch = this.mesh(new THREE.BoxGeometry(.2, .08, .13), this.mat.darkLeather || this.mat.darkWood, 0, .72, -.18, frame);
+    const rock = this.mesh(new THREE.DodecahedronGeometry(.115, 0), this.mat.stone, 0, .07, 0, pouch);
+
+    const skin = new THREE.MeshStandardMaterial({ color: 0xc89a73, roughness: .9, flatShading: true });
+    const tunic = new THREE.MeshStandardMaterial({ color: 0x506a3a, roughness: .86, flatShading: true });
+    const formation = [[-.48, .05], [.48, .05], [0, -.4]];
+    const workers = formation.map(([x, z], index) => {
+      const unit = new THREE.Group();
+      unit.position.set(x, .26, z);
+      unit.scale.setScalar(1.02);
+      squad.add(unit);
+      const body = new THREE.Group();
+      unit.add(body);
+      this.mesh(new THREE.CylinderGeometry(.1, .145, .34, 8), tunic, 0, .35, 0, body);
+      this.mesh(new THREE.BoxGeometry(.22, .05, .17), this.mat.goldDark, 0, .37, 0, body);
+      const head = new THREE.Group();
+      head.position.set(0, .61, .01);
+      body.add(head);
+      this.mesh(new THREE.SphereGeometry(.1, 9, 7), skin, 0, 0, 0, head);
+      this.addEyes(head, .036, .017, .09, .012, 0x282117);
+      const cap = this.mesh(new THREE.ConeGeometry(.13, .18, 7), index === 2 ? this.mat.roofRed : this.mat.leafMid, 0, .14, 0, head);
+      cap.rotation.z = (index - 1) * .08;
+      const leftArm = this.addJointedLimb(body, -.14, .49, .02, .28, .038, tunic);
+      const rightArm = this.addJointedLimb(body, .14, .49, .02, .28, .038, tunic);
+      leftArm.rotation.x = -.7;
+      rightArm.rotation.x = -.7;
+      leftArm.rotation.z = -.2;
+      rightArm.rotation.z = .2;
+      this.addJointedLimb(body, -.07, .19, 0, .23, .038, this.mat.darkStone);
+      this.addJointedLimb(body, .07, .19, 0, .23, .038, this.mat.darkStone);
+      return { unit, body, leftArm, rightArm, baseY: unit.position.y };
+    });
+    group.userData.slingSquad = squad;
+    group.userData.slingWorkers = workers;
+    group.userData.slingPouch = pouch;
+    group.userData.slingRock = rock;
+    group.userData.slingshot = frame;
+    group.userData.archerHill = grassMound;
   }
 
   buildMageTower(group) {
-    this.mesh(new THREE.CylinderGeometry(.2, .33, .8, 8), this.mat.stone, 0, .55, 0, group);
-    this.mesh(new THREE.CylinderGeometry(.24, .24, .05, 8), this.mat.goldDark, 0, .74, 0, group);
-    for (const [x, z] of [[-.23,0],[.23,0],[0,-.23],[0,.23]]) {
-      const buttress = this.mesh(new THREE.ConeGeometry(.09, .5, 5), this.mat.darkStone, x, .4, z, group);
-      buttress.rotation.y = Math.atan2(x, z);
+    const wizard = new THREE.Group();
+    wizard.position.y = -.019;
+    wizard.scale.setScalar(.675);
+    group.add(wizard);
+    const skin = new THREE.MeshStandardMaterial({ color: 0xc79a76, roughness: .88, flatShading: true });
+    const beard = new THREE.MeshStandardMaterial({ color: 0xd8d0bc, roughness: .92, flatShading: true });
+
+    const robe = this.mesh(new THREE.CylinderGeometry(.17, .34, .68, 8), this.mat.purple, 0, .39, 0, wizard);
+    robe.scale.z = .9;
+    this.mesh(new THREE.TorusGeometry(.22, .032, 5, 10), this.mat.goldDark, 0, .48, 0, wizard).rotation.x = Math.PI / 2;
+    this.mesh(new THREE.BoxGeometry(.09, .1, .055), this.mat.goldLight, 0, .48, .25, wizard).rotation.z = Math.PI / 4;
+    for (const x of [-.13, .13]) {
+      this.mesh(new THREE.BoxGeometry(.16, .09, .25), this.mat.darkStone, x, .075, .065, wizard).rotation.y = x < 0 ? -.12 : .12;
     }
-    this.mesh(new THREE.ConeGeometry(.36, .38, 8), this.mat.purple, 0, .96, 0, group);
-    this.mesh(new THREE.ConeGeometry(.27, .31, 8), this.mat.roofLight, 0, 1.18, 0, group);
-    this.mesh(new THREE.CylinderGeometry(.2, .2, .045, 8), this.mat.gold, 0, 1.22, 0, group);
-    const crystal = this.mesh(new THREE.OctahedronGeometry(.15, 0), this.mat.purple, 0, 1.42, 0, group);
-    crystal.userData.baseY = 1.42;
+
+    const head = new THREE.Group();
+    head.position.set(0, .82, .015);
+    wizard.add(head);
+    this.mesh(new THREE.SphereGeometry(.16, 11, 8), skin, 0, 0, 0, head);
+    this.addEyes(head, .055, .025, .145, .018);
+    const beardMesh = this.mesh(new THREE.ConeGeometry(.11, .3, 7), beard, 0, -.16, .115, head);
+    beardMesh.rotation.z = Math.PI;
+    this.mesh(new THREE.CylinderGeometry(.29, .29, .045, 10), this.mat.purple, 0, .145, 0, head);
+    const hat = this.mesh(new THREE.ConeGeometry(.235, .42, 9), this.mat.purple, 0, .36, 0, head);
+    hat.rotation.z = -.08;
+    const hatTip = this.mesh(new THREE.ConeGeometry(.11, .25, 8), this.mat.roofLight, -.08, .61, 0, head);
+    hatTip.rotation.z = -.48;
+    this.mesh(new THREE.CylinderGeometry(.12, .12, .035, 8), this.mat.gold, 0, .22, 0, head);
+
+    const staffArm = this.addJointedLimb(wizard, -.21, .65, 0, .35, .055, this.mat.purple);
+    staffArm.rotation.z = -.3;
+    const castingArm = this.addJointedLimb(wizard, .21, .66, .02, .35, .055, this.mat.purple);
+    castingArm.rotation.x = -.92;
+    castingArm.rotation.z = .15;
+    this.mesh(new THREE.SphereGeometry(.075, 8, 6), skin, 0, -.35, 0, staffArm);
+    this.mesh(new THREE.SphereGeometry(.075, 8, 6), skin, 0, -.35, .01, castingArm);
+    const focus = this.mesh(new THREE.ConeGeometry(.065, .11, 4), this.mat.purple, 0, -.39, .12, castingArm);
+    focus.rotation.x = Math.PI / 2;
+
+    const staff = new THREE.Group();
+    staff.position.set(-.34, .58, 0);
+    wizard.add(staff);
+    this.mesh(new THREE.CylinderGeometry(.022, .028, 1.05, 7), this.mat.lightWood, 0, 0, 0, staff);
+    this.mesh(new THREE.TorusGeometry(.11, .025, 6, 10), this.mat.gold, 0, .55, 0, staff).rotation.x = Math.PI / 2;
+    const crystal = this.mesh(new THREE.ConeGeometry(.13, .23, 4), this.mat.purple, 0, .67, 0, staff);
+    crystal.userData.baseY = .67;
     group.userData.crystal = crystal;
     const light = new THREE.PointLight(0x9c7de9, 3, 2.2, 2);
-    light.position.y = 1.4;
-    group.add(light);
+    light.position.y = .67;
+    staff.add(light);
+    group.userData.wizardBody = wizard;
+    group.userData.wizardHead = head;
+    group.userData.wizardStaffArm = staffArm;
+    group.userData.wizardCastingArm = castingArm;
+    group.userData.wizardStaff = staff;
+    group.userData.wizardFocus = focus;
+    group.userData.wizardLight = light;
   }
 
   buildBallista(group) {
@@ -530,6 +1037,66 @@ class ThreeGraphics {
     this.mesh(new THREE.BoxGeometry(.035, .5, .035), this.mat.wood, -.46, .27, -.25, group);
   }
 
+  buildGravestone(group) {
+    const graveSoil = new THREE.MeshStandardMaterial({ color: 0x40382e, roughness: 1, flatShading: true });
+    const graveGlow = new THREE.MeshStandardMaterial({ color: 0x8fc47a, roughness: .38, emissive: 0x365f31, emissiveIntensity: 1.3, flatShading: true });
+    const mound = this.mesh(new THREE.SphereGeometry(.47, 12, 7), graveSoil, 0, .22, 0, group);
+    mound.scale.set(1.15, .42, .82);
+    const stone = this.mesh(new THREE.BoxGeometry(.5, .82, .17), this.mat.darkStone, 0, .66, 0, group);
+    stone.rotation.z = -.04;
+    this.mesh(new THREE.SphereGeometry(.25, 12, 7, 0, Math.PI * 2, 0, Math.PI * .55), this.mat.darkStone, 0, 1.07, 0, group);
+    this.mesh(new THREE.BoxGeometry(.34, .055, .035), graveGlow, 0, .75, .095, group);
+    this.mesh(new THREE.BoxGeometry(.06, .33, .035), graveGlow, 0, .75, .098, group);
+    for (const x of [-.31, .31]) {
+      const bone = this.mesh(new THREE.CylinderGeometry(.025, .025, .48, 6), this.mat.bone, x, .24, .16, group);
+      bone.rotation.z = x < 0 ? -.72 : .72;
+    }
+    for (const x of [-.26, .26]) {
+      this.mesh(new THREE.CylinderGeometry(.035, .045, .2, 7), this.mat.bone, x, .25, -.28, group);
+      this.mesh(new THREE.SphereGeometry(.04, 7, 5), graveGlow, x, .38, -.28, group);
+    }
+    const wisps = new THREE.Group();
+    group.add(wisps);
+    for (let index = 0; index < 3; index++) {
+      const angle = index / 3 * Math.PI * 2;
+      const wisp = this.mesh(new THREE.TetrahedronGeometry(.07, 0), graveGlow, Math.cos(angle) * .39, .66 + index * .09, Math.sin(angle) * .28, wisps);
+      wisp.userData.baseY = wisp.position.y;
+    }
+    const light = new THREE.PointLight(0x83c873, 4, 2.6, 2);
+    light.position.set(0, .78, .18);
+    group.add(light);
+    group.userData.graveWisps = wisps;
+    group.userData.gravestone = stone;
+  }
+
+  buildGladiatorCamp(group) {
+    const crimson = new THREE.MeshStandardMaterial({ color: 0x8b2925, roughness: .72, flatShading: true });
+    const bronze = new THREE.MeshStandardMaterial({ color: 0xa56f2a, roughness: .42, metalness: .5, flatShading: true });
+    this.mesh(new THREE.CylinderGeometry(.47, .49, .18, 12), this.mat.stone, 0, .34, 0, group);
+    const arenaFloor = this.mesh(new THREE.CylinderGeometry(.4, .42, .07, 12), this.mat.soil, 0, .46, 0, group);
+    arenaFloor.receiveShadow = true;
+    for (let index = 0; index < 8; index++) {
+      const angle = index / 8 * Math.PI * 2;
+      const wall = this.mesh(new THREE.BoxGeometry(.22, .2, .09), index % 2 ? this.mat.stoneLight : this.mat.stone, Math.cos(angle) * .43, .54, Math.sin(angle) * .43, group);
+      wall.rotation.y = -angle;
+    }
+    for (const side of [-1, 1]) {
+      const pole = this.mesh(new THREE.CylinderGeometry(.018, .022, .88, 7), bronze, side * .38, .86, -.28, group);
+      const banner = this.mesh(new THREE.BoxGeometry(.28, .34, .025), crimson, side * .38, 1.12, -.26, group);
+      banner.rotation.y = side * .08;
+      this.mesh(new THREE.BoxGeometry(.2, .045, .035), this.mat.gold, side * .38, 1.12, -.242, group);
+    }
+    const rack = new THREE.Group();
+    rack.position.set(0, .62, .12);
+    group.add(rack);
+    for (const x of [-.12, 0, .12]) {
+      const spear = this.mesh(new THREE.CylinderGeometry(.012, .012, .74, 6), this.mat.wood, x, .28, 0, rack);
+      spear.rotation.z = x * 1.5;
+      this.mesh(new THREE.ConeGeometry(.035, .14, 5), this.mat.iron, x - x * .27, .65, 0, rack).rotation.z = -x * 1.5;
+    }
+    group.userData.gladiatorCamp = arenaFloor;
+  }
+
   buildPlayerOgre(group) {
     const body = new THREE.Group();
     body.position.y = .08;
@@ -538,28 +1105,262 @@ class ThreeGraphics {
     const hide = new THREE.MeshStandardMaterial({ color: 0x4b3826, roughness: .92, flatShading: true });
     const torso = this.mesh(new THREE.SphereGeometry(.4, 14, 10), this.mat.ogre, 0, .53, 0, body);
     torso.scale.set(1.04, 1.18, .9);
-    this.mesh(new THREE.SphereGeometry(.24, 12, 9), this.mat.ogre, 0, 1.03, .04, body);
+    const head = new THREE.Group();
+    head.position.set(0, 1.03, .04);
+    body.add(head);
+    this.mesh(new THREE.SphereGeometry(.24, 12, 9), this.mat.ogre, 0, 0, 0, head);
     this.mesh(new THREE.BoxGeometry(.64, .13, .35), hide, 0, .42, 0, body);
     const shoulderA = this.mesh(new THREE.DodecahedronGeometry(.16, 0), this.mat.goldDark, -.37, .8, 0, body); shoulderA.scale.set(1.25, .72, 1);
     const shoulderB = this.mesh(new THREE.DodecahedronGeometry(.16, 0), this.mat.goldDark, .37, .8, 0, body); shoulderB.scale.set(1.25, .72, 1);
     this.mesh(new THREE.CylinderGeometry(.17, .17, .06, 8), this.mat.gold, 0, .62, .31, body).rotation.x = Math.PI / 2;
     const sash = this.mesh(new THREE.BoxGeometry(.13, .72, .4), warPaint, -.08, .61, .02, body);
     sash.rotation.z = -.52;
-    this.addEyes(body, .085, 1.08, .23, .032);
-    const tuskA = this.mesh(new THREE.ConeGeometry(.035, .17, 5), this.mat.bone, -.09, .92, .25, body); tuskA.rotation.x = Math.PI;
-    const tuskB = this.mesh(new THREE.ConeGeometry(.035, .17, 5), this.mat.bone, .09, .92, .25, body); tuskB.rotation.x = Math.PI;
-    const leftLeg = this.addJointedLimb(body, -.2, .3, 0, .38, .1, this.mat.ogre);
-    const rightLeg = this.addJointedLimb(body, .2, .3, 0, .38, .1, this.mat.ogre);
-    leftLeg.rotation.x = .08;
-    rightLeg.rotation.x = -.08;
-    const leftArm = this.addJointedLimb(body, -.38, .78, 0, .6, .115, this.mat.ogre);
-    const rightArm = this.addJointedLimb(body, .38, .78, 0, .6, .115, this.mat.ogre);
-    this.mesh(new THREE.SphereGeometry(.15, 9, 7), this.mat.ogre, 0, -.63, .02, leftArm);
-    this.mesh(new THREE.SphereGeometry(.15, 9, 7), this.mat.ogre, 0, -.63, .02, rightArm);
+    this.addEyes(head, .085, .05, .19, .032);
+    const tuskA = this.mesh(new THREE.ConeGeometry(.035, .17, 5), this.mat.bone, -.09, -.11, .21, head); tuskA.rotation.x = Math.PI;
+    const tuskB = this.mesh(new THREE.ConeGeometry(.035, .17, 5), this.mat.bone, .09, -.11, .21, head); tuskB.rotation.x = Math.PI;
+    const buildCrouchedLeg = side => {
+      const upper = this.addJointedLimb(body, side * .23, .4, .08, .3, .11, this.mat.ogre);
+      upper.rotation.set(-.68, 0, side * .24);
+      const knee = this.mesh(new THREE.DodecahedronGeometry(.115, 0), this.mat.goldDark, 0, -.3, .015, upper);
+      knee.scale.set(1.15, .78, 1.05);
+      const lower = this.addJointedLimb(upper, 0, -.29, 0, .28, .096, this.mat.ogre);
+      lower.rotation.x = 1.24;
+      this.mesh(new THREE.CylinderGeometry(.105, .105, .055, 7), this.mat.goldDark, 0, -.08, 0, lower);
+      const foot = this.mesh(new THREE.BoxGeometry(.2, .1, .29), this.mat.ogre, 0, -.29, .09, lower);
+      foot.rotation.y = side * .08;
+      for (const toeX of [-.06, .06]) this.mesh(new THREE.ConeGeometry(.025, .105, 5), this.mat.bone, toeX, -.3, .235, lower).rotation.x = Math.PI / 2;
+      return { upper, lower };
+    };
+    const leftLegParts = buildCrouchedLeg(-1);
+    const rightLegParts = buildCrouchedLeg(1);
+
+    const buildGuardedArm = side => {
+      const upper = this.addJointedLimb(body, side * .38, .78, 0, .34, .115, this.mat.ogre);
+      upper.rotation.set(-.54, 0, side * .2);
+      const forearm = this.addJointedLimb(upper, 0, -.32, 0, .31, .105, this.mat.ogre);
+      forearm.rotation.x = -.82;
+      this.mesh(new THREE.CylinderGeometry(.12, .12, .06, 7), this.mat.goldDark, 0, -.08, 0, forearm);
+      this.mesh(new THREE.SphereGeometry(.15, 9, 7), this.mat.ogre, 0, -.32, .02, forearm);
+      return { upper, forearm };
+    };
+    const leftArmParts = buildGuardedArm(-1);
+    const rightArmParts = buildGuardedArm(1);
     this.mesh(new THREE.CylinderGeometry(.23, .25, .13, 10), warPaint, 0, .3, 0, body);
     group.userData.playerOgre = body;
-    group.userData.ogreLeftArm = leftArm;
-    group.userData.ogreRightArm = rightArm;
+    group.userData.ogreTorso = torso;
+    group.userData.ogreHead = head;
+    group.userData.ogreLeftArm = leftArmParts.upper;
+    group.userData.ogreRightArm = rightArmParts.upper;
+    group.userData.ogreLeftForearm = leftArmParts.forearm;
+    group.userData.ogreRightForearm = rightArmParts.forearm;
+    group.userData.ogreLeftLeg = leftLegParts.upper;
+    group.userData.ogreRightLeg = rightLegParts.upper;
+    group.userData.ogreLeftLowerLeg = leftLegParts.lower;
+    group.userData.ogreRightLowerLeg = rightLegParts.lower;
+  }
+
+  buildGhost(group) {
+    const ghost = new THREE.Group();
+    ghost.position.y = .09;
+    group.add(ghost);
+
+    const makeRibbon = (parent, points, widths, material, z = 0) => {
+      const positions = [];
+      const indices = [];
+      points.forEach((point, index) => {
+        const previous = points[Math.max(0, index - 1)];
+        const next = points[Math.min(points.length - 1, index + 1)];
+        const dx = next[0] - previous[0];
+        const dy = next[1] - previous[1];
+        const length = Math.hypot(dx, dy) || 1;
+        const normalX = -dy / length;
+        const normalY = dx / length;
+        const halfWidth = widths[index] / 2;
+        positions.push(point[0] + normalX * halfWidth, point[1] + normalY * halfWidth, z);
+        positions.push(point[0] - normalX * halfWidth, point[1] - normalY * halfWidth, z);
+        if (index < points.length - 1) {
+          const a = index * 2;
+          indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+        }
+      });
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      geometry.computeBoundingSphere();
+      const ribbon = this.mesh(geometry, material, 0, 0, 0, parent);
+      ribbon.receiveShadow = false;
+      return ribbon;
+    };
+
+    const shroud = this.mesh(new THREE.ConeGeometry(.3, .72, 10), this.mat.spectral, 0, .49, 0, ghost);
+    shroud.scale.z = .76;
+    const shoulders = this.mesh(new THREE.SphereGeometry(.3, 12, 8), this.mat.spectral, 0, .72, 0, ghost);
+    shoulders.scale.set(1.05, .62, .72);
+
+    const head = new THREE.Group();
+    head.position.set(0, .94, .015);
+    ghost.add(head);
+    const crown = this.mesh(new THREE.SphereGeometry(.255, 14, 10), this.mat.spectral, 0, 0, 0, head);
+    crown.scale.set(.9, 1.2, .78);
+    const faceMaterial = new THREE.MeshBasicMaterial({ color: 0x111014, side: THREE.DoubleSide });
+    const leftEye = this.mesh(new THREE.SphereGeometry(.052, 10, 7), faceMaterial, -.08, .035, .205, head);
+    const rightEye = this.mesh(new THREE.SphereGeometry(.052, 10, 7), faceMaterial, .08, .035, .205, head);
+    leftEye.scale.set(.72, 1.42, .28);
+    rightEye.scale.set(.72, 1.42, .28);
+    const mouth = this.mesh(new THREE.SphereGeometry(.065, 10, 8), faceMaterial, 0, -.13, .215, head);
+    mouth.scale.set(.72, 1.48, .25);
+
+    const blanket = new THREE.Group();
+    blanket.position.z = -.035;
+    ghost.add(blanket);
+    makeRibbon(blanket,
+      [[0, .9], [.018, .76], [-.018, .6], [.025, .42], [-.02, .23], [.01, .04]],
+      [.34, .8, 1.3, 1.66, 1.5, .72], this.mat.spectral, 0);
+    makeRibbon(blanket,
+      [[-.2, .72], [-.28, .56], [-.43, .38], [-.5, .19], [-.38, .04]],
+      [.1, .095, .08, .055, .012], this.mat.spectralDark, .018);
+    makeRibbon(blanket,
+      [[.2, .72], [.28, .56], [.43, .38], [.5, .19], [.38, .04]],
+      [.1, .095, .08, .055, .012], this.mat.spectralDark, .018);
+    makeRibbon(blanket,
+      [[0, .72], [-.025, .54], [.035, .36], [-.015, .14]],
+      [.075, .065, .05, .012], this.mat.spectralDark, .022);
+
+    const streamerSpecs = [
+      { x: -.23, points: [[0, .34], [-.03, .16], [-.13, -.01], [-.29, -.08]] },
+      { x: -.12, points: [[0, .33], [-.04, .13], [-.02, -.06], [-.12, -.18]] },
+      { x: 0, points: [[0, .34], [.025, .13], [-.02, -.08], [.08, -.22]] },
+      { x: .12, points: [[0, .33], [.04, .14], [.03, -.05], [.18, -.15]] },
+      { x: .23, points: [[0, .34], [.03, .17], [.13, .01], [.31, -.04]] }
+    ];
+    const streamers = streamerSpecs.map((spec, index) => {
+      const streamer = new THREE.Group();
+      streamer.position.x = spec.x;
+      ghost.add(streamer);
+      makeRibbon(streamer, spec.points, [.14, .12, .075, .012], index % 2 ? this.mat.spectralDark : this.mat.spectral, -.01 + index * .006);
+      return streamer;
+    });
+
+    const auraMaterial = new THREE.MeshBasicMaterial({ color: 0x9be3d6, transparent: true, opacity: .24, side: THREE.DoubleSide, depthWrite: false });
+    const auraWispMaterial = new THREE.MeshBasicMaterial({ color: 0xc6fff3, transparent: true, opacity: .98, depthWrite: false });
+    const aura = this.mesh(new THREE.RingGeometry(.37, .43, 28), auraMaterial, 0, .12, 0, group);
+    aura.rotation.x = -Math.PI / 2;
+    for (let index = 0; index < 3; index++) {
+      const angle = index / 3 * Math.PI * 2;
+      const wisp = this.mesh(new THREE.TetrahedronGeometry(.055, 0), auraWispMaterial, Math.cos(angle) * .36, .12, Math.sin(angle) * .36, group);
+      aura.add(wisp);
+    }
+    const light = new THREE.PointLight(0x7de8d3, 2.2, 2.4, 2);
+    light.position.set(0, .72, .08);
+    ghost.add(light);
+
+    group.userData.ghostBody = ghost;
+    group.userData.ghostHead = head;
+    group.userData.ghostBlanket = blanket;
+    group.userData.ghostStreamers = streamers;
+    group.userData.ghostAura = aura;
+    group.userData.ghostLight = light;
+  }
+
+  buildVampire(group) {
+    const vampire = new THREE.Group();
+    vampire.position.y = .03;
+    vampire.scale.setScalar(.82);
+    group.add(vampire);
+    const pale = new THREE.MeshStandardMaterial({ color: 0xe5d4cc, roughness: .76, flatShading: true });
+    const blackCloth = new THREE.MeshStandardMaterial({ color: 0x171419, roughness: .88, flatShading: true });
+    const crimson = new THREE.MeshStandardMaterial({ color: 0x8e1729, roughness: .72, flatShading: true });
+    const bloodGlow = new THREE.MeshBasicMaterial({ color: 0xff2648, toneMapped: false });
+    const eyeGlow = new THREE.MeshBasicMaterial({ color: 0xff304c, toneMapped: false });
+
+    const cape = new THREE.Group();
+    cape.position.set(0, .53, -.12);
+    vampire.add(cape);
+    const capeBack = this.mesh(new THREE.ConeGeometry(.5, .92, 5), blackCloth, 0, 0, 0, cape);
+    capeBack.scale.set(1.15, 1, .44);
+    capeBack.rotation.y = Math.PI;
+    const capeLeft = this.mesh(new THREE.ConeGeometry(.35, .78, 4), crimson, -.24, -.05, -.04, cape);
+    capeLeft.scale.z = .35;
+    capeLeft.rotation.z = -.18;
+    const capeRight = this.mesh(new THREE.ConeGeometry(.35, .78, 4), crimson, .24, -.05, -.04, cape);
+    capeRight.scale.z = .35;
+    capeRight.rotation.z = .18;
+
+    const torso = this.mesh(new THREE.CylinderGeometry(.17, .27, .58, 8), blackCloth, 0, .57, 0, vampire);
+    torso.scale.z = .72;
+    this.mesh(new THREE.BoxGeometry(.32, .06, .2), crimson, 0, .57, .02, vampire);
+    const shirt = this.mesh(new THREE.ConeGeometry(.095, .24, 3), pale, 0, .71, .19, vampire);
+    shirt.rotation.z = Math.PI;
+    this.mesh(new THREE.SphereGeometry(.045, 8, 6), this.mat.gold, 0, .57, .2, vampire);
+
+    for (const side of [-1, 1]) {
+      const leg = this.addJointedLimb(vampire, side * .1, .3, 0, .34, .055, blackCloth);
+      leg.rotation.z = side * .05;
+      const boot = this.mesh(new THREE.BoxGeometry(.12, .11, .24), blackCloth, 0, -.32, .07, leg);
+      boot.rotation.y = side * .08;
+    }
+
+    const head = new THREE.Group();
+    head.position.set(0, .96, .015);
+    vampire.add(head);
+    const face = this.mesh(new THREE.SphereGeometry(.18, 12, 9), pale, 0, 0, 0, head);
+    face.scale.set(.83, 1.08, .8);
+    const slickHair = new THREE.Group();
+    head.add(slickHair);
+    const hairCap = this.mesh(new THREE.SphereGeometry(.19, 10, 7, 0, Math.PI * 2, 0, Math.PI * .54), blackCloth, 0, .095, -.035, slickHair);
+    hairCap.scale.set(.91, .72, .88);
+    const hairline = this.mesh(new THREE.BoxGeometry(.27, .055, .045), blackCloth, 0, .115, .13, slickHair);
+    hairline.rotation.x = -.22;
+    for (const [x, length, tilt] of [[-.1, .22, -.08], [0, .3, 0], [.1, .22, .08]]) {
+      const sweptLock = this.mesh(new THREE.ConeGeometry(.055, length, 5), blackCloth, x, .105, -.135, slickHair);
+      sweptLock.rotation.x = -Math.PI / 2;
+      sweptLock.rotation.z = tilt;
+      sweptLock.scale.z = .72;
+    }
+    for (const side of [-1, 1]) {
+      const ear = this.mesh(new THREE.ConeGeometry(.045, .16, 5), pale, side * .175, .01, 0, head);
+      ear.rotation.z = side * -Math.PI / 2;
+      const eye = this.mesh(new THREE.SphereGeometry(.03, 8, 6), eyeGlow, side * .065, .02, .145, head);
+      eye.scale.set(1, .65, .36);
+      const fang = this.mesh(new THREE.ConeGeometry(.012, .085, 5), this.mat.bone, side * .043, -.105, .15, head);
+      fang.rotation.z = Math.PI;
+    }
+    const collarLeft = this.mesh(new THREE.ConeGeometry(.16, .36, 4), crimson, -.15, .82, -.08, vampire);
+    collarLeft.rotation.z = -.32;
+    collarLeft.scale.z = .42;
+    const collarRight = this.mesh(new THREE.ConeGeometry(.16, .36, 4), crimson, .15, .82, -.08, vampire);
+    collarRight.rotation.z = .32;
+    collarRight.scale.z = .42;
+
+    const leftArm = this.addJointedLimb(vampire, -.22, .75, .02, .43, .058, blackCloth);
+    const rightArm = this.addJointedLimb(vampire, .22, .75, .02, .43, .058, blackCloth);
+    leftArm.rotation.set(-.62, 0, -.3);
+    rightArm.rotation.set(-.62, 0, .3);
+    for (const arm of [leftArm, rightArm]) {
+      const hand = this.mesh(new THREE.SphereGeometry(.07, 9, 7), pale, 0, -.42, .025, arm);
+      hand.scale.set(.8, 1.08, .72);
+      for (const finger of [-.035, 0, .035]) {
+        const claw = this.mesh(new THREE.ConeGeometry(.009, .07, 5), pale, finger, -.49, .045, arm);
+        claw.rotation.x = Math.PI;
+      }
+    }
+
+    const bloodOrb = this.mesh(new THREE.IcosahedronGeometry(.075, 1), bloodGlow, 0, .67, .48, vampire);
+    bloodOrb.visible = false;
+    bloodOrb.castShadow = false;
+    const light = new THREE.PointLight(0xff173e, .45, 2.5, 2);
+    light.position.set(0, .7, .3);
+    vampire.add(light);
+
+    group.userData.vampireBody = vampire;
+    group.userData.vampireHead = head;
+    group.userData.vampireSlickHair = slickHair;
+    group.userData.vampireCape = cape;
+    group.userData.vampireLeftArm = leftArm;
+    group.userData.vampireRightArm = rightArm;
+    group.userData.vampireBloodOrb = bloodOrb;
+    group.userData.vampireLight = light;
   }
 
   buildGoldMine(group) {
@@ -641,29 +1442,36 @@ class ThreeGraphics {
     for (const knight of knights) {
       let group = this.knightMeshes.get(knight);
       if (!group) {
-        group = this.createKnight();
+        group = this.createKnight(knight.unitType || "knight");
         this.knightMeshes.set(knight, group);
         this.scene.add(group);
-        const bar = this.createHealthBar("knight");
+        const bar = this.createHealthBar(knight.unitType || "knight");
         this.knightBars.set(knight, bar);
         this.scene.add(bar);
       }
       const bar = this.knightBars.get(knight);
       group.visible = knight.alive;
-      bar.visible = knight.alive;
+      bar.visible = knight.alive && this.showHealthBars;
       if (!knight.alive) continue;
       const p = this.worldFromGame(knight.x, knight.y);
-      const stride = Math.sin(now * 11 + knight.phase);
+      const strideRate = knight.unitType === "zombie" ? 6.5 : knight.unitType === "gladiator" ? 10 : knight.unitType === "vampireMinion" ? 12 : 11;
+      const stride = Math.sin(now * strideRate + knight.phase);
       const walking = knight.moving && !knight.clashing;
-      const bob = walking ? Math.abs(stride) * .035 : Math.sin(now * 2.6 + knight.phase) * .008;
-      group.position.set(p.x, .07 + bob, p.z);
+      const bob = walking ? Math.abs(stride) * .0175 : Math.sin(now * 2.6 + knight.phase) * .004;
+      group.position.set(p.x, .035 + bob, p.z);
       group.rotation.y = Math.PI / 2 - knight.angle;
       group.rotation.z = walking ? stride * .035 : 0;
-      group.scale.setScalar(knight.hitFlash > 0 ? 1.08 : 1);
+      const unitScale = (knight.unitType === "gladiator" ? 1.14 : knight.unitType === "zombie" ? .94 : knight.unitType === "vampireMinion" ? .96 : 1) * .5;
+      group.scale.setScalar(unitScale * (knight.hitFlash > 0 ? 1.08 : 1));
       group.userData.leftLeg.rotation.x = walking ? stride * .72 : 0;
       group.userData.rightLeg.rotation.x = walking ? -stride * .72 : 0;
-      group.userData.leftArm.rotation.x = walking ? -stride * .48 : knight.clashing ? -.72 : 0;
-      group.userData.rightArm.rotation.x = walking ? stride * .48 : knight.clashing ? -.42 : 0;
+      if (knight.unitType === "zombie") {
+        group.userData.leftArm.rotation.x = -.82 + (walking ? -stride * .18 : 0);
+        group.userData.rightArm.rotation.x = -.7 + (walking ? stride * .18 : 0);
+      } else {
+        group.userData.leftArm.rotation.x = walking ? -stride * .48 : knight.clashing ? -.72 : 0;
+        group.userData.rightArm.rotation.x = walking ? stride * .48 : knight.clashing ? -.42 : 0;
+      }
       group.userData.leftArm.rotation.z = knight.clashing ? -.18 : 0;
       group.userData.rightArm.rotation.z = knight.clashing ? -.14 : 0;
       if (knight.swing > 0) {
@@ -674,55 +1482,112 @@ class ThreeGraphics {
       } else {
         group.userData.torso.rotation.y = 0;
       }
-      bar.position.set(p.x, 1.03 + bob, p.z);
+      const barHeight = knight.unitType === "gladiator" ? .64 : knight.unitType === "zombie" ? .52 : knight.unitType === "vampireMinion" ? .55 : .57;
+      bar.position.set(p.x, barHeight + bob, p.z);
       this.updateHealthBar(bar, knight.hp / knight.maxHp);
     }
   }
 
-  createKnight() {
+  createKnight(unitType = "knight") {
     const group = new THREE.Group();
+    const isZombie = unitType === "zombie";
+    const isGladiator = unitType === "gladiator";
+    const isVampireMinion = unitType === "vampireMinion";
     const blue = new THREE.MeshStandardMaterial({ color: 0x315f7d, roughness: .72, flatShading: true });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xc99a72, roughness: .9, flatShading: true });
+    const crimson = new THREE.MeshStandardMaterial({ color: 0x8f2925, roughness: .72, flatShading: true });
+    const bronze = new THREE.MeshStandardMaterial({ color: 0xa86f2b, roughness: .42, metalness: .48, flatShading: true });
+    const zombieCloth = new THREE.MeshStandardMaterial({ color: 0x4d4934, roughness: 1, flatShading: true });
+    const vampireBlack = new THREE.MeshStandardMaterial({ color: 0x1b171d, roughness: .86, flatShading: true });
+    const vampirePale = new THREE.MeshStandardMaterial({ color: 0xdfcec7, roughness: .8, flatShading: true });
+    const vampireEyes = new THREE.MeshBasicMaterial({ color: 0xff2748, toneMapped: false });
+    const skin = new THREE.MeshStandardMaterial({ color: isZombie ? 0x72805a : isVampireMinion ? 0xdfcec7 : 0xc99a72, roughness: .9, flatShading: true });
+    const bodyMaterial = isZombie ? zombieCloth : isVampireMinion ? crimson : isGladiator ? crimson : blue;
+    const armorMaterial = isVampireMinion ? vampireBlack : isGladiator ? bronze : this.mat.goldDark;
+    const limbMaterial = isZombie ? skin : isVampireMinion ? vampireBlack : isGladiator ? bronze : this.mat.iron;
     const torso = new THREE.Group();
     group.add(torso);
-    this.mesh(new THREE.CylinderGeometry(.11, .14, .34, 8), blue, 0, .36, 0, torso);
-    this.mesh(new THREE.BoxGeometry(.22, .19, .045), this.mat.goldDark, 0, .4, .105, torso);
-    this.mesh(new THREE.BoxGeometry(.12, .12, .052), this.mat.gold, 0, .4, .135, torso).rotation.z = Math.PI / 4;
-    for (const x of [-.145, .145]) this.mesh(new THREE.DodecahedronGeometry(.07, 0), this.mat.goldDark, x, .5, 0, torso).scale.set(1.15, .62, .88);
+    this.mesh(new THREE.CylinderGeometry(.11, .14, .34, 8), bodyMaterial, 0, .36, 0, torso);
+    if (isZombie) {
+      const tornPatch = this.mesh(new THREE.BoxGeometry(.19, .16, .04), this.mat.cloth, -.025, .39, .11, torso);
+      tornPatch.rotation.z = -.18;
+    } else if (isVampireMinion) {
+      const vest = this.mesh(new THREE.BoxGeometry(.2, .21, .045), vampireBlack, 0, .4, .108, torso);
+      vest.rotation.z = -.05;
+      const cape = this.mesh(new THREE.ConeGeometry(.2, .45, 5), vampireBlack, 0, .4, -.11, torso);
+      cape.scale.z = .34;
+      this.mesh(new THREE.BoxGeometry(.055, .22, .025), this.mat.bone, 0, .4, .138, torso);
+    } else {
+      this.mesh(new THREE.BoxGeometry(.22, .19, .045), armorMaterial, 0, .4, .105, torso);
+      this.mesh(new THREE.BoxGeometry(.12, .12, .052), this.mat.gold, 0, .4, .135, torso).rotation.z = Math.PI / 4;
+      for (const x of [-.145, .145]) this.mesh(new THREE.DodecahedronGeometry(.07, 0), armorMaterial, x, .5, 0, torso).scale.set(1.15, .62, .88);
+    }
     this.mesh(new THREE.SphereGeometry(.105, 10, 8), skin, 0, .62, .015, torso);
-    this.mesh(new THREE.SphereGeometry(.125, 10, 7, 0, Math.PI * 2, 0, Math.PI * .62), this.mat.iron, 0, .67, .005, torso);
-    this.mesh(new THREE.BoxGeometry(.19, .045, .025), this.mat.iron, 0, .62, .11, torso);
-    const plume = this.mesh(new THREE.ConeGeometry(.035, .19, 6), blue, 0, .83, -.015, torso);
-    plume.rotation.x = -.18;
+    if (isZombie) {
+      this.addEyes(torso, .04, .635, .105, .018, 0xa7da72);
+      const jaw = this.mesh(new THREE.BoxGeometry(.11, .06, .07), skin, .015, .54, .08, torso);
+      jaw.rotation.z = .13;
+      for (const x of [-.11, .09]) this.mesh(new THREE.BoxGeometry(.035, .12, .035), this.mat.bone, x, .72, 0, torso).rotation.z = x * 1.8;
+    } else if (isVampireMinion) {
+      this.addEyes(torso, .04, .635, .105, .018, 0xff2748);
+      const hair = this.mesh(new THREE.SphereGeometry(.115, 9, 6, 0, Math.PI * 2, 0, Math.PI * .54), vampireBlack, 0, .68, -.01, torso);
+      hair.scale.y = .7;
+      for (const side of [-1, 1]) {
+        const ear = this.mesh(new THREE.ConeGeometry(.025, .09, 5), vampirePale, side * .11, .625, 0, torso);
+        ear.rotation.z = side * -Math.PI / 2;
+        const fang = this.mesh(new THREE.ConeGeometry(.008, .055, 5), this.mat.bone, side * .026, .565, .105, torso);
+        fang.rotation.z = Math.PI;
+      }
+      const eyeLight = this.mesh(new THREE.SphereGeometry(.018, 7, 5), vampireEyes, 0, .635, .112, torso);
+      eyeLight.scale.set(3.2, .65, .35);
+    } else {
+      this.mesh(new THREE.SphereGeometry(.125, 10, 7, 0, Math.PI * 2, 0, Math.PI * .62), isGladiator ? bronze : this.mat.iron, 0, .67, .005, torso);
+      this.mesh(new THREE.BoxGeometry(.19, .045, .025), isGladiator ? bronze : this.mat.iron, 0, .62, .11, torso);
+      const plume = this.mesh(new THREE.ConeGeometry(isGladiator ? .055 : .035, isGladiator ? .27 : .19, 6), isGladiator ? crimson : blue, 0, isGladiator ? .88 : .83, -.015, torso);
+      plume.rotation.x = -.18;
+    }
 
-    const leftLeg = this.addJointedLimb(group, -.075, .22, 0, .25, .04, this.mat.iron);
-    const rightLeg = this.addJointedLimb(group, .075, .22, 0, .25, .04, this.mat.iron);
-    this.mesh(new THREE.BoxGeometry(.09, .05, .13), this.mat.iron, 0, -.24, .035, leftLeg);
-    this.mesh(new THREE.BoxGeometry(.09, .05, .13), this.mat.iron, 0, -.24, .035, rightLeg);
-    const leftArm = this.addJointedLimb(group, -.14, .52, 0, .28, .035, blue);
-    const rightArm = this.addJointedLimb(group, .14, .52, 0, .28, .035, blue);
+    const leftLeg = this.addJointedLimb(group, -.075, .22, 0, .25, .04, limbMaterial);
+    const rightLeg = this.addJointedLimb(group, .075, .22, 0, .25, .04, limbMaterial);
+    this.mesh(new THREE.BoxGeometry(.09, .05, .13), limbMaterial, 0, -.24, .035, leftLeg);
+    this.mesh(new THREE.BoxGeometry(.09, .05, .13), limbMaterial, 0, -.24, .035, rightLeg);
+    const leftArm = this.addJointedLimb(group, -.14, .52, 0, .28, .035, isZombie ? skin : bodyMaterial);
+    const rightArm = this.addJointedLimb(group, .14, .52, 0, .28, .035, isZombie ? skin : bodyMaterial);
 
-    const shield = this.mesh(new THREE.CylinderGeometry(.135, .135, .035, 8), blue, 0, -.18, .1, leftArm);
-    shield.rotation.x = Math.PI / 2;
-    const shieldRim = this.mesh(new THREE.TorusGeometry(.132, .014, 5, 8), this.mat.goldDark, 0, -.18, .122, leftArm);
-    shieldRim.rotation.x = Math.PI / 2;
-    this.mesh(new THREE.BoxGeometry(.035, .2, .025), this.mat.gold, 0, -.18, .125, leftArm);
-    this.mesh(new THREE.BoxGeometry(.2, .035, .025), this.mat.gold, 0, -.18, .125, leftArm);
+    if (!isZombie && !isVampireMinion) {
+      const shield = this.mesh(new THREE.CylinderGeometry(isGladiator ? .155 : .135, isGladiator ? .155 : .135, .035, isGladiator ? 12 : 8), isGladiator ? crimson : blue, 0, -.18, .1, leftArm);
+      shield.rotation.x = Math.PI / 2;
+      const shieldRim = this.mesh(new THREE.TorusGeometry(isGladiator ? .152 : .132, .014, 5, isGladiator ? 12 : 8), armorMaterial, 0, -.18, .122, leftArm);
+      shieldRim.rotation.x = Math.PI / 2;
+      this.mesh(new THREE.BoxGeometry(.035, .2, .025), this.mat.gold, 0, -.18, .125, leftArm);
+      this.mesh(new THREE.BoxGeometry(.2, .035, .025), this.mat.gold, 0, -.18, .125, leftArm);
+    }
 
-    const sword = new THREE.Group();
-    sword.position.set(0, -.28, .03);
-    sword.rotation.z = -.18;
-    rightArm.add(sword);
-    const blade = this.mesh(new THREE.BoxGeometry(.035, .4, .025), this.mat.iron, 0, .2, 0, sword);
-    blade.rotation.z = 0;
-    this.mesh(new THREE.BoxGeometry(.16, .035, .04), this.mat.gold, 0, 0, 0, sword);
-    this.mesh(new THREE.CylinderGeometry(.025, .025, .13, 6), this.mat.wood, 0, -.08, 0, sword);
+    let sword = null;
+    if (!isZombie && !isVampireMinion) {
+      sword = new THREE.Group();
+      sword.position.set(0, -.28, .03);
+      sword.rotation.z = -.18;
+      rightArm.add(sword);
+      const blade = this.mesh(new THREE.BoxGeometry(.035, isGladiator ? .48 : .4, .025), this.mat.iron, 0, .2, 0, sword);
+      blade.rotation.z = 0;
+      this.mesh(new THREE.BoxGeometry(.16, .035, .04), this.mat.gold, 0, 0, 0, sword);
+      this.mesh(new THREE.CylinderGeometry(.025, .025, .13, 6), this.mat.wood, 0, -.08, 0, sword);
+    } else if (isVampireMinion) {
+      for (const arm of [leftArm, rightArm]) {
+        this.mesh(new THREE.SphereGeometry(.045, 8, 6), vampirePale, 0, -.27, .02, arm);
+        for (const x of [-.025, 0, .025]) {
+          const claw = this.mesh(new THREE.ConeGeometry(.006, .055, 5), vampirePale, x, -.32, .035, arm);
+          claw.rotation.x = Math.PI;
+        }
+      }
+    }
     group.userData.torso = torso;
     group.userData.leftArm = leftArm;
     group.userData.rightArm = rightArm;
     group.userData.leftLeg = leftLeg;
     group.userData.rightLeg = rightLeg;
     group.userData.sword = sword;
+    group.userData.vampireMinion = isVampireMinion;
     return group;
   }
 
@@ -753,7 +1618,8 @@ class ThreeGraphics {
         this.scene.add(bar);
       }
       const p = this.worldFromGame(enemy.x, enemy.y);
-      const bob = this.animateEnemy(group, enemy, now) * this.enemyModelScale;
+      const renderScale = this.enemyModelScale * (this.config.enemyTypes[enemy.type].modelScale || 1);
+      const bob = this.animateEnemy(group, enemy, now) * renderScale;
       const throwHeight = enemy.thrown ? enemy.throwArc : 0;
       group.position.set(p.x, .08 + bob + throwHeight, p.z);
       group.rotation.x = enemy.thrown ? enemy.throwSpin : 0;
@@ -761,10 +1627,11 @@ class ThreeGraphics {
       if (enemy.blocked) {
         group.rotation.y = Math.PI / 2 - enemy.combatAngle;
       } else {
-        const next = this.config.pathPoints[enemy.pathIndex];
+        const nextIndex = enemy.fearTimer > 0 ? enemy.fearTargetIndex : enemy.pathIndex;
+        const next = this.config.pathPoints[nextIndex];
         if (next) {
-        const target = this.worldFromGame(next.x, next.y);
-        group.rotation.y = Math.atan2(target.x - p.x, target.z - p.z);
+          const target = this.worldFromGame(next.x, next.y);
+          group.rotation.y = Math.atan2(target.x - p.x, target.z - p.z);
         }
       }
       if (group.userData.leftWing) {
@@ -773,12 +1640,50 @@ class ThreeGraphics {
         group.userData.leftWing.rotation.z = -.35 + flap;
         group.userData.rightWing.rotation.z = .35 - flap;
       }
+      if (group.userData.blueFlames) {
+        group.userData.blueFlames.forEach((flame, index) => {
+          const flicker = 1 + Math.sin(now * (7.5 + index * .17) + flame.userData.phase) * .22;
+          flame.scale.set(.82 + flicker * .18, flicker, .82 + flicker * .18);
+          flame.position.y = flame.userData.baseY + Math.sin(now * 5.2 + flame.userData.phase) * .035;
+          flame.rotation.y = now * .8 + flame.userData.phase;
+        });
+      }
+      if (group.userData.fireBreath) {
+        const fire = group.userData.fireBreath;
+        fire.visible = enemy.fireBreathTimer > 0;
+        if (fire.visible) {
+          const flare = Math.sin(THREE.MathUtils.clamp(enemy.fireBreathTimer / .8, 0, 1) * Math.PI);
+          fire.scale.set(.85 + flare * .35, .85 + flare * .35, .85 + flare * .5);
+          fire.rotation.z = Math.sin(now * 24) * .08;
+          group.userData.fireOuter.material.opacity = .62 + flare * .28;
+          group.userData.fireLight.intensity = 4 + flare * 8;
+        }
+      }
+      if (group.userData.shipSail) group.userData.shipSail.rotation.y = Math.sin(now * 1.8 + enemy.phase) * .045;
+      if (group.userData.witchOrb) {
+        group.userData.witchOrb.rotation.x = now * 2.8;
+        group.userData.witchOrb.rotation.y = now * 3.7;
+        group.userData.summonRing.rotation.z = now * .9;
+        const summoning = enemy.type === "covenwitch" && enemy.summonsRemaining > 0 && enemy.summonCooldown < .7;
+        group.userData.summonRing.scale.setScalar(summoning ? 1.25 + Math.sin(now * 16) * .12 : 1);
+      }
+      if (group.userData.miniBossAura) group.userData.miniBossAura.rotation.z = now * .45;
+      if (group.userData.crownFlame) {
+        const pulse = 1 + Math.sin(now * 7 + enemy.phase) * .16;
+        group.userData.crownFlame.scale.setScalar(pulse);
+      }
       group.userData.frostRing.visible = enemy.slowTimer > 0;
-      group.scale.setScalar(this.enemyModelScale * (enemy.hitFlash > 0 ? 1.06 : 1));
+      group.userData.fearAura.visible = enemy.fearTimer > 0;
+      if (enemy.fearTimer > 0) {
+        group.userData.fearAura.rotation.y = now * 5 + enemy.phase;
+        group.userData.fearAura.position.y = 1.02 + Math.sin(now * 5 + enemy.phase) * .08;
+      }
+      group.scale.setScalar(renderScale * (enemy.hitFlash > 0 ? 1.06 : 1));
 
       const bar = this.enemyBars.get(enemy);
+      bar.visible = this.showHealthBars;
       const height = this.enemyHeight(enemy.type);
-      bar.position.set(p.x, .08 + height * this.enemyModelScale + .13 + bob + throwHeight, p.z);
+      bar.position.set(p.x, .08 + height * renderScale + .13 + bob + throwHeight, p.z);
       const ratio = THREE.MathUtils.clamp(enemy.hp / enemy.maxHp, 0, 1);
       this.updateHealthBar(bar, ratio);
     }
@@ -790,14 +1695,374 @@ class ThreeGraphics {
     else if (type === "skeleton") this.buildSkeleton(group);
     else if (type === "orc") this.buildOrc(group);
     else if (type === "ogre") this.buildOgre(group);
-    else this.buildDragon(group);
+    else if (type === "dragon") this.buildDragon(group);
+    else if (type === "horseman") this.buildHeadlessHorseman(group);
+    else if (type === "cyclops") this.buildCyclops(group);
+    else if (type === "merchant") this.buildMerchant(group);
+    else if (type === "davyjones") this.buildDavyJones(group);
+    else if (type === "moonalpha") this.buildMoonfangAlpha(group);
+    else if (type === "longship") this.buildVikingLongship(group);
+    else if (type === "covenwitch") this.buildCovenWitch(group);
+    else if (type === "riftlord") this.buildRiftOverlord(group);
+    else if (type === "pirate") this.buildPirate(group);
+    else if (type === "werewolf") this.buildWerewolf(group);
+    else if (type === "viking") this.buildViking(group);
+    else if (type === "wraith") this.buildWraith(group);
+    else if (type === "demon") this.buildDemon(group);
+    else this.buildGoblin(group);
     const ring = new THREE.Mesh(new THREE.RingGeometry(.22, .29, 24), new THREE.MeshBasicMaterial({ color: 0x8fe8f4, transparent: true, opacity: .68, side: THREE.DoubleSide, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = .02;
     ring.visible = false;
     group.add(ring);
     group.userData.frostRing = ring;
+    const fearAura = new THREE.Group();
+    fearAura.visible = false;
+    const fearRing = new THREE.Mesh(new THREE.TorusGeometry(.27, .025, 6, 20), new THREE.MeshBasicMaterial({ color: 0xb8fff1, transparent: true, opacity: .82, depthWrite: false }));
+    fearRing.rotation.x = Math.PI / 2;
+    fearAura.add(fearRing);
+    const fearMaterial = new THREE.MeshBasicMaterial({ color: 0x85decf, transparent: true, opacity: .9, depthWrite: false });
+    for (let index = 0; index < 3; index++) {
+      const angle = index / 3 * Math.PI * 2;
+      const wisp = this.mesh(new THREE.TetrahedronGeometry(.06, 0), fearMaterial, Math.cos(angle) * .3, index % 2 ? .08 : -.06, Math.sin(angle) * .3, fearAura);
+      wisp.rotation.z = angle;
+    }
+    group.add(fearAura);
+    group.userData.fearAura = fearAura;
     return group;
+  }
+
+  buildMerchant(group) {
+    const skin = new THREE.MeshStandardMaterial({ color: 0xc98f68, roughness: .9, flatShading: true });
+    const coat = new THREE.MeshStandardMaterial({ color: 0x7d382c, roughness: .88, flatShading: true });
+    const coatTrim = new THREE.MeshStandardMaterial({ color: 0xd49a45, roughness: .72, flatShading: true });
+    const leather = new THREE.MeshStandardMaterial({ color: 0x4d2d1d, roughness: .94, flatShading: true });
+    const packCloth = new THREE.MeshStandardMaterial({ color: 0x315c58, roughness: .9, flatShading: true });
+    const hair = new THREE.MeshStandardMaterial({ color: 0x35231d, roughness: 1, flatShading: true });
+    const potionBlue = new THREE.MeshStandardMaterial({ color: 0x54bfc9, roughness: .3, emissive: 0x163f47, emissiveIntensity: .65, flatShading: true });
+    const parchment = new THREE.MeshStandardMaterial({ color: 0xd8bd79, roughness: .95, flatShading: true });
+
+    const torso = this.mesh(new THREE.CylinderGeometry(.23, .31, .62, 8), coat, 0, .68, 0, group);
+    this.mesh(new THREE.BoxGeometry(.52, .075, .34), leather, 0, .58, .015, group);
+    this.mesh(new THREE.BoxGeometry(.1, .1, .045), this.mat.gold, 0, .58, .2, group);
+    this.mesh(new THREE.BoxGeometry(.12, .4, .05), coatTrim, 0, .78, .2, group);
+    const coin = this.mesh(new THREE.CylinderGeometry(.085, .085, .025, 12), this.mat.goldLight, 0, .83, .235, group);
+    coin.rotation.x = Math.PI / 2;
+    this.mesh(new THREE.TorusGeometry(.055, .012, 5, 12), this.mat.goldDark, 0, .83, .25, group).rotation.x = Math.PI / 2;
+
+    const leftLeg = this.addJointedLimb(group, -.13, .4, 0, .43, .058, leather);
+    const rightLeg = this.addJointedLimb(group, .13, .4, 0, .43, .058, leather);
+    for (const leg of [leftLeg, rightLeg]) this.mesh(new THREE.BoxGeometry(.12, .08, .2), this.mat.darkStone, 0, -.42, .055, leg);
+    const leftArm = this.addJointedLimb(group, -.29, .88, 0, .5, .055, coat);
+    const rightArm = this.addJointedLimb(group, .29, .88, 0, .5, .055, coat);
+    this.mesh(new THREE.SphereGeometry(.065, 8, 6), skin, 0, -.48, .02, leftArm);
+    this.mesh(new THREE.SphereGeometry(.065, 8, 6), skin, 0, -.48, .02, rightArm);
+
+    const head = this.mesh(new THREE.SphereGeometry(.205, 11, 8), skin, 0, 1.15, 0, group);
+    head.scale.set(1, 1.05, .92);
+    this.addEyes(group, .075, 1.19, .18, .025, 0x2a1b16);
+    const nose = this.mesh(new THREE.ConeGeometry(.055, .16, 7), skin, 0, 1.12, .22, group);
+    nose.rotation.x = Math.PI / 2;
+    for (const side of [-1, 1]) {
+      const moustache = this.mesh(new THREE.ConeGeometry(.04, .17, 6), hair, side * .055, 1.055, .19, group);
+      moustache.rotation.z = side * .82;
+      moustache.rotation.x = Math.PI / 2;
+    }
+    const beard = this.mesh(new THREE.ConeGeometry(.14, .34, 7), hair, 0, .98, .04, group);
+    beard.rotation.x = Math.PI;
+
+    const hatBrim = this.mesh(new THREE.CylinderGeometry(.3, .3, .055, 10), coatTrim, 0, 1.36, 0, group);
+    const hat = this.mesh(new THREE.ConeGeometry(.22, .36, 8), coat, 0, 1.54, 0, group);
+    hat.rotation.z = -.14;
+    const feather = this.mesh(new THREE.ConeGeometry(.035, .42, 6), this.mat.roofLight, .2, 1.57, 0, group);
+    feather.rotation.z = -.72;
+
+    const backpack = new THREE.Group();
+    backpack.position.set(0, .82, -.23);
+    group.add(backpack);
+    this.mesh(new THREE.BoxGeometry(.48, .58, .3), packCloth, 0, 0, 0, backpack);
+    this.mesh(new THREE.BoxGeometry(.42, .08, .33), leather, 0, .24, 0, backpack);
+    for (const x of [-.17, .17]) this.mesh(new THREE.BoxGeometry(.055, .58, .32), leather, x, 0, 0, backpack);
+    const bedroll = this.mesh(new THREE.CylinderGeometry(.13, .13, .54, 9), parchment, 0, .38, -.02, backpack);
+    bedroll.rotation.z = Math.PI / 2;
+    for (const x of [-.18, .18]) this.mesh(new THREE.TorusGeometry(.13, .014, 5, 10), leather, x, .38, -.02, backpack).rotation.y = Math.PI / 2;
+
+    const pouches = [];
+    for (const side of [-1, 1]) {
+      const pouch = this.mesh(new THREE.SphereGeometry(.13, 8, 6), leather, side * .29, .52, -.02, group);
+      pouch.scale.set(.9, 1.15, .7);
+      this.mesh(new THREE.BoxGeometry(.2, .055, .12), coatTrim, side * .29, .63, -.02, group);
+      pouches.push(pouch);
+    }
+    const potion = this.mesh(new THREE.CylinderGeometry(.045, .06, .18, 7), potionBlue, .34, .7, .1, group);
+    this.mesh(new THREE.CylinderGeometry(.032, .032, .07, 6), this.mat.goldDark, .34, .82, .1, group);
+    const scroll = this.mesh(new THREE.CylinderGeometry(.055, .055, .3, 8), parchment, -.35, .72, .08, group);
+    scroll.rotation.z = .25;
+
+    Object.assign(group.userData, {
+      torso, leftLeg, rightLeg, leftArm, rightArm, merchantModel: true,
+      merchantPack: backpack, merchantPouches: pouches, merchantCoin: coin,
+      merchantFeather: feather, merchantPotion: potion, merchantScroll: scroll
+    });
+  }
+
+  buildDavyJones(group) {
+    const seaSkin = new THREE.MeshStandardMaterial({ color: 0x477f76, roughness: .9, emissive: 0x153b37, emissiveIntensity: .38, flatShading: true });
+    const captainCoat = new THREE.MeshStandardMaterial({ color: 0x342824, roughness: .84, flatShading: true });
+    const barnacle = new THREE.MeshStandardMaterial({ color: 0x9d9674, roughness: 1, flatShading: true });
+    const torso = this.mesh(new THREE.CylinderGeometry(.24, .34, .72, 8), captainCoat, 0, .72, 0, group);
+    this.mesh(new THREE.BoxGeometry(.52, .08, .33), this.mat.goldDark, 0, .62, .01, group);
+    this.mesh(new THREE.SphereGeometry(.25, 12, 9), seaSkin, 0, 1.22, 0, group);
+    const brim = this.mesh(new THREE.CylinderGeometry(.36, .36, .06, 3), captainCoat, 0, 1.47, 0, group);
+    brim.rotation.y = Math.PI / 2;
+    this.mesh(new THREE.CylinderGeometry(.2, .26, .2, 7), captainCoat, 0, 1.55, 0, group);
+    this.addEyes(group, .085, 1.27, .22, .032, 0xb8ffd9);
+    for (let index = 0; index < 7; index++) {
+      const angle = (index / 6 - .5) * 1.5;
+      const tentacle = this.mesh(new THREE.ConeGeometry(.035, .48 + (index % 3) * .06, 6), seaSkin, Math.sin(angle) * .18, .93 - Math.abs(angle) * .04, .18 + Math.cos(angle) * .07, group);
+      tentacle.rotation.z = -angle * .23;
+      tentacle.rotation.x = Math.PI;
+    }
+    for (const position of [[-.25, 1.05, .05], [.25, .78, -.1], [-.18, .48, .17]]) {
+      this.mesh(new THREE.DodecahedronGeometry(.055, 0), barnacle, position[0], position[1], position[2], group);
+    }
+    const leftLeg = this.addJointedLimb(group, -.13, .39, 0, .43, .065, captainCoat);
+    const rightLeg = this.addJointedLimb(group, .13, .39, 0, .43, .065, captainCoat);
+    this.mesh(new THREE.CylinderGeometry(.055, .045, .34, 6), this.mat.wood, 0, -.32, 0, rightLeg);
+    const leftArm = this.addJointedLimb(group, -.32, .92, 0, .58, .07, seaSkin);
+    const rightArm = this.addJointedLimb(group, .32, .92, 0, .58, .07, seaSkin);
+    const claw = this.mesh(new THREE.TorusGeometry(.12, .045, 6, 10, Math.PI * 1.45), seaSkin, 0, -.55, .03, leftArm);
+    claw.rotation.z = -.65;
+    const cutlass = this.mesh(new THREE.BoxGeometry(.05, .68, .035), this.mat.iron, 0, -.38, .04, rightArm);
+    cutlass.rotation.z = -.14;
+    this.mesh(new THREE.BoxGeometry(.22, .045, .05), this.mat.gold, 0, -.06, .04, rightArm);
+    Object.assign(group.userData, { torso, leftLeg, rightLeg, leftArm, rightArm, miniBossModel: "davyjones" });
+  }
+
+  buildMoonfangAlpha(group) {
+    this.buildWerewolf(group);
+    const paleFur = new THREE.MeshStandardMaterial({ color: 0xb8b1a7, roughness: 1, flatShading: true });
+    const moonGlow = new THREE.MeshBasicMaterial({ color: 0xbbeaff, toneMapped: false });
+    const mane = this.mesh(new THREE.TorusGeometry(.29, .11, 7, 13), paleFur, 0, .92, -.04, group);
+    mane.rotation.x = Math.PI / 2;
+    for (const side of [-1, 1]) {
+      this.mesh(new THREE.ConeGeometry(.028, .17, 5), paleFur, side * .21, 1.2, .02, group).rotation.z = side * -.25;
+    }
+    const rune = this.mesh(new THREE.RingGeometry(.075, .11, 8), moonGlow, 0, 1.03, .2, group);
+    const aura = this.mesh(new THREE.RingGeometry(.38, .5, 28), new THREE.MeshBasicMaterial({ color: 0x9fdfff, transparent: true, opacity: .4, side: THREE.DoubleSide, depthWrite: false }), 0, .04, 0, group);
+    aura.rotation.x = -Math.PI / 2;
+    Object.assign(group.userData, { alphaMane: mane, alphaRune: rune, miniBossAura: aura, miniBossModel: "moonalpha" });
+  }
+
+  buildVikingLongship(group) {
+    const sail = new THREE.MeshStandardMaterial({ color: 0xa53d35, roughness: .86, side: THREE.DoubleSide, flatShading: true });
+    const hull = this.mesh(new THREE.BoxGeometry(.74, .3, 1.42), this.mat.wood, 0, .33, 0, group);
+    hull.scale.set(1, .9, 1);
+    const keel = this.mesh(new THREE.BoxGeometry(.5, .26, 1.62), this.mat.darkWood || this.mat.wood, 0, .23, 0, group);
+    keel.rotation.x = .04;
+    for (const side of [-1, 1]) {
+      const rail = this.mesh(new THREE.BoxGeometry(.08, .18, 1.48), this.mat.lightWood, side * .39, .48, 0, group);
+      for (let index = 0; index < 4; index++) {
+        const shield = this.mesh(new THREE.CylinderGeometry(.13, .13, .035, 10), index % 2 ? this.mat.red : this.mat.iron, side * .44, .48, -.52 + index * .35, group);
+        shield.rotation.z = Math.PI / 2;
+      }
+      for (let index = 0; index < 3; index++) {
+        const oar = this.mesh(new THREE.BoxGeometry(.035, .035, .86), this.mat.lightWood, side * (.55 + index * .02), .32, -.4 + index * .42, group);
+        oar.rotation.y = side * .92;
+      }
+    }
+    this.mesh(new THREE.CylinderGeometry(.035, .045, 1.42, 8), this.mat.wood, 0, 1.12, 0, group);
+    const sailPanel = this.mesh(new THREE.BoxGeometry(.92, .72, .035), sail, 0, 1.18, .01, group);
+    for (const x of [-.3, 0, .3]) this.mesh(new THREE.BoxGeometry(.035, .72, .05), this.mat.bone, x, 1.18, .02, group);
+    const prow = this.mesh(new THREE.ConeGeometry(.13, .7, 7), this.mat.lightWood, 0, .64, .93, group);
+    prow.rotation.x = Math.PI / 2;
+    const dragonHead = this.mesh(new THREE.SphereGeometry(.16, 9, 7), this.mat.goldDark, 0, .76, 1.18, group);
+    dragonHead.scale.set(.72, .9, 1.3);
+    for (const side of [-1, 1]) {
+      const horn = this.mesh(new THREE.ConeGeometry(.035, .24, 5), this.mat.bone, side * .1, .92, 1.15, group);
+      horn.rotation.z = side * -.35;
+    }
+    Object.assign(group.userData, { longshipHull: hull, shipSail: sailPanel, miniBossModel: "longship" });
+  }
+
+  buildCovenWitch(group) {
+    const witchCloth = new THREE.MeshStandardMaterial({ color: 0x493366, roughness: .84, emissive: 0x1b1029, emissiveIntensity: .4, flatShading: true });
+    const witchSkin = new THREE.MeshStandardMaterial({ color: 0x879b68, roughness: .94, flatShading: true });
+    const magic = new THREE.MeshBasicMaterial({ color: 0xaef9e5, transparent: true, opacity: .94, toneMapped: false });
+    const dress = this.mesh(new THREE.ConeGeometry(.32, .92, 8), witchCloth, 0, .55, 0, group);
+    this.mesh(new THREE.SphereGeometry(.18, 11, 8), witchSkin, 0, 1.13, 0, group);
+    const nose = this.mesh(new THREE.ConeGeometry(.035, .2, 5), witchSkin, 0, 1.08, .18, group);
+    nose.rotation.x = Math.PI / 2;
+    this.addEyes(group, .057, 1.17, .15, .024, 0xb7ffec);
+    this.mesh(new THREE.CylinderGeometry(.32, .32, .055, 12), witchCloth, 0, 1.34, 0, group);
+    const hat = this.mesh(new THREE.ConeGeometry(.23, .72, 8), witchCloth, 0, 1.67, 0, group);
+    hat.rotation.z = -.14;
+    const leftLeg = new THREE.Group(); const rightLeg = new THREE.Group();
+    leftLeg.position.set(-.1, .3, 0); rightLeg.position.set(.1, .3, 0); group.add(leftLeg, rightLeg);
+    const leftArm = this.addJointedLimb(group, -.28, .9, 0, .52, .05, witchSkin);
+    const rightArm = this.addJointedLimb(group, .28, .9, 0, .52, .05, witchSkin);
+    const staff = this.mesh(new THREE.CylinderGeometry(.025, .035, 1.45, 7), this.mat.wood, 0, -.22, 0, rightArm);
+    staff.rotation.z = -.12;
+    const orb = this.mesh(new THREE.IcosahedronGeometry(.11, 1), magic, .08, -.88, .02, rightArm);
+    const light = new THREE.PointLight(0x88ead6, 3.2, 2.6, 2);
+    light.position.copy(orb.position); rightArm.add(light);
+    const summonRing = this.mesh(new THREE.RingGeometry(.35, .47, 26), new THREE.MeshBasicMaterial({ color: 0x9cf3df, transparent: true, opacity: .42, side: THREE.DoubleSide, depthWrite: false }), 0, .04, 0, group);
+    summonRing.rotation.x = -Math.PI / 2;
+    Object.assign(group.userData, { dress, leftLeg, rightLeg, leftArm, rightArm, witchOrb: orb, summonRing, miniBossModel: "covenwitch" });
+  }
+
+  buildRiftOverlord(group) {
+    this.buildDemon(group);
+    const infernalArmor = new THREE.MeshStandardMaterial({ color: 0x29131a, roughness: .5, metalness: .55, emissive: 0x4b1018, emissiveIntensity: .6, flatShading: true });
+    const fire = new THREE.MeshBasicMaterial({ color: 0xff6b32, toneMapped: false });
+    this.mesh(new THREE.BoxGeometry(.72, .22, .45), infernalArmor, 0, 1.08, 0, group);
+    for (const side of [-1, 1]) {
+      const shoulder = this.mesh(new THREE.DodecahedronGeometry(.24, 0), infernalArmor, side * .43, 1.06, 0, group);
+      shoulder.scale.set(1.25, .72, 1);
+      const greaterHorn = this.mesh(new THREE.ConeGeometry(.08, .62, 7), infernalArmor, side * .24, 1.62, -.03, group);
+      greaterHorn.rotation.z = side * -.38;
+    }
+    const crownFlame = this.mesh(new THREE.IcosahedronGeometry(.13, 1), fire, 0, 1.55, .08, group);
+    const core = this.mesh(new THREE.IcosahedronGeometry(.14, 1), fire, 0, .9, .28, group);
+    const light = new THREE.PointLight(0xff512c, 5, 3.4, 2);
+    light.position.set(0, 1.02, .2); group.add(light);
+    const aura = this.mesh(new THREE.RingGeometry(.45, .62, 30), new THREE.MeshBasicMaterial({ color: 0xff552d, transparent: true, opacity: .42, side: THREE.DoubleSide, depthWrite: false }), 0, .04, 0, group);
+    aura.rotation.x = -Math.PI / 2;
+    Object.assign(group.userData, { overlordCore: core, crownFlame, miniBossAura: aura, miniBossModel: "riftlord" });
+  }
+
+  buildPirate(group) {
+    const coat = new THREE.MeshStandardMaterial({ color: 0x8f302d, roughness: .82, flatShading: true });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xb9825a, roughness: .9, flatShading: true });
+    const navy = new THREE.MeshStandardMaterial({ color: 0x26384c, roughness: .78, flatShading: true });
+    const torso = this.mesh(new THREE.CylinderGeometry(.16, .22, .48, 7), coat, 0, .53, 0, group);
+    this.mesh(new THREE.BoxGeometry(.34, .055, .23), this.mat.goldDark, 0, .46, .01, group);
+    this.mesh(new THREE.SphereGeometry(.16, 11, 8), skin, 0, .84, 0, group);
+    this.mesh(new THREE.CylinderGeometry(.235, .235, .045, 3), navy, 0, 1.01, 0, group).rotation.y = Math.PI / 2;
+    this.mesh(new THREE.CylinderGeometry(.14, .18, .16, 6), navy, 0, 1.07, 0, group);
+    this.addEyes(group, .055, .87, .145, .022, 0xe7ca75);
+    const patch = this.mesh(new THREE.BoxGeometry(.09, .07, .025), this.mat.darkStone, -.055, .87, .157, group);
+    patch.rotation.z = -.14;
+    const leftLeg = this.addJointedLimb(group, -.09, .31, 0, .32, .045, navy);
+    const rightLeg = this.addJointedLimb(group, .09, .31, 0, .32, .045, navy);
+    this.mesh(new THREE.BoxGeometry(.13, .1, .23), this.mat.wood, -.0, -.29, .06, leftLeg);
+    this.mesh(new THREE.CylinderGeometry(.045, .035, .28, 6), this.mat.wood, 0, -.18, 0, rightLeg);
+    const leftArm = this.addJointedLimb(group, -.19, .68, 0, .39, .045, coat);
+    const rightArm = this.addJointedLimb(group, .19, .68, 0, .39, .045, coat);
+    const cutlass = this.mesh(new THREE.BoxGeometry(.035, .48, .025), this.mat.iron, 0, -.24, .03, rightArm);
+    cutlass.rotation.z = -.16;
+    this.mesh(new THREE.BoxGeometry(.17, .035, .04), this.mat.gold, 0, -.02, .03, rightArm);
+    Object.assign(group.userData, { torso, leftLeg, rightLeg, leftArm, rightArm, eventModel: "pirate" });
+  }
+
+  buildWerewolf(group) {
+    const fur = new THREE.MeshStandardMaterial({ color: 0x5e5854, roughness: 1, flatShading: true });
+    const darkFur = new THREE.MeshStandardMaterial({ color: 0x343434, roughness: 1, flatShading: true });
+    const torso = this.mesh(new THREE.SphereGeometry(.27, 10, 8), fur, 0, .65, 0, group);
+    torso.scale.set(.92, 1.25, .75);
+    const head = this.mesh(new THREE.SphereGeometry(.2, 10, 7), fur, 0, .98, .04, group);
+    head.scale.set(.88, 1, .86);
+    const muzzle = this.mesh(new THREE.ConeGeometry(.11, .28, 6), darkFur, 0, .91, .18, group);
+    muzzle.rotation.x = Math.PI / 2;
+    for (const side of [-1, 1]) {
+      const ear = this.mesh(new THREE.ConeGeometry(.07, .25, 5), darkFur, side * .13, 1.18, 0, group);
+      ear.rotation.z = side * -.17;
+      const fang = this.mesh(new THREE.ConeGeometry(.018, .1, 5), this.mat.bone, side * .05, .88, .3, group);
+      fang.rotation.x = Math.PI;
+    }
+    this.addEyes(group, .065, 1.02, .19, .027, 0xffb43c);
+    const leftLeg = this.addJointedLimb(group, -.13, .43, 0, .46, .065, fur);
+    const rightLeg = this.addJointedLimb(group, .13, .43, 0, .46, .065, fur);
+    leftLeg.rotation.x = -.18;
+    rightLeg.rotation.x = -.18;
+    const leftArm = this.addJointedLimb(group, -.26, .78, .03, .55, .06, darkFur);
+    const rightArm = this.addJointedLimb(group, .26, .78, .03, .55, .06, darkFur);
+    leftArm.rotation.z = -.2;
+    rightArm.rotation.z = .2;
+    for (const arm of [leftArm, rightArm]) {
+      for (const x of [-.035, 0, .035]) {
+        const claw = this.mesh(new THREE.ConeGeometry(.012, .11, 5), this.mat.bone, x, -.55, .035, arm);
+        claw.rotation.x = Math.PI;
+      }
+    }
+    const tail = this.mesh(new THREE.ConeGeometry(.09, .6, 7), darkFur, 0, .47, -.28, group);
+    tail.rotation.x = -Math.PI / 2;
+    Object.assign(group.userData, { torso, leftLeg, rightLeg, leftArm, rightArm, tail, eventModel: "werewolf" });
+  }
+
+  buildViking(group) {
+    const tunic = new THREE.MeshStandardMaterial({ color: 0x41697d, roughness: .86, flatShading: true });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xc08d65, roughness: .9, flatShading: true });
+    const torso = this.mesh(new THREE.CylinderGeometry(.17, .24, .54, 7), tunic, 0, .56, 0, group);
+    this.mesh(new THREE.TorusGeometry(.19, .035, 6, 12), this.mat.iron, 0, .55, 0, group).rotation.x = Math.PI / 2;
+    this.mesh(new THREE.SphereGeometry(.17, 11, 8), skin, 0, .91, 0, group);
+    this.mesh(new THREE.SphereGeometry(.185, 10, 7, 0, Math.PI * 2, 0, Math.PI * .55), this.mat.iron, 0, .96, 0, group);
+    for (const side of [-1, 1]) {
+      const horn = this.mesh(new THREE.ConeGeometry(.045, .27, 6), this.mat.bone, side * .2, 1.07, 0, group);
+      horn.rotation.z = side * -1.08;
+    }
+    this.addEyes(group, .057, .93, .15, .022, 0xdce9e8);
+    const beard = this.mesh(new THREE.ConeGeometry(.13, .32, 7), this.mat.goldDark, 0, .77, .1, group);
+    beard.rotation.x = .08;
+    const leftLeg = this.addJointedLimb(group, -.1, .3, 0, .34, .05, tunic);
+    const rightLeg = this.addJointedLimb(group, .1, .3, 0, .34, .05, tunic);
+    const leftArm = this.addJointedLimb(group, -.21, .7, 0, .42, .055, skin);
+    const rightArm = this.addJointedLimb(group, .21, .7, 0, .42, .055, skin);
+    const shield = this.mesh(new THREE.CylinderGeometry(.22, .22, .055, 12), this.mat.wood, 0, -.28, .08, leftArm);
+    shield.rotation.x = Math.PI / 2;
+    this.mesh(new THREE.CylinderGeometry(.065, .065, .065, 9), this.mat.iron, 0, -.28, .12, leftArm).rotation.x = Math.PI / 2;
+    this.mesh(new THREE.CylinderGeometry(.025, .025, .52, 7), this.mat.wood, 0, -.22, 0, rightArm);
+    const axe = this.mesh(new THREE.ConeGeometry(.12, .27, 4), this.mat.iron, .09, -.43, 0, rightArm);
+    axe.rotation.z = -Math.PI / 2;
+    Object.assign(group.userData, { torso, leftLeg, rightLeg, leftArm, rightArm, eventModel: "viking" });
+  }
+
+  buildWraith(group) {
+    const spectral = new THREE.MeshStandardMaterial({ color: 0x83c8bd, roughness: .42, emissive: 0x2b716a, emissiveIntensity: 1.15, transparent: true, opacity: .86, flatShading: true, depthWrite: false });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x315b59, roughness: .56, emissive: 0x173e3c, emissiveIntensity: .75, transparent: true, opacity: .9, flatShading: true, depthWrite: false });
+    const shroud = this.mesh(new THREE.ConeGeometry(.34, .9, 8, 1, true), spectral, 0, .55, 0, group);
+    this.mesh(new THREE.SphereGeometry(.25, 11, 8, 0, Math.PI * 2, 0, Math.PI * .72), dark, 0, 1.02, 0, group);
+    this.addEyes(group, .07, 1.04, .18, .032, 0xb9fff1);
+    for (const x of [-.22, 0, .22]) {
+      const streamer = this.mesh(new THREE.ConeGeometry(.11, .52, 6), spectral, x, .13 + Math.abs(x) * .18, 0, group);
+      streamer.rotation.x = Math.PI;
+    }
+    const leftLeg = new THREE.Group();
+    const rightLeg = new THREE.Group();
+    leftLeg.position.set(-.12, .28, 0); rightLeg.position.set(.12, .28, 0);
+    group.add(leftLeg, rightLeg);
+    const leftArm = this.addJointedLimb(group, -.28, .75, 0, .54, .045, spectral);
+    const rightArm = this.addJointedLimb(group, .28, .75, 0, .54, .045, spectral);
+    leftArm.rotation.z = -.55;
+    rightArm.rotation.z = .55;
+    Object.assign(group.userData, { shroud, leftLeg, rightLeg, leftArm, rightArm, eventModel: "wraith" });
+  }
+
+  buildDemon(group) {
+    const hide = new THREE.MeshStandardMaterial({ color: 0x9d3540, roughness: .78, emissive: 0x3d0e16, emissiveIntensity: .48, flatShading: true });
+    const darkHide = new THREE.MeshStandardMaterial({ color: 0x461c25, roughness: .86, flatShading: true });
+    const torso = this.mesh(new THREE.SphereGeometry(.3, 11, 8), hide, 0, .69, 0, group);
+    torso.scale.set(.9, 1.24, .74);
+    this.mesh(new THREE.SphereGeometry(.2, 11, 8), hide, 0, 1.08, 0, group);
+    for (const side of [-1, 1]) {
+      const horn = this.mesh(new THREE.ConeGeometry(.055, .38, 6), darkHide, side * .16, 1.3, 0, group);
+      horn.rotation.z = side * -.34;
+    }
+    this.addEyes(group, .065, 1.1, .18, .03, 0xff733d);
+    const leftLeg = this.addJointedLimb(group, -.14, .43, 0, .48, .075, hide);
+    const rightLeg = this.addJointedLimb(group, .14, .43, 0, .48, .075, hide);
+    const leftArm = this.addJointedLimb(group, -.29, .84, 0, .57, .07, hide);
+    const rightArm = this.addJointedLimb(group, .29, .84, 0, .57, .07, hide);
+    const wingGeometry = new THREE.BufferGeometry();
+    wingGeometry.setAttribute("position", new THREE.Float32BufferAttribute([0,0,0, -.5,.2,-.04, -.44,-.42,.05, -.14,-.22,.03], 3));
+    wingGeometry.setIndex([0,1,2,0,2,3]);
+    wingGeometry.computeVertexNormals();
+    const leftWing = new THREE.Mesh(wingGeometry, darkHide);
+    leftWing.position.set(-.16, .92, -.1); leftWing.castShadow = true; group.add(leftWing);
+    const rightWing = leftWing.clone(); rightWing.scale.x = -1; rightWing.position.x = .16; group.add(rightWing);
+    const tail = this.mesh(new THREE.ConeGeometry(.07, .72, 7), darkHide, 0, .46, -.35, group);
+    tail.rotation.x = -Math.PI / 2;
+    Object.assign(group.userData, { torso, leftLeg, rightLeg, leftArm, rightArm, leftWing, rightWing, tail, eventModel: "demon" });
   }
 
   buildGoblin(group) {
@@ -923,10 +2188,222 @@ class ThreeGraphics {
       spine.rotation.x = -.25;
     }
     this.mesh(new THREE.ConeGeometry(.16, .34, 6), this.mat.gold, 0, 1.05, .45, group).rotation.x = Math.PI / 2;
+    const fireBreath = new THREE.Group();
+    fireBreath.position.set(0, -.13, .18);
+    fireBreath.visible = false;
+    head.add(fireBreath);
+    const fireOuterMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a22, transparent: true, opacity: .78, depthWrite: false, toneMapped: false });
+    const fireInnerMaterial = new THREE.MeshBasicMaterial({ color: 0xffd45a, transparent: true, opacity: .92, depthWrite: false, toneMapped: false });
+    const fireOuter = this.mesh(new THREE.ConeGeometry(.28, 1.1, 9), fireOuterMaterial, 0, 0, .57, fireBreath);
+    fireOuter.rotation.x = -Math.PI / 2;
+    fireOuter.castShadow = false;
+    const fireInner = this.mesh(new THREE.ConeGeometry(.14, .82, 8), fireInnerMaterial, 0, 0, .43, fireBreath);
+    fireInner.rotation.x = -Math.PI / 2;
+    fireInner.castShadow = false;
+    const fireLight = new THREE.PointLight(0xff6a24, 4, 3.2, 2);
+    fireLight.position.set(0, 0, .72);
+    fireBreath.add(fireLight);
     group.userData.head = head;
     group.userData.headBaseZ = head.position.z;
     group.userData.dragonLegs = dragonLegs;
     group.userData.tail = tail;
+    group.userData.fireBreath = fireBreath;
+    group.userData.fireOuter = fireOuter;
+    group.userData.fireLight = fireLight;
+  }
+
+  buildHeadlessHorseman(group) {
+    const phantom = new THREE.MeshStandardMaterial({ color: 0x89989a, roughness: .6, emissive: 0x283435, emissiveIntensity: .25, transparent: true, opacity: .9, flatShading: true });
+    const phantomDark = new THREE.MeshStandardMaterial({ color: 0x364044, roughness: .72, emissive: 0x171d20, emissiveIntensity: .2, transparent: true, opacity: .92, flatShading: true });
+    const boneBlue = new THREE.MeshStandardMaterial({ color: 0xd8d8d5, roughness: .78, flatShading: true });
+    const boneShadow = new THREE.MeshStandardMaterial({ color: 0x8c8f90, roughness: .84, flatShading: true });
+    const blackArmor = new THREE.MeshStandardMaterial({ color: 0x202429, roughness: .55, metalness: .45, flatShading: true });
+    const pumpkinMat = new THREE.MeshStandardMaterial({ color: 0xd96b24, roughness: .64, emissive: 0x6f260b, emissiveIntensity: .65, flatShading: true });
+    const pumpkinGlow = new THREE.MeshBasicMaterial({ color: 0xffc04b, toneMapped: false });
+
+    const horseBody = new THREE.Group();
+    group.add(horseBody);
+    this.mesh(new THREE.BoxGeometry(.14, .14, 1.24), boneBlue, 0, .91, -.05, horseBody);
+    this.mesh(new THREE.BoxGeometry(.1, .1, 1.05), boneShadow, 0, .63, -.03, horseBody);
+    this.mesh(new THREE.BoxGeometry(.62, .2, .18), boneBlue, 0, .82, -.55, horseBody);
+    this.mesh(new THREE.BoxGeometry(.58, .22, .2), boneBlue, 0, .84, .46, horseBody);
+    for (const z of [-.36, -.18, 0, .18, .36]) {
+      this.mesh(new THREE.BoxGeometry(.62, .085, .09), z === 0 ? boneBlue : boneShadow, 0, .86, z, horseBody);
+      this.mesh(new THREE.BoxGeometry(.48, .075, .08), boneShadow, 0, .56, z, horseBody);
+      this.mesh(new THREE.BoxGeometry(.075, .39, .085), boneBlue, -.265, .71, z, horseBody);
+      this.mesh(new THREE.BoxGeometry(.075, .39, .085), boneBlue, .265, .71, z, horseBody);
+    }
+    for (let index = 0; index < 5; index++) {
+      const t = index / 4;
+      const vertebra = this.mesh(new THREE.BoxGeometry(.15 - index * .008, .15 - index * .008, .15), index % 2 ? boneShadow : boneBlue, 0, .98 + t * .31, .45 + t * .3, horseBody);
+      vertebra.rotation.x = -.18;
+    }
+    const horseHead = new THREE.Group();
+    horseHead.position.set(0, 1.31, .78);
+    horseHead.rotation.x = .14;
+    group.add(horseHead);
+    const horseSkull = this.mesh(new THREE.BoxGeometry(.3, .3, .42), boneBlue, 0, .035, 0, horseHead);
+    horseSkull.scale.set(1, 1, 1.55);
+    const foreheadPlate = this.mesh(new THREE.BoxGeometry(.25, .09, .27), this.mat.bone, 0, .16, .1, horseHead);
+    foreheadPlate.rotation.x = -.08;
+    const muzzle = this.mesh(new THREE.BoxGeometry(.25, .2, .38), boneShadow, 0, -.07, .365, horseHead);
+    const lowerJaw = this.mesh(new THREE.BoxGeometry(.24, .06, .36), boneBlue, 0, -.19, .35, horseHead);
+    this.mesh(new THREE.BoxGeometry(.22, .02, .29), this.mat.darkStone, 0, -.15, .36, horseHead);
+    const horseEyeHoles = [];
+    for (const side of [-1, 1]) {
+      this.mesh(new THREE.BoxGeometry(.07, .17, .09), boneBlue, side * .1, .24, -.1, horseHead).rotation.z = side * -.08;
+      const eyeHole = this.mesh(new THREE.BoxGeometry(.075, .085, .045), this.mat.darkStone, side * .085, .055, .33, horseHead);
+      eyeHole.castShadow = false;
+      horseEyeHoles.push(eyeHole);
+      this.mesh(new THREE.BoxGeometry(.042, .04, .025), this.mat.darkStone, side * .055, -.055, .565, horseHead);
+      this.mesh(new THREE.BoxGeometry(.055, .14, .14), boneBlue, side * .14, -.015, .13, horseHead);
+    }
+
+    const voxelLeg = (x, y, z, material) => {
+      const pivot = new THREE.Group();
+      pivot.position.set(x, y, z);
+      group.add(pivot);
+      this.mesh(new THREE.BoxGeometry(.11, .34, .12), material, 0, -.17, 0, pivot);
+      this.mesh(new THREE.BoxGeometry(.14, .13, .14), boneBlue, 0, -.36, 0, pivot);
+      this.mesh(new THREE.BoxGeometry(.1, .3, .11), material, 0, -.54, .02, pivot);
+      const hoof = this.mesh(new THREE.BoxGeometry(.14, .1, .21), blackArmor, 0, -.595, .075, pivot);
+      return { pivot, hoof };
+    };
+    const voxelLegs = [
+      voxelLeg(-.25, .72, .4, boneBlue), voxelLeg(.25, .72, .4, boneBlue),
+      voxelLeg(-.25, .7, -.42, boneShadow), voxelLeg(.25, .7, -.42, boneShadow)
+    ];
+    const horseLegs = voxelLegs.map(entry => entry.pivot);
+    const horseHooves = [];
+    voxelLegs.forEach(entry => horseHooves.push(entry.hoof));
+
+    const blueFlames = [];
+
+    const rider = new THREE.Group();
+    rider.position.set(0, .95, -.06);
+    group.add(rider);
+    const torso = this.mesh(new THREE.CylinderGeometry(.2, .29, .62, 8), blackArmor, 0, .48, 0, rider);
+    torso.scale.z = .78;
+    this.mesh(new THREE.BoxGeometry(.44, .19, .3), this.mat.darkRed, 0, .58, .02, rider);
+    const cape = this.mesh(new THREE.ConeGeometry(.4, .92, 5), phantomDark, 0, .38, -.18, rider);
+    cape.scale.z = .42;
+    const collar = this.mesh(new THREE.TorusGeometry(.14, .04, 6, 12), this.mat.goldDark, 0, .82, 0, rider);
+    collar.rotation.x = Math.PI / 2;
+    this.mesh(new THREE.CylinderGeometry(.09, .1, .09, 8), phantomDark, 0, .85, 0, rider);
+    for (const side of [-1, 1]) {
+      const shoulder = this.mesh(new THREE.DodecahedronGeometry(.14, 0), blackArmor, side * .28, .68, 0, rider);
+      shoulder.scale.set(1.25, .65, 1);
+    }
+    const leftArm = this.addJointedLimb(rider, -.27, .65, 0, .48, .065, blackArmor);
+    const rightArm = this.addJointedLimb(rider, .27, .65, 0, .48, .065, blackArmor);
+    leftArm.rotation.set(-.18, 0, -.18);
+    rightArm.rotation.set(-.2, 0, .36);
+
+    const pumpkin = new THREE.Group();
+    pumpkin.position.set(0, -.48, .08);
+    leftArm.add(pumpkin);
+    const heldHead = this.mesh(new THREE.SphereGeometry(.18, 10, 7), pumpkinMat, 0, 0, 0, pumpkin);
+    heldHead.scale.set(1.08, .9, .92);
+    this.mesh(new THREE.CylinderGeometry(.025, .04, .13, 6), this.mat.leafMid, 0, .19, 0, pumpkin).rotation.z = .18;
+    for (const side of [-1, 1]) {
+      const eye = this.mesh(new THREE.ConeGeometry(.045, .08, 3), pumpkinGlow, side * .065, .035, .16, pumpkin);
+      eye.rotation.x = Math.PI / 2;
+    }
+    const grin = this.mesh(new THREE.BoxGeometry(.18, .035, .025), pumpkinGlow, 0, -.07, .17, pumpkin);
+    grin.rotation.z = -.08;
+
+    const halberd = new THREE.Group();
+    halberd.position.set(.08, -.45, .12);
+    halberd.rotation.z = -.42;
+    rightArm.add(halberd);
+    const halberdSteel = new THREE.MeshStandardMaterial({ color: 0x89969b, roughness: .32, metalness: .72, flatShading: true });
+    this.mesh(new THREE.CylinderGeometry(.028, .032, 1.36, 8), this.mat.wood, 0, .22, 0, halberd);
+    this.mesh(new THREE.CylinderGeometry(.04, .04, .1, 8), this.mat.goldDark, 0, .65, 0, halberd);
+    this.mesh(new THREE.CylinderGeometry(.04, .04, .09, 8), this.mat.goldDark, 0, -.24, 0, halberd);
+    const spearTip = this.mesh(new THREE.ConeGeometry(.075, .38, 6), halberdSteel, 0, 1.05, 0, halberd);
+    const halberdBlade = this.mesh(new THREE.ConeGeometry(.23, .46, 4), halberdSteel, .17, .76, 0, halberd);
+    halberdBlade.rotation.z = -Math.PI / 2;
+    halberdBlade.scale.y = .86;
+    const rearHook = this.mesh(new THREE.ConeGeometry(.08, .34, 5), halberdSteel, -.14, .75, 0, halberd);
+    rearHook.rotation.z = Math.PI / 2;
+    rearHook.rotation.y = .2;
+    this.mesh(new THREE.BoxGeometry(.34, .075, .06), halberdSteel, 0, .72, 0, halberd);
+
+    group.userData.horseLegs = horseLegs;
+    group.userData.horsemanLeftArm = leftArm;
+    group.userData.horsemanRightArm = rightArm;
+    group.userData.halberd = halberd;
+    group.userData.halberdBlade = halberdBlade;
+    group.userData.horsemanCape = cape;
+    group.userData.pumpkin = pumpkin;
+    group.userData.phantomHorse = horseBody;
+    group.userData.skeletonHorse = true;
+    group.userData.horseSkull = horseSkull;
+    group.userData.horseHooves = horseHooves;
+    group.userData.horseEyeHoles = horseEyeHoles;
+    group.userData.blueFlames = blueFlames;
+    group.userData.bossModel = "horseman";
+  }
+
+  buildCyclops(group) {
+    const cyclopsSkin = new THREE.MeshStandardMaterial({ color: 0x8b7a56, roughness: .9, flatShading: true });
+    const scarSkin = new THREE.MeshStandardMaterial({ color: 0x6d5b40, roughness: .95, flatShading: true });
+    const leather = new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: .92, flatShading: true });
+    const eyeGlow = new THREE.MeshBasicMaterial({ color: 0xffbd45, toneMapped: false });
+    const torso = this.mesh(new THREE.SphereGeometry(.55, 14, 10), cyclopsSkin, 0, .82, 0, group);
+    torso.scale.set(1.08, 1.24, .9);
+    this.mesh(new THREE.TorusGeometry(.42, .075, 7, 16), leather, 0, .72, 0, group).rotation.x = Math.PI / 2;
+    const chestStrap = this.mesh(new THREE.BoxGeometry(.16, .95, .54), leather, -.08, .88, .02, group);
+    chestStrap.rotation.z = -.52;
+    for (const side of [-1, 1]) {
+      const shoulder = this.mesh(new THREE.DodecahedronGeometry(.25, 0), this.mat.darkStone, side * .52, 1.12, 0, group);
+      shoulder.scale.set(1.25, .68, 1);
+    }
+
+    const head = new THREE.Group();
+    head.position.set(0, 1.55, .035);
+    group.add(head);
+    const skull = this.mesh(new THREE.SphereGeometry(.36, 13, 9), cyclopsSkin, 0, 0, 0, head);
+    skull.scale.set(.92, 1.02, .88);
+    const brow = this.mesh(new THREE.BoxGeometry(.38, .095, .12), scarSkin, 0, .08, .29, head);
+    brow.rotation.z = -.04;
+    const eyeSocket = this.mesh(new THREE.SphereGeometry(.105, 11, 8), scarSkin, 0, .02, .31, head);
+    eyeSocket.scale.set(1.32, .88, .42);
+    const eye = this.mesh(new THREE.SphereGeometry(.07, 10, 8), eyeGlow, 0, .02, .36, head);
+    eye.scale.z = .55;
+    const pupil = this.mesh(new THREE.SphereGeometry(.027, 8, 6), this.mat.darkStone, 0, .02, .405, head);
+    pupil.scale.z = .35;
+    const nose = this.mesh(new THREE.ConeGeometry(.08, .2, 6), cyclopsSkin, 0, -.12, .32, head);
+    nose.rotation.x = Math.PI / 2;
+    for (const side of [-1, 1]) {
+      const tusk = this.mesh(new THREE.ConeGeometry(.035, .17, 5), this.mat.bone, side * .11, -.22, .3, head);
+      tusk.rotation.x = Math.PI;
+    }
+    const hair = this.mesh(new THREE.SphereGeometry(.37, 11, 7, 0, Math.PI * 2, 0, Math.PI * .48), leather, 0, .13, -.03, head);
+    hair.scale.set(.92, .68, .9);
+
+    const leftLeg = this.addJointedLimb(group, -.25, .46, 0, .58, .13, cyclopsSkin);
+    const rightLeg = this.addJointedLimb(group, .25, .46, 0, .58, .13, cyclopsSkin);
+    for (const leg of [leftLeg, rightLeg]) {
+      this.mesh(new THREE.CylinderGeometry(.145, .145, .12, 7), leather, 0, -.42, 0, leg);
+      this.mesh(new THREE.BoxGeometry(.28, .14, .38), cyclopsSkin, 0, -.58, .1, leg);
+    }
+    const leftArm = this.addJointedLimb(group, -.52, 1.13, 0, .72, .14, cyclopsSkin);
+    const rightArm = this.addJointedLimb(group, .52, 1.13, 0, .72, .14, cyclopsSkin);
+    this.mesh(new THREE.CylinderGeometry(.15, .15, .12, 7), leather, 0, -.5, 0, leftArm);
+    this.mesh(new THREE.CylinderGeometry(.15, .15, .12, 7), leather, 0, -.5, 0, rightArm);
+    const club = this.mesh(new THREE.CylinderGeometry(.18, .09, 1.25, 8), this.mat.wood, 0, -.05, .02, rightArm);
+    club.rotation.z = -.15;
+    const clubHead = this.mesh(new THREE.DodecahedronGeometry(.26, 0), this.mat.darkWood || this.mat.wood, .08, .5, .02, rightArm);
+    clubHead.scale.set(.82, 1.35, .82);
+    for (const y of [.35, .52, .68]) {
+      const spike = this.mesh(new THREE.ConeGeometry(.035, .16, 5), this.mat.iron, .24, y, .02, rightArm);
+      spike.rotation.z = -Math.PI / 2;
+    }
+    const loincloth = this.mesh(new THREE.BoxGeometry(.48, .55, .06), this.mat.darkRed, 0, .47, .43, group);
+    loincloth.rotation.x = -.06;
+
+    Object.assign(group.userData, { leftLeg, rightLeg, leftArm, rightArm, cyclopsEye: eye, bossModel: "cyclops" });
   }
 
   addJointedLimb(parent, x, y, z, length, radius, material) {
@@ -940,10 +2417,11 @@ class ThreeGraphics {
 
   animateEnemy(group, enemy, now) {
     const walking = enemy.moving && !enemy.blocked;
-    const rate = { goblin: 12, skeleton: 9, orc: 7.2, ogre: 5.2, dragon: 5.8 }[enemy.type] || 8;
-    const amplitude = { goblin: .9, skeleton: .82, orc: .63, ogre: .46, dragon: .38 }[enemy.type] || .6;
+    const rate = { goblin: 12, skeleton: 9, orc: 7.2, ogre: 5.2, dragon: 5.8, horseman: 8.6, cyclops: 4.2, merchant: 13.5, pirate: 9.5, werewolf: 12.5, viking: 7.8, wraith: 5.5, demon: 7, davyjones: 6.2, moonalpha: 10.5, longship: 3.2, covenwitch: 5.4, riftlord: 4.8 }[enemy.type] || 8;
+    const amplitude = { goblin: .9, skeleton: .82, orc: .63, ogre: .46, dragon: .38, horseman: .6, cyclops: .4, merchant: .95, pirate: .8, werewolf: .88, viking: .65, wraith: .3, demon: .6, davyjones: .55, moonalpha: .72, longship: .12, covenwitch: .28, riftlord: .46 }[enemy.type] || .6;
     const stride = Math.sin(now * rate + enemy.phase);
-    const attackProgress = enemy.attackSwing > 0 ? 1 - enemy.attackSwing / .46 : 0;
+    const attackDuration = enemy.type === "dragon" ? .8 : .46;
+    const attackProgress = enemy.attackSwing > 0 ? 1 - enemy.attackSwing / attackDuration : 0;
     const strike = enemy.attackSwing > 0 ? Math.sin(THREE.MathUtils.clamp(attackProgress, 0, 1) * Math.PI) : 0;
 
     group.rotation.z = walking ? stride * (enemy.type === "ogre" ? .055 : .035) : enemy.blocked ? -strike * .07 : 0;
@@ -965,9 +2443,34 @@ class ThreeGraphics {
       group.userData.head.rotation.x = enemy.blocked ? -.16 - strike * .3 : walking ? stride * .035 : 0;
       group.userData.tail.rotation.z = walking ? stride * .16 : enemy.blocked ? -strike * .24 : 0;
     }
+    if (group.userData.horseLegs) {
+      const [frontLeft, frontRight, backLeft, backRight] = group.userData.horseLegs;
+      frontLeft.rotation.x = walking ? stride * amplitude : 0;
+      backRight.rotation.x = walking ? stride * amplitude : 0;
+      frontRight.rotation.x = walking ? -stride * amplitude : 0;
+      backLeft.rotation.x = walking ? -stride * amplitude : 0;
+      group.userData.horsemanLeftArm.rotation.x = walking ? -stride * .12 : enemy.blocked ? -.5 : -.18;
+      group.userData.horsemanRightArm.rotation.x = walking ? stride * .12 : enemy.blocked ? -.45 - strike * 1.7 : -.2;
+      group.userData.horsemanRightArm.rotation.z = enemy.blocked ? .36 + strike * .52 : .36;
+      if (group.userData.halberd) group.userData.halberd.rotation.z = enemy.blocked ? -.42 - strike * .34 : -.42;
+      group.userData.horsemanCape.rotation.z = walking ? -stride * .035 : Math.sin(now * 1.8 + enemy.phase) * .025;
+      group.userData.pumpkin.rotation.y = Math.sin(now * 1.2 + enemy.phase) * .08;
+    }
+    if (group.userData.merchantModel) {
+      group.userData.merchantPack.rotation.z = walking ? -stride * .055 : Math.sin(now * 1.5 + enemy.phase) * .015;
+      group.userData.merchantPouches.forEach((pouch, index) => pouch.rotation.z = walking ? stride * (index ? -.16 : .16) : 0);
+      group.userData.merchantCoin.rotation.z = walking ? stride * .08 : 0;
+      group.userData.merchantFeather.rotation.z = -.72 + (walking ? stride * .08 : Math.sin(now * 1.8 + enemy.phase) * .035);
+      group.userData.merchantPotion.rotation.z = walking ? -stride * .1 : 0;
+      group.userData.merchantScroll.rotation.z = .25 + (walking ? stride * .08 : 0);
+    }
     if (enemy.blocked && enemy.attackSwing <= 0) group.rotation.z += Math.sin(now * 5 + enemy.phase) * .018;
     if (enemy.type === "dragon") return walking ? Math.abs(stride) * .055 : Math.sin(now * 2.2 + enemy.phase) * .025;
-    return walking ? Math.abs(stride) * (enemy.type === "ogre" ? .032 : .045) : Math.sin(now * 2.4 + enemy.phase) * .008;
+    if (enemy.type === "horseman") return walking ? Math.abs(stride) * .07 : Math.sin(now * 2 + enemy.phase) * .018;
+    if (enemy.type === "wraith") return .045 + Math.sin(now * 3.1 + enemy.phase) * .035;
+    if (enemy.type === "longship") return .03 + Math.sin(now * 2.4 + enemy.phase) * .025;
+    if (enemy.type === "covenwitch") return .035 + Math.sin(now * 2.8 + enemy.phase) * .025;
+    return walking ? Math.abs(stride) * (enemy.type === "ogre" || enemy.type === "cyclops" ? .032 : enemy.type === "merchant" ? .06 : .045) : Math.sin(now * 2.4 + enemy.phase) * .008;
   }
 
   addEyes(group, spread, y, z, radius, color = 0xf1bd4c) {
@@ -984,7 +2487,7 @@ class ThreeGraphics {
   }
 
   enemyHeight(type) {
-    return { goblin: .82, skeleton: 1.02, orc: 1.18, ogre: 1.45, dragon: 1.85, knight: .85 }[type];
+    return { goblin: .82, skeleton: 1.02, orc: 1.18, ogre: 1.45, dragon: 1.85, horseman: 2.15, cyclops: 2.05, merchant: 1.58, pirate: 1.18, werewolf: 1.3, viking: 1.2, wraith: 1.3, demon: 1.48, davyjones: 1.62, moonalpha: 1.42, longship: 1.58, covenwitch: 1.72, riftlord: 1.78, knight: .85, zombie: .78, gladiator: 1 }[type];
   }
 
   createHealthBar(type) {
@@ -1004,7 +2507,7 @@ class ThreeGraphics {
       toneMapped: false
     });
     const sprite = new THREE.Sprite(material);
-    const width = { goblin: .48, skeleton: .53, orc: .61, ogre: .71, dragon: .94, knight: .43 }[type];
+    const width = { goblin: .48, skeleton: .53, orc: .61, ogre: .71, dragon: 1.05, horseman: 1.18, cyclops: 1.28, merchant: .68, pirate: .55, werewolf: .59, viking: .62, wraith: .64, demon: .69, davyjones: .9, moonalpha: .94, longship: 1.08, covenwitch: .92, riftlord: 1.12, knight: .43, zombie: .4, gladiator: .5, vampireMinion: .43 }[type];
     sprite.scale.set(width, width * canvas.height / canvas.width, 1);
     sprite.renderOrder = 30;
     sprite.userData.canvas = canvas;
@@ -1012,7 +2515,7 @@ class ThreeGraphics {
     sprite.userData.texture = texture;
     sprite.userData.lastRatio = -1;
     sprite.userData.filledPixels = 0;
-    sprite.userData.friendly = type === "knight";
+    sprite.userData.friendly = type === "knight" || type === "zombie" || type === "gladiator" || type === "vampireMinion";
     this.updateHealthBar(sprite, 1);
     return sprite;
   }
@@ -1050,15 +2553,112 @@ class ThreeGraphics {
   syncProjectiles(projectiles) {
     this.removeMissing(this.projectileMeshes, projectiles);
     for (const projectile of projectiles) {
-      let mesh = this.projectileMeshes.get(projectile);
-      if (!mesh) {
-        const material = new THREE.MeshStandardMaterial({ color: projectile.color, emissive: projectile.color, emissiveIntensity: 1.6 });
-        mesh = new THREE.Mesh(new THREE.SphereGeometry(projectile.type === "mage" ? .075 : .035, 8, 6), material);
-        this.projectileMeshes.set(projectile, mesh);
-        this.scene.add(mesh);
+      let object = this.projectileMeshes.get(projectile);
+      if (!object) {
+        object = new THREE.Group();
+        if (projectile.type === "witchMagic") {
+          const magicMaterial = new THREE.MeshBasicMaterial({ color: 0xaef9e5, toneMapped: false });
+          const auraMaterial = new THREE.MeshBasicMaterial({ color: 0x8067d8, transparent: true, opacity: .72, depthWrite: false, toneMapped: false });
+          const core = this.mesh(new THREE.IcosahedronGeometry(.105, 1), magicMaterial, 0, 0, 0, object);
+          core.castShadow = false;
+          const aura = this.mesh(new THREE.TorusGeometry(.15, .022, 6, 18), auraMaterial, 0, 0, 0, object);
+          aura.rotation.x = Math.PI / 2;
+          const crossAura = this.mesh(new THREE.TorusGeometry(.125, .016, 6, 18), auraMaterial, 0, 0, 0, object);
+          crossAura.rotation.y = Math.PI / 2;
+          const light = new THREE.PointLight(0x9cebdc, 3.5, 2.4, 2);
+          object.add(light);
+          object.userData.witchMagic = true;
+          object.userData.core = core;
+          object.userData.aura = aura;
+          object.userData.crossAura = crossAura;
+        } else if (projectile.type === "mage") {
+          const frostShot = String(projectile.color).toLowerCase() === "#8fe8f4";
+          const glowColor = frostShot ? 0x8fe8f4 : 0xd94cff;
+          const coreMaterial = new THREE.MeshBasicMaterial({ color: glowColor, toneMapped: false });
+          const shellMaterial = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: .72, depthWrite: false, wireframe: true, toneMapped: false });
+          const core = this.mesh(new THREE.ConeGeometry(.0525, .095, 4), coreMaterial, 0, 0, 0, object);
+          core.castShadow = false;
+          const shell = this.mesh(new THREE.ConeGeometry(.0725, .1275, 4), shellMaterial, 0, 0, 0, object);
+          shell.castShadow = false;
+          shell.receiveShadow = false;
+          object.userData.core = core;
+          object.userData.shell = shell;
+          const randomSpin = () => (Math.random() * .12 + .075) * (Math.random() < .5 ? -1 : 1);
+          object.userData.spin = new THREE.Vector3(randomSpin(), randomSpin(), randomSpin());
+        } else if (projectile.variant === "slingRock") {
+          const rock = this.mesh(new THREE.DodecahedronGeometry(.125, 0), this.mat.stone, 0, 0, 0, object);
+          rock.castShadow = true;
+          object.userData.rock = rock;
+          object.userData.spin = new THREE.Vector3(.08 + Math.random() * .08, .07 + Math.random() * .09, .06 + Math.random() * .08);
+        } else if (projectile.variant === "rifle") {
+          const shot = this.mesh(new THREE.CylinderGeometry(.016, .02, .19, 7), this.mat.iron, 0, 0, 0, object);
+          shot.rotation.x = Math.PI / 2;
+          const tip = this.mesh(new THREE.ConeGeometry(.026, .07, 7), this.mat.goldLight, 0, 0, .125, object);
+          tip.rotation.x = Math.PI / 2;
+        } else {
+          const bolt = projectile.type === "ballista";
+          const flamingBolt = projectile.variant === "flamingBolt";
+          const shaftLength = bolt ? .46 : .18;
+          const shaftRadius = bolt ? .026 : .009;
+          const shaft = this.mesh(new THREE.CylinderGeometry(shaftRadius, shaftRadius, shaftLength, 6), bolt ? this.mat.iron : this.mat.lightWood, 0, 0, 0, object);
+          shaft.rotation.x = Math.PI / 2;
+          const head = this.mesh(new THREE.ConeGeometry(bolt ? .065 : .024, bolt ? .16 : .07, 5), this.mat.goldLight, 0, 0, shaftLength / 2 + (bolt ? .07 : .03), object);
+          head.rotation.x = Math.PI / 2;
+          for (const x of [-1, 1]) {
+            const fletching = this.mesh(new THREE.BoxGeometry(bolt ? .11 : .045, .014, bolt ? .11 : .05), this.mat.roofRed, x * (bolt ? .035 : .016), 0, -shaftLength / 2, object);
+            fletching.rotation.z = x * .5;
+          }
+          if (flamingBolt) {
+            const outerMaterial = new THREE.MeshBasicMaterial({ color: 0xff5b20, transparent: true, opacity: .82, depthWrite: false, toneMapped: false });
+            const innerMaterial = new THREE.MeshBasicMaterial({ color: 0xffdf63, transparent: true, opacity: .95, depthWrite: false, toneMapped: false });
+            const outerFlame = this.mesh(new THREE.ConeGeometry(.115, .3, 7), outerMaterial, 0, 0, -.36, object);
+            outerFlame.rotation.x = -Math.PI / 2;
+            outerFlame.castShadow = false;
+            const innerFlame = this.mesh(new THREE.ConeGeometry(.06, .2, 7), innerMaterial, 0, 0, -.31, object);
+            innerFlame.rotation.x = -Math.PI / 2;
+            innerFlame.castShadow = false;
+            const fireLight = new THREE.PointLight(0xff6a24, 5, 2.5, 2);
+            fireLight.position.z = -.2;
+            object.add(fireLight);
+            object.userData.flamingBolt = true;
+            object.userData.outerFlame = outerFlame;
+            object.userData.innerFlame = innerFlame;
+            object.userData.fireLight = fireLight;
+          }
+        }
+        this.projectileMeshes.set(projectile, object);
+        this.scene.add(object);
       }
-      const p = this.worldFromGame(projectile.x, projectile.y, projectile.type === "mage" ? .72 : .62);
-      mesh.position.copy(p);
+      const p = this.worldFromGame(projectile.x, projectile.y, projectile.type === "mage" ? .38 : projectile.type === "witchMagic" ? .58 : projectile.variant === "slingRock" ? .5 : .62);
+      object.position.copy(p);
+      if (projectile.type === "witchMagic") {
+        object.rotation.x += .09;
+        object.rotation.y += .13;
+        object.userData.aura.rotation.z += .18;
+        object.userData.crossAura.rotation.x -= .14;
+        const pulse = 1 + Math.sin(performance.now() * .018) * .14;
+        object.userData.core.scale.setScalar(pulse);
+      } else if (projectile.type === "mage") {
+        object.rotation.x += object.userData.spin.x;
+        object.rotation.y += object.userData.spin.y;
+        object.rotation.z += object.userData.spin.z;
+        object.userData.shell.rotation.y -= object.userData.spin.y * .7;
+        object.userData.shell.rotation.x += object.userData.spin.z * .45;
+      } else if (projectile.variant === "slingRock") {
+        object.rotation.x += object.userData.spin.x;
+        object.rotation.y += object.userData.spin.y;
+        object.rotation.z += object.userData.spin.z;
+      } else if (projectile.variant === "flamingBolt" && projectile.target) {
+        const target = this.worldFromGame(projectile.target.x, projectile.target.y);
+        object.rotation.y = Math.atan2(target.x - p.x, target.z - p.z);
+        const flicker = Math.sin(performance.now() * .035) * .12;
+        object.userData.outerFlame.scale.set(1 + flicker, 1 - flicker * .35, 1 + flicker);
+        object.userData.innerFlame.scale.set(1 - flicker * .5, 1 + flicker * .4, 1 - flicker * .5);
+        object.userData.fireLight.intensity = 4.5 + flicker * 8;
+      } else if (projectile.target) {
+        const target = this.worldFromGame(projectile.target.x, projectile.target.y);
+        object.rotation.y = Math.atan2(target.x - p.x, target.z - p.z);
+      }
     }
   }
 
@@ -1079,10 +2679,16 @@ class ThreeGraphics {
           const blockSize = .035 + particle.size * .006;
           mesh = new THREE.Mesh(
             new THREE.BoxGeometry(blockSize, blockSize, blockSize),
-            new THREE.MeshStandardMaterial({ color: particle.color, roughness: .82, transparent: true })
+            new THREE.MeshStandardMaterial({ color: particle.color, roughness: .82, transparent: true, flatShading: true })
           );
           mesh.castShadow = true;
           mesh.receiveShadow = true;
+        } else if (particle.kind === "bloodDrain") {
+          const cubeSize = .055 + particle.size * .006;
+          mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize),
+            new THREE.MeshBasicMaterial({ color: particle.color, transparent: true, toneMapped: false })
+          );
         } else {
           mesh = new THREE.Mesh(new THREE.OctahedronGeometry(.025 + particle.size * .004), new THREE.MeshBasicMaterial({ color: particle.color, transparent: true }));
         }
@@ -1094,6 +2700,13 @@ class ThreeGraphics {
         mesh.position.copy(p);
         mesh.rotation.set(particle.rotationX, particle.rotationY, particle.rotationZ);
         mesh.material.opacity = particle.settled && particle.groundTimer < .45 ? Math.max(0, particle.groundTimer / .45) : 1;
+      } else if (particle.kind === "bloodDrain") {
+        const p = this.worldFromGame(particle.x, particle.y, particle.height);
+        mesh.position.copy(p);
+        mesh.rotation.y = Math.atan2(particle.vx, particle.vy);
+        mesh.rotation.x += .09;
+        mesh.rotation.z += .07;
+        mesh.material.opacity = Math.min(1, particle.life / Math.min(.16, particle.maxLife));
       } else {
         const p = this.worldFromGame(particle.x, particle.y, .25 + particle.life * .4);
         mesh.position.copy(p);
@@ -1125,6 +2738,16 @@ class ThreeGraphics {
       this.hoverTile.position.set(hoverCell.col - this.config.COLS / 2 + .5, .2, hoverCell.row - this.config.ROWS / 2 + .5);
       this.hoverTile.material.color.setHex(valid ? 0xbfe184 : 0xcc4d42);
     } else this.hoverTile.visible = false;
+
+    const selectedTree = state.trees.find(tree => tree.id === state.selectedTreeId);
+    if (selectedTree) {
+      this.treeSelectionRing.visible = true;
+      this.treeSelectionRing.position.set(selectedTree.x - this.config.COLS / 2, .15, selectedTree.z - this.config.ROWS / 2);
+      const pulse = 1 + Math.sin(performance.now() * .006) * .08;
+      this.treeSelectionRing.scale.setScalar(pulse);
+    } else {
+      this.treeSelectionRing.visible = false;
+    }
   }
 
   removeMissing(map, liveItems) {
