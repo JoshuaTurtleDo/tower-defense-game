@@ -60,6 +60,23 @@ function createWindow() {
           hasGraphics: typeof window.ThreeGraphics === "function",
           hasWheelZoom: typeof window.ThreeGraphics?.prototype?.zoomBy === "function",
           hasCameraReset: Boolean(document.querySelector("#cameraResetButton")),
+          speedHotkey: (() => {
+            resetGame();
+            const speedButton = document.getElementById("speedButton");
+            const pressSpace = (key, code = "") => window.dispatchEvent(new KeyboardEvent("keydown", { code, key, bubbles: true }));
+            pressSpace(" ");
+            const reachesTwo = state.speed === 2 && speedButton.textContent === "2×" && !state.waveActive;
+            pressSpace("Spacebar");
+            const reachesThree = state.speed === 3 && speedButton.textContent === "3×";
+            pressSpace("Unidentified", "Space");
+            const returnsToOne = state.speed === 1 && speedButton.textContent === "1×";
+            speedButton.click();
+            const buttonSharesCycle = state.speed === 2 && speedButton.textContent === "2×";
+            resetGame();
+            state.gameStarted = false;
+            openMainMenu();
+            return reachesTwo && reachesThree && returnsToOne && buttonSharesCycle;
+          })(),
           towerCards: document.querySelectorAll(".tower-card").length,
           menuModes: (() => {
             try {
@@ -73,10 +90,12 @@ function createWindow() {
               const growingArmy = wave31.units.length > waves[0].units.length;
               const loopedBosses = [[40, "dragon"], [50, "horseman"], [60, "cyclops"]].every(([waveNumber, bossType]) => {
                 const units = getWaveDefinition(waveNumber, "endless").units;
-                const bossIndex = units.findIndex(unit => unit.type === bossType);
-                return bossIndex >= 0 && units[bossIndex + 1]?.type === "merchant";
+                return units.some(unit => unit.type === bossType) && !units.some(unit => unit.type === "merchant");
               });
-              const loopedThemes = [[36, "pirate"], [42, "werewolf"], [48, "viking"], [54, "wraith"], [60, "demon"]].every(([waveNumber, type]) => getWaveEvent(waveNumber, "endless")?.type === type);
+              const loopedThemes = [[36, "pirate"], [42, "werewolf"], [48, "viking"], [54, "wraith"], [60, "demon"]].every(([waveNumber, type]) => {
+                const event = getWaveEvent(waveNumber, "endless");
+                return event?.type === type && event.units.filter(unit => unit.type === "merchant").length === 1;
+              });
               state.wave = 30;
               startWave();
               const continuesAfterThirty = state.waveActive && state.wave === 31 && state.spawnQueue.length === wave31.units.length;
@@ -103,6 +122,205 @@ function createWindow() {
               return initialMenuVisible && modeChoicesVisible && endlessStarted && growingArmy && loopedBosses && loopedThemes && continuesAfterThirty && campaignStopsAtThirty && settingsControlsExist && healthBarsToggle;
             } catch (error) {
               return "Menu and modes error: " + (error.stack || error.message);
+            }
+          })(),
+          supportCastle: (() => {
+            try {
+              resetGame();
+              state.gold = 9999;
+              state.selectedBuild = "castle";
+              placeTower(6, 5);
+              const firstCastle = state.towers[0];
+              state.selectedBuild = "archer";
+              placeTower(7, 5);
+              const archer = state.towers[1];
+              const oneAuraStats = towerStats(archer);
+
+              state.selectedBuild = "castle";
+              placeTower(7, 6);
+              const twoAuraStats = towerStats(archer);
+              state.selectedBuild = "mage";
+              placeTower(1, 1);
+              const distantMage = state.towers[3];
+              const distantStats = towerStats(distantMage);
+
+              showInspectPanel(firstCastle);
+              const castleUi = document.getElementById("selectedName").textContent === "Tiny Castle" &&
+                document.getElementById("damageStat").textContent.includes("+20%") &&
+                document.getElementById("specialStat").textContent.includes("1 adjacent defense");
+
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const castleModel = graphics3D.towerMeshes.get(firstCastle);
+              const archerModel = graphics3D.towerMeshes.get(archer);
+              const mageModel = graphics3D.towerMeshes.get(distantMage);
+              const modelWorks = Boolean(castleModel?.userData.tinyCastle && castleModel.userData.castleAura && archerModel?.userData.castleBuffAura?.visible && !mageModel?.userData.castleBuffAura?.visible);
+              const exactBuff = Math.abs(oneAuraStats.damage - 20.16) < .001 && oneAuraStats.range === 174 && Math.abs(oneAuraStats.cooldown - 1.125) < .001;
+              const doesNotStack = Math.abs(twoAuraStats.damage - oneAuraStats.damage) < .001 && Math.abs(twoAuraStats.range - oneAuraStats.range) < .001 && Math.abs(twoAuraStats.cooldown - oneAuraStats.cooldown) < .001;
+              const distantUnchanged = distantStats.damage === 35 && distantStats.range === 128 && distantStats.cooldown === 1.15;
+              const supportRules = towerTypes.castle.cost === 225 && upgradeCost(firstCastle) === null && tinyCastleBuffedTowers(firstCastle).length === 1 && document.querySelector('[data-tower="castle"]');
+              return exactBuff && doesNotStack && distantUnchanged && supportRules && castleUi && modelWorks;
+            } catch (error) {
+              return "Tiny Castle error: " + (error.stack || error.message);
+            }
+          })(),
+          ufoDefense: (() => {
+            try {
+              resetGame();
+              state.gold = 9999;
+              state.selectedBuild = "ufo";
+              placeTower(1, 1);
+              const ufo = state.towers[0];
+              const placementWorks = ufo?.type === "ufo" && ufo.spent === 400 && state.gold === 9599 && placementCost("ufo") === 440;
+              const stats = towerStats(ufo);
+              const rapidMagicStats = stats.damage === 24 && stats.range === 185 && stats.cooldown === .3 && towerTypes.ufo.damageType === "magic" && upgradeCost(ufo) === 560;
+
+              spawnEnemy("goblin");
+              const target = state.enemies[0];
+              target.x = ufo.x + 100;
+              target.y = ufo.y;
+              target.speed = 0;
+              target.hp = target.maxHp = 100;
+              ufo.cooldown = 0;
+              update(.01);
+              const laser = state.projectiles.find(projectile => projectile.owner === ufo);
+              const laserFired = laser?.variant === "ufoLaser" && laser.color === "#52ff78" && laser.damage === 24 && laser.damageType === "magic" && laser.speed === 1100;
+
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const ufoModel = graphics3D.towerMeshes.get(ufo);
+              const laserModel = laser && graphics3D.projectileMeshes.get(laser);
+              const visualsWork = Boolean(ufoModel?.userData.ufoBody && ufoModel.userData.ufoLights?.length === 10 && ufoModel.userData.ufoGlow && laserModel?.userData.ufoLaser);
+
+              const hpBefore = target.hp;
+              hitEnemy(laser, target);
+              const laserDamages = target.hp === hpBefore - 24;
+              showInspectPanel(ufo);
+              const ufoUi = document.getElementById("selectedName").textContent === "Alien UFO" && document.getElementById("damageStat").textContent === "24" && document.getElementById("speedStat").textContent === "0.30s" && Boolean(document.querySelector('[data-tower="ufo"]'));
+              return placementWorks && rapidMagicStats && laserFired && visualsWork && laserDamages && ufoUi;
+            } catch (error) {
+              return "Alien UFO error: " + (error.stack || error.message);
+            }
+          })(),
+          ufoPaths: (() => {
+            try {
+              resetGame();
+              state.gold = 99999;
+              state.selectedBuild = "ufo";
+              placeTower(1, 1);
+              const twin = state.towers[0];
+              upgradeTower();
+              const pathCost = upgradeCost(twin);
+              chooseTwinLaserPath();
+              spawnEnemy("goblin");
+              const twinTarget = state.enemies[0];
+              twinTarget.x = twin.x + 100;
+              twinTarget.y = twin.y;
+              twinTarget.speed = 0;
+              twinTarget.hp = twinTarget.maxHp = 1000;
+              twin.cooldown = 0;
+              update(.01);
+              const twinShots = state.projectiles.filter(projectile => projectile.owner === twin);
+              const twinWorks = twin.level === 3 && twin.specialization === "twinlaser" && twinShots.some(projectile => projectile.variant === "ufoLaser" && projectile.color === "#52ff78") && twinShots.some(projectile => projectile.variant === "ufoLaserRed" && projectile.color === towerTypes.ufo.twinLaserColor);
+
+              resetGame();
+              state.gold = 99999;
+              state.selectedBuild = "ufo";
+              placeTower(1, 1);
+              const massive = state.towers[0];
+              upgradeTower();
+              chooseMassiveBeamPath();
+              spawnEnemy("goblin");
+              spawnEnemy("goblin");
+              const massiveTarget = state.enemies[0];
+              const splashTarget = state.enemies[1];
+              massiveTarget.x = massive.x + 100;
+              massiveTarget.y = massive.y;
+              splashTarget.x = massiveTarget.x + 50;
+              splashTarget.y = massiveTarget.y;
+              massiveTarget.speed = splashTarget.speed = 0;
+              massiveTarget.hp = massiveTarget.maxHp = 1000;
+              splashTarget.hp = splashTarget.maxHp = 1000;
+              massive.cooldown = 0;
+              update(.01);
+              const massiveProjectile = state.projectiles.find(projectile => projectile.owner === massive);
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const massiveModel = massiveProjectile && graphics3D.projectileMeshes.get(massiveProjectile);
+              const beforeSplash = splashTarget.hp;
+              hitEnemy(massiveProjectile, massiveTarget);
+              const massiveWorks = massive.level === 3 && massive.specialization === "massivebeam" && towerStats(massive).splash === towerTypes.ufo.massiveSplash && towerStats(massive).damage > 150 && massiveProjectile?.variant === "ufoMassiveLaser" && massiveModel?.userData.massiveLaser && splashTarget.hp < beforeSplash;
+              showInspectPanel(massive);
+              const ufoUi = document.getElementById("selectedName").textContent === "Massive-Beam UFO" && document.getElementById("specialStat").textContent.includes("105 area splash");
+              return pathCost === 780 && twinWorks && massiveWorks && ufoUi;
+            } catch (error) {
+              return "Alien UFO paths error: " + (error.stack || error.message);
+            }
+          })(),
+          bossSummons: (() => {
+            try {
+              resetGame();
+              spawnEnemy("dragon");
+              const dragon = state.enemies[0];
+              dragon.speed = 0;
+              update(15.01);
+              const dragonMinions = state.enemies.filter(enemy => enemy.isBossMinion);
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const dragonMinionModel = graphics3D.enemyMeshes.get(dragonMinions[0]);
+              const dragonModel = graphics3D.enemyMeshes.get(dragon);
+              const waveBossWorks = dragonMinions.length === 5 && dragonMinions.every(minion => !minion.isBoss && !minion.isMiniBoss && minion.reward === 0 && Math.abs(minion.maxHp - dragon.maxHp * .05) < .001 && Math.abs(enemyMeleeDamage(minion) - 7.5) < .001) && dragonMinionModel?.scale.x < dragonModel?.scale.x;
+
+              resetGame();
+              spawnEnemy("davyjones");
+              const eventBoss = state.enemies[0];
+              eventBoss.speed = 0;
+              update(15.01);
+              const eventMinions = state.enemies.filter(enemy => enemy.isBossMinion);
+              const eventBossWorks = eventMinions.length === 5 && eventBoss.isMiniBoss && eventMinions.every(minion => Math.abs(minion.maxHp - eventBoss.maxHp * .05) < .001);
+              return enemyTypes.dragon.bossSummonInterval === 15 && enemyTypes.dragon.bossSummonCount === 5 && enemyTypes.dragon.bossSummonScale === .05 && waveBossWorks && eventBossWorks;
+            } catch (error) {
+              return "Boss summon error: " + (error.stack || error.message);
+            }
+          })(),
+          bossBarracksRetaliation: (() => {
+            try {
+              resetGame();
+              state.gold = 9999;
+              state.selectedBuild = "barracks";
+              placeTower(1, 1);
+              const barracks = state.towers[0];
+              const troops = state.knights.filter(unit => unit.owner === barracks);
+              spawnEnemy("dragon");
+              const boss = state.enemies[0];
+              boss.x = barracks.x;
+              boss.y = barracks.y;
+              troops.forEach(unit => {
+                unit.x = boss.x;
+                unit.y = boss.y;
+                unit.target = boss;
+                unit.attackCooldown = 99;
+              });
+              const startX = boss.x;
+              const startY = boss.y;
+              update(.05);
+              const ignoresBeforeAttack = bossIgnoresBarracks(boss) && !boss.blocked && Math.hypot(boss.x - startX, boss.y - startY) > 0;
+
+              troops.forEach(unit => {
+                unit.x = boss.x;
+                unit.y = boss.y;
+                unit.target = boss;
+                unit.attackCooldown = 99;
+              });
+              troops[0].attackCooldown = 0;
+              const hpBeforeRetaliation = boss.hp;
+              update(.01);
+              const retaliatesAfterHit = boss.hp < hpBeforeRetaliation && boss.barracksProvoked && !bossIgnoresBarracks(boss) && boss.blocked;
+
+              spawnEnemy("davyjones");
+              const eventBoss = state.enemies.at(-1);
+              const miniBossStartsUnprovoked = bossIgnoresBarracks(eventBoss);
+              damageEnemy(eventBoss, 1, barracks, "physical", troops[0]);
+              const miniBossCanBeProvoked = eventBoss.barracksProvoked && !bossIgnoresBarracks(eventBoss);
+              return ignoresBeforeAttack && retaliatesAfterHit && miniBossStartsUnprovoked && miniBossCanBeProvoked;
+            } catch (error) {
+              return "Boss Barracks retaliation error: " + (error.stack || error.message);
             }
           })(),
           monsterIndex: (() => {
@@ -393,6 +611,7 @@ function createWindow() {
             state.selectedBuild = "ghost";
             placeTower(1, 1);
             const ghost = state.towers.find(tower => tower.type === "ghost");
+            const fearScales = [1, 2, 3].map(level => towerStats({ type: "ghost", level, specialization: null }).fearCount);
             for (let index = 0; index < 3; index++) {
               spawnEnemy(index === 0 ? "skeleton" : "goblin");
               const enemy = state.enemies[state.enemies.length - 1];
@@ -402,22 +621,43 @@ function createWindow() {
             }
             ghost.cooldown = 0;
             update(.01);
-            const feared = state.enemies.length === 3 && state.enemies.every(enemy => enemy.fearTimer > 1.9);
+            const feared = state.enemies.length === 3 && state.enemies.filter(enemy => enemy.fearTimer > 1.9).length === 1;
+            const fearedEnemy = state.enemies.find(enemy => enemy.fearTimer > 0);
             const attackPositions = state.enemies.map(enemy => enemy.x);
             update(.5);
-            const reversed = state.enemies.every((enemy, index) => enemy.x < attackPositions[index]);
+            const reversed = fearedEnemy && fearedEnemy.x < attackPositions[state.enemies.indexOf(fearedEnemy)] && state.enemies.filter(enemy => enemy !== fearedEnemy).every(enemy => enemy.x >= attackPositions[state.enemies.indexOf(enemy)]);
             for (let index = 0; index < 160; index++) update(.01);
             const resumePositions = state.enemies.map(enemy => enemy.x);
             update(.2);
-            const resumed = state.enemies.every((enemy, index) => enemy.fearTimer === 0 && enemy.x > resumePositions[index]);
-            const cooldownActive = state.enemies.every(enemy => enemy.fearCooldown > 3.6 && enemy.fearCooldown <= 4);
-            ghost.cooldown = 0;
+            const fearedIndex = state.enemies.indexOf(fearedEnemy);
+            const resumed = fearedEnemy && fearedEnemy.fearTimer === 0 && fearedEnemy.x > resumePositions[fearedIndex];
+            const cooldownActive = fearedEnemy && fearedEnemy.fearCooldown > 3.6 && fearedEnemy.fearCooldown <= 4;
+            ghost.cooldown = 99;
             update(.01);
-            const resistedRepeatFear = state.enemies.every(enemy => enemy.fearTimer === 0);
-            fearEnemy(state.enemies[0], 2);
+            const resistedRepeatFear = fearedEnemy && fearedEnemy.fearTimer === 0;
+            fearEnemy(fearedEnemy, 2);
             graphics3D.render(state, hoverCell, canPlace, towerStats);
             const rendered = graphics3D.towerMeshes.has(ghost) && state.enemies.every(enemy => graphics3D.enemyMeshes.has(enemy));
-            return feared && reversed && resumed && cooldownActive && resistedRepeatFear && ghost.enemiesFeared === 3 && rendered;
+
+            resetGame();
+            state.gold = 9999;
+            state.selectedBuild = "ghost";
+            placeTower(1, 1);
+            const bossGhost = state.towers.find(tower => tower.type === "ghost");
+            spawnEnemy("dragon");
+            const boss = state.enemies[0];
+            boss.x = bossGhost.x + 80;
+            boss.y = bossGhost.y;
+            boss.speed = 0;
+            bossGhost.cooldown = 0;
+            update(.01);
+            const bossFeared = boss.fearTimer > 1.9;
+            for (let index = 0; index < 205; index++) update(.01);
+            const bossCooldownActive = boss.fearCooldown > 7.9 && boss.fearCooldown <= 8;
+            bossGhost.cooldown = 0;
+            update(.01);
+            const bossResisted = boss.fearTimer === 0;
+            return fearScales.join(",") === "1,2,3" && feared && reversed && resumed && cooldownActive && resistedRepeatFear && ghost.enemiesFeared === 1 && rendered && bossFeared && bossCooldownActive && bossResisted;
             } catch (error) {
               return "Ghost render error: " + (error.stack || error.message);
             }
@@ -446,6 +686,10 @@ function createWindow() {
               const wizardCostsScale = towerTypes.mage.cost === 130 && towerTypes.mage.upgradeCostMultiplier === .9 && upgradeCost(wizard) === 164;
               upgradeTower();
               const finalWizardUpgradeScales = wizard.level === 2 && upgradeCost(wizard) === 228;
+              chooseFrostPath();
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const wizardModel = graphics3D.towerMeshes.get(wizard);
+              const frostRobesRendered = wizard.specialization === "frost" && wizardModel?.userData.wizardRobePieces?.length >= 7 && wizardModel.userData.wizardRobePieces.every(piece => piece.material === graphics3D.mat.frostCloth);
 
               spawnEnemy("skeleton");
               const skeleton = state.enemies[0];
@@ -457,7 +701,7 @@ function createWindow() {
               damageEnemy(skeleton, 40, testOwner, "magic");
               const magicDamage = 100 - skeleton.hp;
 
-              return towerTypes.ballista.damage === 120 && towerTypes.mage.damage === 35 && wizardCostsScale && finalWizardUpgradeScales &&
+              return towerTypes.ballista.damage === 120 && towerTypes.mage.damage === 35 && wizardCostsScale && finalWizardUpgradeScales && frostRobesRendered &&
                 enemyTypes.skeleton.physicalResistance === 0 && enemyTypes.skeleton.magicResistance === .25 &&
                 physicalDamage === 40 && magicDamage === 30;
             } catch (error) {
@@ -482,7 +726,7 @@ function createWindow() {
               state.selectedTower = secondOgre;
               sellTower();
 
-              return towerTypes.ogre.damage === 200 && firstCost === 150 && secondCost === 195 && thirdCost === 254 &&
+              return REPEAT_PLACEMENT_MULTIPLIER === 1.1 && towerTypes.ogre.damage === 200 && firstCost === 150 && secondCost === 165 && thirdCost === 182 &&
                 firstOgre.spent === firstCost && secondOgre.spent === secondCost &&
                 startingGold - firstOgre.spent - secondOgre.spent + Math.round(secondOgre.spent * .65) === state.gold &&
                 placementCost("ogre") === thirdCost && displayedCost === String(thirdCost) && placementCost("mage") === towerTypes.mage.cost;
@@ -625,6 +869,7 @@ function createWindow() {
               attackingHorseman.meleeCooldown = 0;
               victim.target = attackingHorseman;
               victim.attackCooldown = 10;
+              damageEnemy(attackingHorseman, 1, state.towers[0], "physical", victim);
               update(.01);
               const halberdDealsDamage = !victim.alive && victim.hp === 0 && attackingHorseman.attackSwing > .4 && enemyMeleeDamage(attackingHorseman) === 190;
               update(.12);
@@ -671,13 +916,13 @@ function createWindow() {
           })(),
           merchantEscort: (() => {
             try {
-              const bossPairs = [[9, "dragon"], [19, "horseman"], [29, "cyclops"]];
-              const scheduledWithBosses = bossPairs.every(([waveIndex, bossType]) => {
-                const units = waves[waveIndex].units;
+              const eventPairs = [[6, "davyjones"], [12, "moonalpha"], [18, "longship"], [24, "covenwitch"], [30, "riftlord"]];
+              const scheduledWithEvents = eventPairs.every(([waveNumber, bossType]) => {
+                const units = waveEvents[waveNumber].units;
                 const bossIndex = units.findIndex(unit => unit.type === bossType);
                 const merchantIndices = units.map((unit, index) => unit.type === "merchant" ? index : -1).filter(index => index >= 0);
                 return merchantIndices.length === 1 && bossIndex >= 0 && merchantIndices[0] === bossIndex + 1;
-              }) && waves.every((wave, index) => bossPairs.some(([bossWave]) => bossWave === index) || !wave.units.some(unit => unit.type === "merchant"));
+              }) && waves.every(wave => !wave.units.some(unit => unit.type === "merchant"));
 
               resetGame();
               state.gold = 9999;
@@ -701,10 +946,10 @@ function createWindow() {
               const merchantBalance = merchant.maxHp === 624 && enemyTypes.merchant.hp === 624 && merchant.speed === 52.5 && enemyTypes.merchant.speed === 52.5;
               const detailedModel = model?.userData.merchantModel === true && Boolean(model.userData.merchantPack) && model.userData.merchantPouches?.length === 2 && Boolean(model.userData.merchantCoin) && Boolean(model.userData.merchantPotion);
 
-              state.wave = 9;
+              state.wave = 5;
               updateUI();
               const previewShowsMerchant = document.querySelector("#wavePreview .enemy-pip.merchant")?.textContent === "$1";
-              return scheduledWithBosses && merchantBalance && ignoresBarracks && detailedModel && Number.isFinite(bar?.scale.x) && bar.scale.x > 0 && previewShowsMerchant;
+              return scheduledWithEvents && merchantBalance && ignoresBarracks && detailedModel && Number.isFinite(bar?.scale.x) && bar.scale.x > 0 && previewShowsMerchant;
             } catch (error) {
               return "Merchant escort error: " + (error.stack || error.message);
             }
@@ -713,16 +958,24 @@ function createWindow() {
             try {
               resetGame();
               state.gold = 2000;
-              spawnEnemy("dragon");
+              state.wave = 6;
+              state.merchantEncounterCount = 1;
+              state.merchantStoreGateType = "davyjones";
+              spawnEnemy("davyjones");
               spawnEnemy("merchant");
-              const boss = state.enemies[0];
+              spawnEnemy("dragon");
+              const eventBoss = state.enemies[0];
               const merchant = state.enemies[1];
+              const unrelatedBoss = state.enemies[2];
               merchant.hp = 1;
               const testOwner = { type: "archer", kills: 0 };
               damageEnemy(merchant, 10, testOwner, "physical");
               const shopWaitsForBoss = state.merchantStorePending && !state.storeOpen && document.getElementById("merchantStoreModal").classList.contains("hidden");
-              boss.hp = 1;
-              damageEnemy(boss, 10, testOwner, "physical");
+              unrelatedBoss.hp = 1;
+              damageEnemy(unrelatedBoss, 10, testOwner, "physical");
+              const unrelatedBossDoesNotUnlock = state.merchantStorePending && !state.storeOpen;
+              eventBoss.hp = 1;
+              damageEnemy(eventBoss, 10, testOwner, "physical");
               const shopOpensAfterBoss = state.bossDefeatedThisWave && !state.merchantStorePending && state.storeOpen && !document.getElementById("merchantStoreModal").classList.contains("hidden") && document.querySelectorAll(".merchant-item-card").length === 5;
               Object.keys(merchantRelics).forEach(type => buyMerchantRelic(type));
               const purchasesWork = state.inventory.length === 5 && state.merchantStoreStock.length === 0 && document.querySelectorAll(".merchant-item-card:disabled").length === 5;
@@ -764,13 +1017,10 @@ function createWindow() {
               state.selectedRelic = "ring";
               const ringEquipped = equipSelectedRelic(mine);
               const beforeProduction = state.gold;
-              state.waveActive = true;
-              state.spawnQueue = [{ type: "goblin", gap: 999 }];
-              state.spawnTimer = 999;
-              update(1.01);
-              const firstRingSecondCarriesFraction = state.gold - beforeProduction === 1 && mine.goldMined === 1 && Math.abs(state.goldIncomeRemainder - .5) < .001;
-              update(1);
-              const ringBoostsMine = ringEquipped && firstRingSecondCarriesFraction && state.gold - beforeProduction === 3 && mine.goldMined === 3 && state.goldIncomeRemainder === 0 && Number.isInteger(state.gold);
+              const firstRingPayout = payGoldMineRoundIncome();
+              const firstRingRoundCarriesFraction = firstRingPayout === 22 && state.gold - beforeProduction === 22 && mine.goldMined === 22 && mine.incomeRemainder === .5;
+              const secondRingPayout = payGoldMineRoundIncome();
+              const ringBoostsMine = ringEquipped && firstRingRoundCarriesFraction && secondRingPayout === 23 && state.gold - beforeProduction === 45 && mine.goldMined === 45 && mine.incomeRemainder === 0 && Number.isInteger(state.gold);
 
               resetGame();
               spawnEnemy("dragon");
@@ -787,9 +1037,212 @@ function createWindow() {
               update(.01);
               const escapeGivesNoShop = escapedMerchant.reached && !state.merchantStorePending && !state.storeOpen && document.getElementById("merchantStoreModal").classList.contains("hidden");
 
-              return shopWaitsForBoss && shopOpensAfterBoss && purchasesWork && swordEquipped && amuletEquipped && bootsEquipped && fourthRejected && threeSlotUi && universalBonusesWork && shieldBoostsTroops && ringBoostsMine && escapeGivesNoShop;
+              return shopWaitsForBoss && unrelatedBossDoesNotUnlock && shopOpensAfterBoss && purchasesWork && swordEquipped && amuletEquipped && bootsEquipped && fourthRejected && threeSlotUi && universalBonusesWork && shieldBoostsTroops && ringBoostsMine && escapeGivesNoShop;
             } catch (error) {
               return "Merchant relic store error: " + (error.stack || error.message);
+            }
+          })(),
+          relicTiers: (() => {
+            try {
+              const commonTypes = Object.keys(merchantRelics).filter(type => merchantRelics[type].tier === "common");
+              const rareTypes = Object.keys(merchantRelics).filter(type => merchantRelics[type].tier === "rare");
+              const epicTypes = Object.keys(merchantRelics).filter(type => merchantRelics[type].tier === "epic");
+
+              resetGame();
+              state.wave = 6;
+              state.merchantEncounterCount = 1;
+              state.gold = 99999;
+              openMerchantStore();
+              const firstMerchantCommonOnly = state.merchantStoreStock.length === 5 && document.querySelectorAll(".merchant-item-card").length === 5 && !state.merchantStoreStock.some(type => merchantRelics[type].tier !== "common");
+              const favourStartsEmpty = document.getElementById("merchantFavourValue").textContent === "0 / 5" && document.getElementById("merchantFavourFill").style.width === "0%" && document.getElementById("merchantFavourTrack").getAttribute("aria-valuenow") === "0";
+              closeMerchantStore();
+
+              resetGame();
+              state.wave = 12;
+              state.merchantEncounterCount = 2;
+              state.gold = 99999;
+              openMerchantStore();
+              const secondMerchantGuaranteesHigherTiers = state.merchantStoreStock.length === 9 && document.querySelectorAll(".merchant-item-card.relic-tier-rare").length === 3 && document.querySelectorAll(".merchant-item-card.relic-tier-epic").length === 1;
+              buyMerchantRelic(state.merchantStoreStock[0]);
+              const firstPurchaseBuildsFavour = document.getElementById("merchantFavourValue").textContent === "1 / 5" && document.getElementById("merchantFavourFill").style.width === "20%" && document.getElementById("merchantFavourTrack").getAttribute("aria-valuenow") === "1";
+              closeMerchantStore();
+
+              state.wave = 18;
+              state.merchantEncounterCount = 3;
+              openMerchantStore();
+              const firstPurchaseImprovesFutureStock = state.merchantStoreStock.length === MAX_MERCHANT_RELICS && document.querySelectorAll(".merchant-item-card.relic-tier-rare").length === 4 && document.querySelectorAll(".merchant-item-card.relic-tier-epic").length === 2 && document.querySelectorAll(".merchant-item-card:not(.relic-tier-rare):not(.relic-tier-epic)").length === 4;
+              buyMerchantRelic(state.merchantStoreStock[0]);
+              const secondPurchaseBuildsFavour = document.getElementById("merchantFavourValue").textContent === "2 / 5" && document.getElementById("merchantFavourFill").style.width === "40%";
+              closeMerchantStore();
+
+              state.wave = 24;
+              state.merchantEncounterCount = 4;
+              openMerchantStore();
+              const secondPurchaseContinuesProgression = state.merchantStoreStock.length === MAX_MERCHANT_RELICS && document.querySelectorAll(".merchant-item-card.relic-tier-rare").length === 5 && document.querySelectorAll(".merchant-item-card.relic-tier-epic").length === 2 && document.querySelectorAll(".merchant-item-card:not(.relic-tier-rare):not(.relic-tier-epic)").length === 3;
+              closeMerchantStore();
+
+              resetGame();
+              state.gold = 99999;
+              state.inventory.push("runeblade", "starforgedCore", "oracleEye");
+              state.selectedBuild = "archer";
+              placeTower(1, 1);
+              const archer = state.towers[0];
+              const baseStats = towerStats(archer);
+              for (const type of ["runeblade", "starforgedCore", "oracleEye"]) {
+                state.selectedRelic = type;
+                equipSelectedRelic(archer);
+              }
+              const relicStats = towerStats(archer);
+              const tierBonusesWork = Math.abs(relicStats.damage / baseStats.damage - 2.03) < .001 && Math.abs(relicStats.range / baseStats.range - 1.55) < .001 && Math.abs(relicStats.cooldown / baseStats.cooldown - .66) < .001;
+
+              resetGame();
+              state.gold = 99999;
+              state.selectedBuild = "barracks";
+              placeTower(1, 1);
+              const barracks = state.towers[0];
+              state.inventory.push("titanheart");
+              state.selectedRelic = "titanheart";
+              const titanheartEquipped = equipSelectedRelic(barracks);
+              const titanheartWorks = titanheartEquipped && knightMaxHp(barracks) === 126 && Math.abs(towerStats(barracks).damage - 15.6) < .001;
+              const covePoolIsCommonOnly = commonTypes.length === 5;
+              return commonTypes.length === 5 && rareTypes.length === 8 && epicTypes.length === 8 && firstMerchantCommonOnly && favourStartsEmpty && secondMerchantGuaranteesHigherTiers && firstPurchaseBuildsFavour && firstPurchaseImprovesFutureStock && secondPurchaseBuildsFavour && secondPurchaseContinuesProgression && tierBonusesWork && titanheartWorks && covePoolIsCommonOnly;
+            } catch (error) {
+              return "Relic tier error: " + (error.stack || error.message);
+            }
+          })(),
+          uniqueRelic: (() => {
+            try {
+              const uniqueTypes = Object.keys(merchantRelics).filter(type => merchantRelics[type].tier === "unique");
+
+              resetGame();
+              state.wave = 30;
+              state.merchantEncounterCount = 5;
+              state.merchantRelicsPurchased = 4;
+              state.gold = 99999;
+              openMerchantStore();
+              const lockedBeforeFullFavour = !state.merchantStoreOffering.some(type => merchantRelics[type].tier === "unique") && document.querySelectorAll(".merchant-item-card.relic-tier-unique").length === 0;
+              closeMerchantStore();
+
+              resetGame();
+              state.wave = 36;
+              state.merchantEncounterCount = 6;
+              state.merchantRelicsPurchased = MAX_MERCHANT_FAVOUR;
+              state.gold = 99999;
+              openMerchantStore();
+              const uniqueOffering = state.merchantStoreOffering.filter(type => merchantRelics[type].tier === "unique");
+              const unlockedAtFullFavour = state.merchantStoreOffering.length === MAX_MERCHANT_RELICS && uniqueOffering.length === 1 && document.querySelectorAll(".merchant-item-card.relic-tier-unique").length === 1 && document.getElementById("merchantFavourFill").style.width === "100%";
+              closeMerchantStore();
+
+              state.inventory.push("draculaCloak");
+              state.selectedBuild = "vampire";
+              placeTower(1, 1);
+              const vampire = state.towers[0];
+              vampire.level = 3;
+              vampire.specialization = "bloodstorm";
+              const maxedDamage = towerStats(vampire).damage;
+              state.selectedRelic = "draculaCloak";
+              const cloakEquipped = equipSelectedRelic(vampire);
+              const draculaDamage = towerStats(vampire).damage;
+
+              for (let index = 0; index < 6; index++) {
+                spawnEnemy("ogre");
+                const enemy = state.enemies[index];
+                enemy.x = vampire.x + 50 + index * 16;
+                enemy.y = vampire.y;
+                enemy.pathIndex = 8 + index;
+                enemy.speed = 0;
+                enemy.hp = 10000;
+                enemy.maxHp = 10000;
+                enemy.physicalResistance = 0;
+                enemy.magicResistance = 0;
+              }
+              vampire.cooldown = 0;
+              update(.01);
+              const bloodstormRetained = towerStats(vampire).drainCount === 5 && vampire.bloodDrainTargets.length === 5;
+              const cursedEnemies = state.enemies.filter(enemy => enemy.batFormTimer > 0);
+              const normalEnemy = state.enemies.find(enemy => enemy.batFormTimer <= 0);
+              const cursedBefore = cursedEnemies[0].hp;
+              const normalBefore = normalEnemy.hp;
+              const testOwner = { type: "archer", kills: 0 };
+              damageEnemy(cursedEnemies[0], 100, testOwner, "physical");
+              damageEnemy(normalEnemy, 100, testOwner, "physical");
+              const vulnerabilityWorks = cursedBefore - cursedEnemies[0].hp === 130 && normalBefore - normalEnemy.hp === 100 && cursedEnemies[0].lastDamageTakenMultiplier === DRACULA_BAT_DAMAGE_MULTIPLIER;
+
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const vampireModel = graphics3D.towerMeshes.get(vampire);
+              const batModel = graphics3D.enemyMeshes.get(cursedEnemies[0]);
+              const transformationRendered = vampireModel?.userData.draculaCape?.visible === true && vampireModel.userData.draculaAura?.visible === true && vampireModel.userData.vampireBody.scale.x > .95 && batModel?.userData.batForm?.visible === true && batModel.userData.enemyModelRoot?.visible === false;
+
+              update(DRACULA_BAT_DURATION + .01);
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const restoredAfterFiveSeconds = state.enemies.every(enemy => enemy.batFormTimer === 0) && batModel.userData.batForm.visible === false && batModel.userData.enemyModelRoot.visible === true;
+              update(DRACULA_BAT_COOLDOWN - DRACULA_BAT_DURATION);
+              const recastsEveryEightSeconds = state.enemies.filter(enemy => enemy.batFormTimer > 0).length === DRACULA_BAT_COUNT && vampire.enemiesBatCursed === DRACULA_BAT_COUNT * 2;
+
+              vampire.specialization = "nightspawn";
+              spawnEnemy("goblin");
+              const nightspawnVictim = state.enemies.at(-1);
+              nightspawnVictim.hp = 1;
+              damageEnemy(nightspawnVictim, 10, vampire, "magic");
+              const nightspawnRetained = state.knights.some(unit => unit.owner === vampire && unit.unitType === "vampireMinion" && unit.hp === 300);
+
+              return uniqueTypes.length === 2 && lockedBeforeFullFavour && unlockedAtFullFavour && cloakEquipped && Math.abs(draculaDamage / maxedDamage - 3) < .001 && bloodstormRetained && nightspawnRetained && cursedEnemies.length === DRACULA_BAT_COUNT && vulnerabilityWorks && transformationRendered && restoredAfterFiveSeconds && recastsEveryEightSeconds;
+            } catch (error) {
+              return "Unique relic error: " + (error.stack || error.message);
+            }
+          })(),
+          umbralRelic: (() => {
+            try {
+              resetGame();
+              state.gold = 99999;
+              state.selectedBuild = "ghost";
+              placeTower(1, 1);
+              const ghost = state.towers[0];
+              ghost.level = 2;
+              state.inventory.push("umbralForm");
+              state.selectedRelic = "umbralForm";
+              const formEquipped = equipSelectedRelic(ghost);
+              const ghostOnly = merchantRelics.umbralForm.tier === "unique" && merchantRelics.umbralForm.allowed(ghost) && !merchantRelics.umbralForm.allowed({ type: "vampire" });
+
+              spawnEnemy("dragon");
+              spawnEnemy("goblin");
+              spawnEnemy("ogre");
+              const [boss, possessed, nearbyEnemy] = state.enemies;
+              boss.x = ghost.x + 30;
+              boss.y = ghost.y;
+              possessed.x = ghost.x + 50;
+              possessed.y = ghost.y;
+              nearbyEnemy.x = ghost.x + 75;
+              nearbyEnemy.y = ghost.y;
+              for (const enemy of state.enemies) {
+                enemy.speed = 0;
+                enemy.hp = 10000;
+                enemy.maxHp = 10000;
+                enemy.physicalResistance = 0;
+                enemy.magicResistance = 0;
+              }
+              ghost.cooldown = 0;
+              update(.01);
+              const bossFearOnly = boss.fearTimer > 0 && boss.fearTimer <= UMBRAL_BOSS_FEAR_DURATION && boss.possessionTimer === 0;
+              const normalPossessed = possessed.possessionTimer > 3.9 && possessed.possessionTimer <= UMBRAL_POSSESSION_DURATION && nearbyEnemy.possessionTimer === 0 && ghost.enemiesPossessed === 1;
+
+              const bossHpBefore = boss.hp;
+              update(.01);
+              const attacksNearbyEnemy = boss.hp < bossHpBefore && possessed.possessionTarget === boss && possessed.moving === false && possessed.attackSwing > 0;
+
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const ghostModel = graphics3D.towerMeshes.get(ghost);
+              const possessedModel = graphics3D.enemyMeshes.get(possessed);
+              const transformedModel = ghostModel?.userData.umbralFeatures?.visible === true && ghostModel.userData.ghostBody.scale.x > 1.1 && ghostModel.userData.ghostLight.color.getHex() === 0xa347ff;
+              const possessionRendered = possessedModel?.userData.possessionAura?.visible === true;
+              const uiExplainsPower = document.getElementById("selectedName").textContent === "Umbral Horror" && document.getElementById("damageLabel").textContent === "Possess targets" && document.getElementById("specialStat").textContent.includes("4s possession");
+
+              ghost.cooldown = 999;
+              update(UMBRAL_POSSESSION_DURATION + .01);
+              const expiresAfterFourSeconds = possessed.possessionTimer === 0 && possessed.possessionOwner === null && possessed.possessionTarget === null;
+              return formEquipped && ghostOnly && bossFearOnly && normalPossessed && attacksNearbyEnemy && transformedModel && possessionRendered && uiExplainsPower && expiresAfterFourSeconds;
+            } catch (error) {
+              return "Umbral relic error: " + (error.stack || error.message);
             }
           })(),
           treasureCove: (() => {
@@ -814,18 +1267,17 @@ function createWindow() {
               const coveModel = graphics3D.towerMeshes.get(mine);
               const converted = mine.specialization === "treasureCove" && mine.level === 2 && mine.spent === 1015 && state.gold === goldBeforeUpgrade - TREASURE_COVE_COST;
               const detailedCoveModel = coveModel.userData.treasureCove === true && coveModel.userData.coveMinerals.length >= 6 && coveModel.userData.workers.length === 5;
-              const coveUi = document.getElementById("selectedName").textContent === "Treasure Cove" && document.getElementById("damageStat").textContent === "1 relic / 24s" && document.getElementById("killsLabel").textContent === "Relics unearthed";
+              const coveUi = document.getElementById("selectedName").textContent === "Treasure Cove" && document.getElementById("damageStat").textContent === "50% relic / round" && document.getElementById("killsLabel").textContent === "Relics unearthed" && treasureCoveRelicChance(mine) === .5;
 
               Math.random = () => 0;
-              state.waveActive = true;
-              state.spawnQueue = [{ type: "goblin", gap: 999 }];
-              state.spawnTimer = 999;
-              mine.excavationTimer = TREASURE_COVE_RELIC_INTERVAL - .01;
               const inventoryBefore = state.inventory.length;
               const goldBeforeExcavation = state.gold;
-              update(.02);
-              const excavatesRelicsInsteadOfGold = state.inventory.length === inventoryBefore + 1 && state.inventory.at(-1) === "sword" && mine.relicsExcavated === 1 && state.gold === goldBeforeExcavation && mine.goldMined === 0;
-              return lockedUntilStaffed && fiveWorkers && upgradeOptionAppears && fiveWorkersVisible && converted && detailedCoveModel && coveUi && excavatesRelicsInsteadOfGold;
+              const producedOnSuccessfulRoll = rollTreasureCoveRoundRelics();
+              const successfulRoundRoll = producedOnSuccessfulRoll === 1 && state.inventory.length === inventoryBefore + 1 && state.inventory.at(-1) === "sword" && mine.relicsExcavated === 1 && state.gold === goldBeforeExcavation && mine.goldMined === 0;
+              Math.random = () => .5;
+              const producedOnFailedRoll = rollTreasureCoveRoundRelics();
+              const failedRoundRoll = producedOnFailedRoll === 0 && state.inventory.length === inventoryBefore + 1 && mine.relicsExcavated === 1;
+              return lockedUntilStaffed && fiveWorkers && upgradeOptionAppears && fiveWorkersVisible && converted && detailedCoveModel && coveUi && successfulRoundRoll && failedRoundRoll;
             } catch (error) {
               return "Treasure Cove error: " + (error.stack || error.message);
             } finally {
@@ -837,7 +1289,7 @@ function createWindow() {
               resetGame();
               const startingGoldUnchanged = state.gold === 250;
               const scaledPayouts = Array.from({ length: 10 }, () => awardGold(1));
-              const fractionsCarryForward = scaledPayouts.reduce((total, payout) => total + payout, 0) === 3 && state.gold === 253 && Math.abs(state.goldIncomeRemainder) < .001;
+              const fractionsCarryForward = scaledPayouts.reduce((total, payout) => total + payout, 0) === 3 && state.gold === 253 && Math.abs(state.goldIncomeRemainder - .45) < .001;
 
               resetGame();
               spawnEnemy("goblin");
@@ -845,7 +1297,7 @@ function createWindow() {
               rewardTarget.hp = 1;
               const rewardOwner = { type: "archer", kills: 0 };
               damageEnemy(rewardTarget, 10, rewardOwner, "physical");
-              const killRewardIncrease = state.gold === 252 && Math.abs(state.goldIncomeRemainder - .4) < .001;
+              const killRewardIncrease = state.gold === 252 && Math.abs(state.goldIncomeRemainder - .76) < .001;
 
               resetGame();
               state.gold = 9999;
@@ -854,18 +1306,22 @@ function createWindow() {
               const mine = state.towers[0];
               hireWorker();
               const preProductionGold = state.gold;
+              state.wave = 1;
               state.waveActive = true;
               state.spawnQueue = [{ type: "goblin", gap: 999 }];
               state.spawnTimer = 999;
               update(6.01);
-              const mineRate = state.gold - preProductionGold === 6 && mine.goldMined === 6;
+              const noContinuousIncome = state.gold === preProductionGold && mine.goldMined === 0;
+              state.spawnQueue = [];
+              update(.01);
+              const mineRoundPayout = state.gold - preProductionGold === 36 && mine.goldMined === 15 && mine.incomeRemainder === 0 && !state.waveActive;
 
               resetGame();
               state.wave = 1;
               state.waveActive = true;
               update(.01);
               const waveBonusRestored = state.gold === 271 && state.goldIncomeRemainder === 0;
-              return GOLD_INCOME_RATE === .3 && MINE_GOLD_PER_WORKER_PER_SECOND === 1 && towerTypes.mine.cost === 150 && startingGoldUnchanged && fractionsCarryForward && killRewardIncrease && mineRate && waveBonusRestored;
+              return GOLD_INCOME_RATE === .345 && MINE_GOLD_PER_WORKER_PER_ROUND === 15 && towerTypes.mine.cost === 150 && startingGoldUnchanged && fractionsCarryForward && killRewardIncrease && noContinuousIncome && mineRoundPayout && waveBonusRestored;
             } catch (error) {
               return "Income scaling error: " + (error.stack || error.message);
             }
@@ -892,8 +1348,8 @@ function createWindow() {
                 document.querySelector("#wavePreview .enemy-pip.davyjones")?.textContent === "DJ1";
               const normalCount = waves[5].units.length;
               startWave();
-              const queueCombined = state.activeEvent?.name === "Pirate Raid" && state.spawnQueue.length === normalCount + 15 &&
-                state.spawnQueue[2]?.type === "pirate" && state.spawnQueue.some(unit => unit.type === "ogre") && state.spawnQueue.some(unit => unit.type === "davyjones");
+              const queueCombined = state.activeEvent?.name === "Pirate Raid" && state.spawnQueue.length === normalCount + 16 &&
+                state.spawnQueue[2]?.type === "pirate" && state.spawnQueue.some(unit => unit.type === "ogre") && state.spawnQueue.some(unit => unit.type === "davyjones") && state.spawnQueue.some(unit => unit.type === "merchant");
 
               resetGame();
               eventTypes.forEach((type, index) => {
@@ -950,6 +1406,7 @@ function createWindow() {
               rangedWitch.speed = 0;
               rangedWitch.rangedCooldown = 0;
               rangedWitch.summonCooldown = 99;
+              damageEnemy(rangedWitch, 1, barracks, "physical", rangedVictims[0]);
               update(.01);
               const witchProjectile = state.projectiles.find(projectile => projectile.type === "witchMagic" && projectile.hostile);
               graphics3D.render(state, hoverCell, canPlace, towerStats);
@@ -987,7 +1444,7 @@ function createWindow() {
           })()
         })`);
         const ok = result.title === "Stonewatch Keep" && result.hasCanvas && result.hasThree &&
-          result.hasGraphics && result.hasWheelZoom && result.hasCameraReset && result.towerCards >= 8 && result.menuModes === true && result.monsterIndex === true && result.treeObstacles === true && result.archerVolley === true && result.archerPaths === true && result.ballistaFlame === true && result.vampireDrain === true && result.vampirePaths === true && result.ghostFear === true && result.damageTypes === true && result.combatBalance === true && result.placementScaling === true && result.barracksPaths === true && result.dragonFire === true && result.bossRoster === true && result.campaignWaves === true && result.merchantEscort === true && result.merchantRelicStore === true && result.treasureCove === true && result.incomeScaling === true && result.themedEvents === true;
+          result.hasGraphics && result.hasWheelZoom && result.hasCameraReset && result.speedHotkey === true && result.towerCards >= 10 && result.menuModes === true && result.supportCastle === true && result.ufoDefense === true && result.ufoPaths === true && result.bossSummons === true && result.bossBarracksRetaliation === true && result.monsterIndex === true && result.treeObstacles === true && result.archerVolley === true && result.archerPaths === true && result.ballistaFlame === true && result.vampireDrain === true && result.vampirePaths === true && result.ghostFear === true && result.damageTypes === true && result.combatBalance === true && result.placementScaling === true && result.barracksPaths === true && result.dragonFire === true && result.bossRoster === true && result.campaignWaves === true && result.merchantEscort === true && result.merchantRelicStore === true && result.relicTiers === true && result.uniqueRelic === true && result.umbralRelic === true && result.treasureCove === true && result.incomeScaling === true && result.themedEvents === true;
         finishSmokeTest(ok ? 0 : 1, { ok, ...result });
       } catch (error) {
         finishSmokeTest(1, { ok: false, error: error.message });

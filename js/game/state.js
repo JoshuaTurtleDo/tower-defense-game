@@ -45,8 +45,12 @@ function freshState() {
     selectedTreeId: null,
     inventory: [],
     selectedRelic: null,
+    merchantEncounterCount: 0,
+    merchantRelicsPurchased: 0,
+    merchantStoreOffering: [],
     merchantStoreStock: [],
     merchantStorePending: false,
+    merchantStoreGateType: null,
     bossDefeatedThisWave: false,
     storeOpen: false,
     monsterIndexOpen: false,
@@ -86,14 +90,6 @@ function awardGold(baseAmount) {
   return payout;
 }
 
-function awardUnscaledGold(amount) {
-  const total = amount + state.goldIncomeRemainder;
-  const payout = Math.floor(total + 1e-9);
-  state.goldIncomeRemainder = total - payout;
-  state.gold += payout;
-  return payout;
-}
-
 function startWave() {
   const waveNumber = state.wave + 1;
   const wave = getWaveDefinition(waveNumber);
@@ -102,6 +98,8 @@ function startWave() {
   state.waveActive = true;
   state.merchantStorePending = false;
   state.bossDefeatedThisWave = false;
+  state.merchantStoreGateType = event?.bossType || null;
+  if (event) state.merchantEncounterCount++;
   state.activeEvent = event;
   state.spawnQueue = event
     ? combineWaveAndEvent(wave.units, event.units)
@@ -112,32 +110,39 @@ function startWave() {
   updateUI();
 }
 
-function spawnEnemy(type) {
+function spawnEnemy(type, options = {}) {
   const base = enemyTypes[type];
   discoverMonster(type);
+  const bossMinion = Boolean(options.bossMinion);
   const scale = 1 + Math.max(0, state.wave - 1) * .11;
+  const minionScale = bossMinion ? base.bossSummonScale || .05 : 1;
   state.enemies.push({
     type,
     x: pathPoints[0].x,
     y: pathPoints[0].y,
     pathIndex: 1,
-    hp: base.hp * scale,
-    maxHp: base.hp * scale,
+    hp: base.hp * scale * minionScale,
+    maxHp: base.hp * scale * minionScale,
     speed: base.speed * (1 + Math.max(0, state.wave - 1) * .012),
-    reward: base.reward,
-    damage: base.damage,
-    isBoss: Boolean(base.boss),
-    isMiniBoss: Boolean(base.miniBoss),
+    reward: bossMinion ? 0 : base.reward,
+    damage: base.damage * minionScale,
+    damageMultiplier: minionScale,
+    isBoss: !bossMinion && Boolean(base.boss),
+    isMiniBoss: !bossMinion && Boolean(base.miniBoss),
+    isBossMinion: bossMinion,
+    barracksProvoked: false,
     ignoresBarracks: Boolean(base.ignoresBarracks),
     physicalResistance: base.physicalResistance,
     magicResistance: base.magicResistance,
     meleeCooldown: .4 + Math.random() * .4,
     attackSwing: 0,
-    fireBreathCooldown: type === "dragon" ? 1.1 : 0,
+    fireBreathCooldown: !bossMinion && type === "dragon" ? 1.1 : 0,
     fireBreathTimer: 0,
-    summonCooldown: type === "covenwitch" ? 3.5 : 0,
-    summonsRemaining: type === "covenwitch" ? 6 : 0,
-    rangedCooldown: type === "covenwitch" ? 1.2 : 0,
+    summonCooldown: !bossMinion && type === "covenwitch" ? 3.5 : 0,
+    summonsRemaining: !bossMinion && type === "covenwitch" ? 6 : 0,
+    rangedCooldown: !bossMinion && type === "covenwitch" ? 1.2 : 0,
+    bossSummonTimer: !bossMinion && (base.boss || base.miniBoss) ? base.bossSummonInterval : 0,
+    bossSummonsMade: 0,
     blocked: false,
     moving: true,
     combatAngle: 0,
@@ -150,6 +155,12 @@ function spawnEnemy(type) {
     fearCooldown: 0,
     fearTargetIndex: 0,
     fearResumeIndex: 1,
+    possessionTimer: 0,
+    possessionOwner: null,
+    possessionTarget: null,
+    possessionAttackCooldown: 0,
+    batFormTimer: 0,
+    lastDamageTakenMultiplier: 1,
     facing: 1,
     phase: Math.random() * Math.PI * 2,
     dead: false,

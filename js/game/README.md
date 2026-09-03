@@ -11,7 +11,7 @@ Stonewatch Keep uses ordinary browser scripts so it still runs by double-clickin
 5. `troops.js` — Barracks troops, Zombies, Gladiators, Vampire Minions, dragon/witch troop attacks, and friendly-unit movement.
 6. `upgrade-paths.js` — permanent specialization choices and selling defenses.
 7. `relics-and-trees.js` — Merchant shop, Treasure Cove excavation, relic inventory/equipment, and tree removal.
-8. `control-effects.js` — Stoneback Ogre throws and Dread Ghost fear behavior.
+8. `control-effects.js` — Stoneback Ogre throws, Dread Ghost fear and Umbral possession behavior.
 9. `simulation.js` — the per-frame gameplay update for enemies, defenses, projectiles, waves, and income.
 10. `combat.js` — targeting progress, hits, resistances, damage, kills, debris, particles, and victory/defeat.
 11. `fallback-renderer.js` — retained 2D drawing helpers. The active 3D presentation remains in the root `graphics3d.js` file.

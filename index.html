@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#17140f" />
     <title>Stonewatch Keep</title>
-    <link rel="stylesheet" href="styles.css?v=20260831-mine-income" />
+    <link rel="stylesheet" href="styles.css?v=20260901-unique-relics" />
   </head>
   <body>
     <main class="game-shell">
@@ -33,7 +33,7 @@
           <div class="canvas-controls">
             <button id="menuButton" class="icon-button" title="Open main menu" aria-label="Open main menu">☰</button>
             <button id="pauseButton" class="icon-button" title="Pause game" aria-label="Pause game">Ⅱ</button>
-            <button id="speedButton" class="speed-button" title="Change game speed" aria-label="Change game speed">1×</button>
+            <button id="speedButton" class="speed-button" title="Change game speed (Space)" aria-label="Change game speed" aria-keyshortcuts="Space">1×</button>
             <button id="cameraResetButton" class="icon-button" title="Reset camera view" aria-label="Reset camera view">↻</button>
           </div>
           <button id="monsterIndexButton" class="monster-index-button" title="Open Monster Index" aria-label="Open Monster Index">
@@ -77,13 +77,23 @@
               </button>
               <button class="tower-card" data-tower="ghost">
                 <span class="tower-emblem ghost-emblem">◉</span>
-                <span class="tower-info"><strong>Dread Ghost</strong><small>Fears three enemies backward</small></span>
+                <span class="tower-info"><strong>Dread Ghost</strong><small>Fears enemies backward • scales with level</small></span>
                 <span class="tower-cost">175</span>
               </button>
               <button class="tower-card" data-tower="vampire">
                 <span class="tower-emblem vampire-emblem">♠</span>
                 <span class="tower-info"><strong>Crimson Vampire</strong><small>Magic • powerful blood drain</small></span>
                 <span class="tower-cost">205</span>
+              </button>
+              <button class="tower-card" data-tower="ufo">
+                <span class="tower-emblem ufo-emblem">⌁</span>
+                <span class="tower-info"><strong>Alien UFO</strong><small>Magic • rapid lasers • beam paths</small></span>
+                <span class="tower-cost">400</span>
+              </button>
+              <button class="tower-card" data-tower="castle">
+                <span class="tower-emblem castle-emblem">♜</span>
+                <span class="tower-info"><strong>Tiny Castle</strong><small>Support • empowers adjacent defenses</small></span>
+                <span class="tower-cost">225</span>
               </button>
               <button class="tower-card" data-tower="mine">
                 <span class="tower-emblem mine-emblem">⚒</span>
@@ -120,8 +130,10 @@
             <button id="graveUpgradeButton" class="action-button grave-action hidden"><span>Gravestone Path</span><span id="graveUpgradeCost">255 gold</span></button>
             <button id="slingUpgradeButton" class="action-button sling-action hidden"><span>Slingshooters Path</span><span id="slingUpgradeCost">150 gold</span></button>
             <button id="nightspawnUpgradeButton" class="action-button nightspawn-action hidden"><span>Nightspawn Path</span><span id="nightspawnUpgradeCost">400 gold</span></button>
+            <button id="twinLaserUpgradeButton" class="action-button ufo-twin-action hidden"><span>Twin Laser Path</span><span id="twinLaserUpgradeCost">780 gold</span></button>
+            <button id="massiveBeamUpgradeButton" class="action-button ufo-massive-action hidden"><span>Massive Beam Path</span><span id="massiveBeamUpgradeCost">780 gold</span></button>
             <div id="mineControls" class="mine-controls hidden">
-              <p id="mineControlCopy">Each worker produces 1 gold every second while an assault is underway.</p>
+              <p id="mineControlCopy">Each worker produces 15 gold when the current wave is cleared.</p>
               <button id="hireWorkerButton" class="action-button worker-action"><span>Hire worker</span><span id="workerCost">45 gold</span></button>
               <button id="treasureCoveUpgradeButton" class="action-button cove-action hidden"><span>Establish Treasure Cove</span><span id="treasureCoveUpgradeCost">420 gold</span></button>
             </div>
@@ -146,7 +158,7 @@
           <section id="relicInventoryPanel" class="relic-inventory-panel">
             <div class="relic-panel-heading"><span>Relic satchel</span><strong id="relicInventoryCount">0</strong></div>
             <div id="relicInventoryItems" class="relic-inventory-items"></div>
-            <p id="relicInventoryHint">Defeat a Boss Merchant or establish a Treasure Cove to uncover relics.</p>
+            <p id="relicInventoryHint">Defeat an Event Merchant or establish a Treasure Cove to uncover relics.</p>
           </section>
 
           <div class="wave-card">
@@ -183,8 +195,15 @@
           <div><p class="panel-kicker">THE FALLEN MERCHANT'S WARES</p><h2 id="merchantStoreTitle">Claim a Relic</h2></div>
           <div class="merchant-store-gold"><span>Gold</span><strong id="merchantStoreGold">0</strong></div>
         </div>
-        <p class="merchant-store-copy">The Merchant dropped one of each relic. Buy any you can afford; purchased relics move into your satchel and can be equipped to compatible defenses.</p>
+        <p class="merchant-store-copy">Merchants travel with every event. Their shops hold at most 10 relics; buying one improves future stock, and maximum favour unlocks orange-framed Unique relics.</p>
         <div id="merchantStoreItems" class="merchant-store-items"></div>
+        <div id="merchantFavour" class="merchant-favour">
+          <div class="merchant-favour-heading"><span>Merchant favour</span><strong id="merchantFavourValue">0 / 5</strong></div>
+          <div id="merchantFavourTrack" class="merchant-favour-track" role="progressbar" aria-label="Merchant favour" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0">
+            <div id="merchantFavourFill" class="merchant-favour-fill"></div>
+          </div>
+          <small id="merchantFavourHint">Buy relics to earn favour and improve future shops.</small>
+        </div>
         <button id="closeMerchantStoreButton" class="start-wave-button">Return to battle</button>
       </div>
     </div>
@@ -256,22 +275,22 @@
     </div>
 
     <script src="node_modules/three/build/three.min.js"></script>
-    <script src="graphics3d.js?v=20260831-mine-income"></script>
+    <script src="graphics3d.js?v=20260901-umbral-form"></script>
     <!-- Game modules are deliberately ordered from shared data through startup. -->
-    <script src="js/game/config.js?v=20260901-placement-scaling"></script>
-    <script src="js/game/content.js?v=20260901-merchant-gate"></script>
-    <script src="js/game/state.js?v=20260901-merchant-gate"></script>
-    <script src="js/game/defenses.js?v=20260901-archer-path-balance"></script>
-    <script src="js/game/troops.js?v=20260831-mine-income"></script>
-    <script src="js/game/upgrade-paths.js?v=20260831-mine-income"></script>
-    <script src="js/game/relics-and-trees.js?v=20260901-merchant-gate"></script>
-    <script src="js/game/control-effects.js?v=20260831-mine-income"></script>
-    <script src="js/game/simulation.js?v=20260831-mine-rate"></script>
-    <script src="js/game/combat.js?v=20260901-merchant-gate"></script>
+    <script src="js/game/config.js?v=20260901-umbral-form"></script>
+    <script src="js/game/content.js?v=20260901-merchant-events"></script>
+    <script src="js/game/state.js?v=20260901-boss-retaliation"></script>
+    <script src="js/game/defenses.js?v=20260901-umbral-form"></script>
+    <script src="js/game/troops.js?v=20260901-boss-retaliation"></script>
+    <script src="js/game/upgrade-paths.js?v=20260901-ufo-paths"></script>
+    <script src="js/game/relics-and-trees.js?v=20260901-unique-relics"></script>
+    <script src="js/game/control-effects.js?v=20260901-umbral-form"></script>
+    <script src="js/game/simulation.js?v=20260901-boss-retaliation"></script>
+    <script src="js/game/combat.js?v=20260901-boss-retaliation"></script>
     <script src="js/game/fallback-renderer.js?v=20260831-mine-income"></script>
-    <script src="js/game/interface.js?v=20260901-placement-scaling"></script>
+    <script src="js/game/interface.js?v=20260901-umbral-form"></script>
     <script src="js/game/monster-index.js?v=20260831-mine-income"></script>
-    <script src="js/game/input.js?v=20260831-mine-income"></script>
+    <script src="js/game/input.js?v=20260901-space-hotkey-fix"></script>
     <script src="js/game/main.js?v=20260831-mine-income"></script>
   </body>
 </html>

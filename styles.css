@@ -65,10 +65,10 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .pause-overlay span { color: #c0b59d; font-size: 11px; }
 @keyframes banner-in { from { transform: translate(-50%, -10px); opacity: 0; } }
 
-.command-panel { display: flex; flex-direction: column; min-height: 0; padding: 22px; background: linear-gradient(145deg, rgba(31,48,34,.98), rgba(12,23,16,.99)); border: 1px solid rgba(219,168,63,.4); border-radius: 8px; box-shadow: inset 0 1px rgba(255,228,157,.06), 0 14px 38px rgba(0,0,0,.45); }
+.command-panel { display: flex; flex-direction: column; min-height: 0; max-height: calc(100vh - 116px); overflow-y: auto; padding: 22px; background: linear-gradient(145deg, rgba(31,48,34,.98), rgba(12,23,16,.99)); border: 1px solid rgba(219,168,63,.4); border-radius: 8px; box-shadow: inset 0 1px rgba(255,228,157,.06), 0 14px 38px rgba(0,0,0,.45); scrollbar-color: rgba(219,168,63,.5) rgba(7,14,10,.35); }
 .command-panel h2 { margin: 0; font-family: Georgia, serif; font-size: 25px; font-weight: 500; }
 .panel-copy { margin: 7px 0 17px; color: var(--muted); font-size: 12px; line-height: 1.55; }
-.tower-list { display: grid; gap: 8px; }
+.tower-list { display: grid; gap: 8px; max-height: min(560px, 52vh); overflow-y: auto; padding: 2px 7px 2px 0; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-color: rgba(219,168,63,.6) rgba(7,14,10,.35); }
 .tower-card { width: 100%; display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); text-align: left; background: linear-gradient(135deg, rgba(69,91,55,.24), rgba(7,14,10,.3)); box-shadow: inset 0 1px rgba(255,255,255,.035); cursor: pointer; transition: .18s ease; }
 .tower-card:hover:not(:disabled), .tower-card.selected { border-color: #d9aa4a; background: linear-gradient(135deg, rgba(141,111,49,.27), rgba(45,75,43,.24)); box-shadow: inset 3px 0 #d9aa4a, 0 5px 15px rgba(0,0,0,.2); transform: translateY(-1px); }
 .tower-card:disabled { opacity: .42; cursor: not-allowed; }
@@ -80,6 +80,8 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .barracks-emblem { color: #d6e1e6; background: #394956; }
 .ogre-emblem { color: #e6d89b; background: #504a2f; }
 .ghost-emblem { color: #b8fff1; background: #294b4d; box-shadow: inset 0 0 0 2px rgba(0,0,0,.18), 0 0 11px rgba(119,226,208,.3); }
+.ufo-emblem { color: #74ff92; background: radial-gradient(circle, #284c3a, #18252b); box-shadow: inset 0 0 0 2px rgba(0,0,0,.18), 0 0 13px rgba(82,255,120,.36); }
+.castle-emblem { color: #ffe19a; background: linear-gradient(135deg, #584827, #293c3e); box-shadow: inset 0 0 0 2px rgba(0,0,0,.18), 0 0 11px rgba(232,192,98,.28); }
 .mine-emblem { color: #f1c75b; background: #51442b; }
 .treasure-cove-emblem { color: #a9f3e6; background: linear-gradient(135deg, #51376a, #215f5c); box-shadow: inset 0 0 0 2px rgba(0,0,0,.18), 0 0 12px rgba(108,218,206,.35); }
 .tower-info strong, .tower-info small { display: block; }
@@ -98,6 +100,9 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .relic-inventory-items, .equipped-relics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .relic-inventory-panel p { min-height: 13px; margin: 7px 0 0; color: #8f8779; font-size: 8px; line-height: 1.35; }
 .relic-chip, .equipped-relic-slot { position: relative; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid #705a30; border-radius: 5px; color: #f6d887; background: linear-gradient(#344532, #18251b); cursor: pointer; }
+.relic-chip.relic-tier-rare, .equipped-relic-slot.relic-tier-rare { color: #aee2ff; border-color: #438dc6; background: linear-gradient(#284b63, #142b3c); box-shadow: inset 0 0 8px rgba(71,174,244,.18); }
+.relic-chip.relic-tier-epic, .equipped-relic-slot.relic-tier-epic { color: #edc1ff; border-color: #a354cc; background: linear-gradient(#56326b, #281735); box-shadow: inset 0 0 9px rgba(204,91,255,.22), 0 0 7px rgba(165,72,210,.18); }
+.relic-chip.relic-tier-unique, .equipped-relic-slot.relic-tier-unique { color: #ffd09b; border-color: #ff812e; background: linear-gradient(#6c341b, #2d170f); box-shadow: inset 0 0 10px rgba(255,124,36,.28), 0 0 9px rgba(255,111,28,.28); }
 .relic-chip:hover, .relic-chip.selected, .equipped-relic-slot.filled:hover { border-color: #f0c86a; box-shadow: 0 0 10px rgba(225,175,70,.3); }
 .relic-chip.selected { background: linear-gradient(#70552a, #392a18); transform: translateY(-2px); }
 .relic-chip strong { position: absolute; right: -4px; bottom: -4px; min-width: 15px; height: 15px; display: grid; place-items: center; padding: 0 3px; border-radius: 8px; color: #23180a; background: #edc96b; font-size: 8px; }
@@ -157,6 +162,8 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .grave-action { margin-top: 7px; color: #e7efd8; border-color: #78915d; background: linear-gradient(#526d45, #283f30); }
 .sling-action { margin-top: 7px; color: #21180c; border-color: #d2a45b; background: linear-gradient(#d8b16e, #9b6d35); }
 .nightspawn-action { margin-top: 7px; color: #ffe9ed; border-color: #c33b54; background: linear-gradient(#7e1d31, #3d111c); }
+.ufo-twin-action { margin-top: 7px; color: #ffe7eb; border-color: #ff6680; background: linear-gradient(#7d2438, #3a1724); }
+.ufo-massive-action { margin-top: 7px; color: #102018; border-color: #8affad; background: linear-gradient(#b9ffd0, #62c987); }
 .mine-controls { margin-top: -3px; }
 .mine-controls p { margin: 0 0 9px; color: #a99e87; font-size: 9px; line-height: 1.45; }
 .worker-action { color: #231a0d; border-color: #e1bd61; background: linear-gradient(#e5c362, #b6852f); }
@@ -187,6 +194,16 @@ kbd { padding: 1px 4px; border: 1px solid #5b554b; border-radius: 3px; backgroun
 .merchant-store-copy { margin: 14px 0 17px; color: #b9ae97; font-size: 11px; line-height: 1.55; }
 .merchant-store-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 18px; }
 .merchant-item-card { min-height: 67px; display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 10px; padding: 10px; color: var(--ink); text-align: left; border: 1px solid rgba(220,174,75,.3); border-radius: 6px; background: linear-gradient(135deg, rgba(74,93,58,.35), rgba(17,28,20,.72)); cursor: pointer; }
+.merchant-item-card.relic-tier-rare { border-color: rgba(75,166,229,.62); background: linear-gradient(135deg, rgba(39,91,126,.55), rgba(15,32,44,.82)); }
+.merchant-item-card.relic-tier-epic { border-color: rgba(183,87,226,.68); background: linear-gradient(135deg, rgba(91,48,113,.66), rgba(36,18,49,.86)); box-shadow: inset 0 0 18px rgba(197,82,249,.08); }
+.merchant-item-card.relic-tier-unique { border-color: #ff812e; background: linear-gradient(135deg, rgba(126,54,20,.76), rgba(43,19,14,.9)); box-shadow: inset 0 0 22px rgba(255,117,30,.15), 0 0 12px rgba(255,107,24,.2); }
+.merchant-item-card.relic-tier-rare .merchant-item-icon { color: #b8e7ff; background: #244a64; }
+.merchant-item-card.relic-tier-epic .merchant-item-icon { color: #f0c6ff; background: #533069; box-shadow: 0 0 11px rgba(199,91,244,.2); }
+.merchant-item-card.relic-tier-unique .merchant-item-icon { color: #ffe1b7; background: #713116; box-shadow: 0 0 13px rgba(255,111,25,.42); }
+.relic-tier-label { display: inline-block; margin-left: 7px; padding: 2px 5px; border: 1px solid currentColor; border-radius: 8px; color: #d4b66f; font-size: 7px; font-weight: 900; line-height: 1; text-transform: uppercase; letter-spacing: .08em; vertical-align: 1px; }
+.relic-tier-rare .relic-tier-label { color: #78c9ff; }
+.relic-tier-epic .relic-tier-label { color: #d78bff; }
+.relic-tier-unique .relic-tier-label { color: #ff9a4f; }
 .merchant-item-card:hover:not(:disabled) { border-color: #e2bc62; transform: translateY(-1px); box-shadow: 0 6px 15px rgba(0,0,0,.25); }
 .merchant-item-card:disabled { opacity: .42; cursor: not-allowed; }
 .merchant-item-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: #ffe18c; background: #3f3825; font-size: 20px; }
@@ -194,6 +211,12 @@ kbd { padding: 1px 4px; border: 1px solid #5b554b; border-radius: 3px; backgroun
 .merchant-item-copy strong { font-family: Georgia, serif; font-size: 14px; }
 .merchant-item-copy small { margin-top: 3px; color: #a99e87; font-size: 9px; }
 .merchant-item-price { color: #f1c968; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.merchant-favour { margin: 0 0 16px; padding: 12px 14px; border: 1px solid rgba(215,174,83,.34); border-radius: 6px; background: linear-gradient(135deg, rgba(61,51,30,.58), rgba(12,22,15,.72)); box-shadow: inset 0 1px rgba(255,229,157,.05); }
+.merchant-favour-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #d9bf7a; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .11em; }
+.merchant-favour-heading strong { color: #ffe08b; font-family: Georgia, serif; font-size: 12px; letter-spacing: .04em; }
+.merchant-favour-track { height: 12px; margin-top: 8px; overflow: hidden; border: 1px solid #6d5932; border-radius: 7px; background: #111b14; box-shadow: inset 0 2px 5px rgba(0,0,0,.65); }
+.merchant-favour-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b7792d, #efc759 58%, #fff0a6); box-shadow: 0 0 12px rgba(239,194,81,.55), inset 0 1px rgba(255,255,255,.35); transition: width .35s ease; }
+.merchant-favour small { display: block; margin-top: 7px; color: #9f9682; font-size: 8px; line-height: 1.4; }
 
 .monster-index-modal { z-index: 13; background: rgba(5,8,6,.88); }
 .monster-index-card { width: min(980px, 100%); max-height: calc(100vh - 40px); display: flex; flex-direction: column; padding: 27px; overflow: hidden; background: radial-gradient(circle at 12% 0%, rgba(141,108,49,.16), transparent 22rem), linear-gradient(145deg, #26372a, #0d1711 70%); border: 1px solid #c39844; border-radius: 9px; box-shadow: inset 0 1px rgba(255,229,157,.09), 0 25px 80px #000; }

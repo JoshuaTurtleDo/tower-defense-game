@@ -107,6 +107,8 @@ document.getElementById("frostUpgradeButton").addEventListener("click", chooseFr
 document.getElementById("graveUpgradeButton").addEventListener("click", chooseGravestonePath);
 document.getElementById("slingUpgradeButton").addEventListener("click", chooseSlingshooterPath);
 document.getElementById("nightspawnUpgradeButton").addEventListener("click", chooseNightspawnPath);
+document.getElementById("twinLaserUpgradeButton").addEventListener("click", chooseTwinLaserPath);
+document.getElementById("massiveBeamUpgradeButton").addEventListener("click", chooseMassiveBeamPath);
 document.getElementById("hireWorkerButton").addEventListener("click", hireWorker);
 document.getElementById("treasureCoveUpgradeButton").addEventListener("click", upgradeTreasureCove);
 document.getElementById("sellButton").addEventListener("click", sellTower);
@@ -133,11 +135,20 @@ document.getElementById("pauseButton").addEventListener("click", () => {
   document.getElementById("pauseButton").textContent = state.paused ? "▶" : "Ⅱ";
   document.getElementById("pauseOverlay").classList.toggle("hidden", !state.paused);
 });
-document.getElementById("speedButton").addEventListener("click", () => {
+function cycleGameSpeed() {
   state.speed = state.speed === 1 ? 2 : state.speed === 2 ? 3 : 1;
   document.getElementById("speedButton").textContent = `${state.speed}×`;
-});
-document.addEventListener("keydown", event => {
+}
+
+document.getElementById("speedButton").addEventListener("click", cycleGameSpeed);
+
+function isSpaceHotkey(event) {
+  // `code` is the most reliable value, but some browser/WebView versions only
+  // populate `key` (and older ones report the legacy "Spacebar" value).
+  return event.code === "Space" || event.key === " " || event.key === "Spacebar" || event.key === "Space";
+}
+
+window.addEventListener("keydown", event => {
   if (event.key === "Escape") {
     if (state.monsterIndexOpen) {
       closeMonsterIndex();
@@ -150,8 +161,8 @@ document.addEventListener("keydown", event => {
     showBuildPanel();
     updateUI();
   }
-  if (event.code === "Space" && !event.repeat) {
+  if (isSpaceHotkey(event) && !event.repeat) {
     event.preventDefault();
-    if (!state.waveActive) startWave();
+    if (!state.menuOpen && !state.storeOpen && !state.monsterIndexOpen) cycleGameSpeed();
   }
 });

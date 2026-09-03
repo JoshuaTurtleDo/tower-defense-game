@@ -1,6 +1,41 @@
 "use strict";
 
-// Stoneback Ogre throws and Dread Ghost fear movement effects.
+// Stoneback Ogre throws, Dread Ghost control, and Dracula's Cloak bat curses.
+
+function curseEnemiesIntoBats(tower) {
+  if (!hasRelic(tower, "draculaCloak")) return [];
+  const candidates = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && enemy.batFormTimer <= 0);
+  candidates.sort((first, second) => Math.hypot(first.x - tower.x, first.y - tower.y) - Math.hypot(second.x - tower.x, second.y - tower.y));
+  const victims = candidates.slice(0, DRACULA_BAT_COUNT);
+  for (const enemy of victims) {
+    enemy.batFormTimer = DRACULA_BAT_DURATION;
+    burst(enemy.x, enemy.y, "#ff7b29", 9);
+    burst(enemy.x, enemy.y, "#321126", 7);
+  }
+  if (victims.length) {
+    tower.batCurseCooldown = DRACULA_BAT_COOLDOWN;
+    tower.batCursePulse = .9;
+    tower.enemiesBatCursed = (tower.enemiesBatCursed || 0) + victims.length;
+    burst(tower.x, tower.y, "#ff8a32", 22);
+    if (state.selectedTower === tower) showInspectPanel(tower);
+  }
+  return victims;
+}
+
+function updateDraculaBatCurse(tower, dt) {
+  if (!hasRelic(tower, "draculaCloak")) {
+    tower.batCurseCooldown = 0;
+    return [];
+  }
+  tower.batCurseCooldown = Math.max(0, (tower.batCurseCooldown || 0) - dt);
+  return tower.batCurseCooldown <= 0 ? curseEnemiesIntoBats(tower) : [];
+}
+
+function updateBatForm(enemy, dt) {
+  if (enemy.batFormTimer <= 0) return;
+  enemy.batFormTimer = Math.max(0, enemy.batFormTimer - dt);
+  if (enemy.batFormTimer === 0) burst(enemy.x, enemy.y, "#5b233c", 7);
+}
 
 function rewindEnemyAlongPath(enemy, distance) {
   let x = enemy.x;
@@ -25,9 +60,14 @@ function rewindEnemyAlongPath(enemy, distance) {
   return { x, y, pathIndex: Math.max(1, segmentIndex) };
 }
 
+function enemyFearCooldown(enemy) {
+  const base = towerTypes.ghost?.bossFearCooldown || 8;
+  return enemy.isBoss || enemy.isMiniBoss ? base : 4;
+}
+
 function throwEnemyBack(tower, enemy, stats) {
   const landing = rewindEnemyAlongPath(enemy, stats.knockback);
-  if (enemy.fearTimer > 0) enemy.fearCooldown = Math.max(enemy.fearCooldown, 4);
+  if (enemy.fearTimer > 0) enemy.fearCooldown = Math.max(enemy.fearCooldown, enemyFearCooldown(enemy));
   enemy.fearTimer = 0;
   enemy.thrown = true;
   enemy.blocked = false;
@@ -63,7 +103,7 @@ function fearEnemy(enemy, duration) {
 function updateFearedEnemy(enemy, dt) {
   enemy.fearTimer = Math.max(0, enemy.fearTimer - dt);
   if (enemy.fearTimer <= 0) {
-    enemy.fearCooldown = Math.max(enemy.fearCooldown, 4);
+    enemy.fearCooldown = Math.max(enemy.fearCooldown, enemyFearCooldown(enemy));
     enemy.pathIndex = Math.min(pathPoints.length - 1, Math.max(1, enemy.fearResumeIndex));
     enemy.moving = false;
     return;
@@ -92,6 +132,51 @@ function updateFearedEnemy(enemy, dt) {
     enemy.x += dx / distance * step;
     enemy.y += dy / distance * step;
   }
+}
+
+function possessEnemy(enemy, tower, duration = UMBRAL_POSSESSION_DURATION) {
+  if (enemy.isBoss || enemy.isMiniBoss || enemy.dead || enemy.reached || enemy.thrown) return false;
+  enemy.fearTimer = 0;
+  enemy.possessionTimer = duration;
+  enemy.possessionOwner = tower;
+  enemy.possessionTarget = null;
+  enemy.possessionAttackCooldown = 0;
+  enemy.blocked = false;
+  enemy.moving = false;
+  for (const knight of state.knights) if (knight.target === enemy) knight.target = null;
+  burst(enemy.x, enemy.y, "#9a43ff", 13);
+  return true;
+}
+
+function updatePossessedEnemy(enemy, dt) {
+  if (enemy.possessionTimer <= 0) return false;
+  enemy.possessionTimer = Math.max(0, enemy.possessionTimer - dt);
+  enemy.blocked = false;
+  enemy.moving = false;
+  if (enemy.possessionTimer <= 0) {
+    enemy.possessionOwner = null;
+    enemy.possessionTarget = null;
+    enemy.possessionAttackCooldown = 0;
+    burst(enemy.x, enemy.y, "#5d257f", 7);
+    return false;
+  }
+
+  const candidates = state.enemies.filter(target => target !== enemy && !target.dead && !target.reached && !target.thrown && target.possessionTimer <= 0 && Math.hypot(target.x - enemy.x, target.y - enemy.y) <= UMBRAL_POSSESSION_RANGE);
+  candidates.sort((first, second) => Math.hypot(first.x - enemy.x, first.y - enemy.y) - Math.hypot(second.x - enemy.x, second.y - enemy.y));
+  enemy.possessionTarget = candidates[0] || null;
+  enemy.possessionAttackCooldown -= dt;
+  if (!enemy.possessionTarget) return true;
+
+  const target = enemy.possessionTarget;
+  enemy.combatAngle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
+  if (Math.abs(target.x - enemy.x) > 1) enemy.facing = Math.sign(target.x - enemy.x);
+  if (enemy.possessionAttackCooldown <= 0) {
+    damageEnemy(target, enemyMeleeDamage(enemy), enemy.possessionOwner, "physical", enemy);
+    enemy.possessionAttackCooldown = UMBRAL_POSSESSION_ATTACK_COOLDOWN;
+    enemy.attackSwing = .46;
+    burst(target.x, target.y, "#b66cff", 8);
+  }
+  return true;
 }
 
 function updateThrownEnemy(enemy, dt) {

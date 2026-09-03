@@ -65,6 +65,36 @@ function chooseSlingshooterPath() {
   updateUI();
 }
 
+function chooseTwinLaserPath() {
+  const tower = state.selectedTower;
+  if (!tower || tower.type !== "ufo" || tower.level !== 2) return;
+  const cost = upgradeCost(tower);
+  if (cost === null || state.gold < cost) return;
+  state.gold -= cost;
+  tower.spent += cost;
+  tower.level++;
+  tower.specialization = "twinlaser";
+  burst(tower.x, tower.y, towerTypes.ufo.twinLaserColor, 30);
+  showAnnouncement("Twin Laser Path unlocked — a red beam joins the green laser");
+  showInspectPanel(tower);
+  updateUI();
+}
+
+function chooseMassiveBeamPath() {
+  const tower = state.selectedTower;
+  if (!tower || tower.type !== "ufo" || tower.level !== 2) return;
+  const cost = upgradeCost(tower);
+  if (cost === null || state.gold < cost) return;
+  state.gold -= cost;
+  tower.spent += cost;
+  tower.level++;
+  tower.specialization = "massivebeam";
+  burst(tower.x, tower.y, "#b9ffd0", 34);
+  showAnnouncement("Massive Beam Path unlocked — area laser online");
+  showInspectPanel(tower);
+  updateUI();
+}
+
 function sellTower() {
   const tower = state.selectedTower;
   if (!tower) return;

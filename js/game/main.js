@@ -20,7 +20,7 @@ function applyRequestedPreview() {
   merchant.pathIndex = pathPoints.findIndex(point => point.x === 600 && point.y === 360);
   merchant.speed = 0;
   merchant.moving = true;
-  showAnnouncement("Boss Merchant — wave escort preview");
+  showAnnouncement("Event Merchant — event escort preview");
   updateUI();
 }
 

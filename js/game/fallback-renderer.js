@@ -119,7 +119,30 @@ function drawTower(tower) {
   ctx.fillStyle = "#77746a"; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = "#3e3c38"; ctx.lineWidth = 3; ctx.stroke();
   const color = tower.type === "mage" && tower.specialization === "frost" ? "#8fe8f4" : towerTypes[tower.type].color;
-  if (tower.type === "mage") {
+  if (tower.type === "ufo") {
+    ctx.shadowColor = "#52ff78"; ctx.shadowBlur = 13;
+    ctx.fillStyle = "rgba(82,255,120,.2)"; ctx.beginPath(); ctx.ellipse(0, 18, 24, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = "#313d42"; ctx.beginPath(); ctx.ellipse(0, 0, 27, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#9caaad"; ctx.beginPath(); ctx.ellipse(0, -3, 22, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(93,215,162,.78)"; ctx.beginPath(); ctx.arc(0, -7, 10, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#67ff86";
+    for (let index = 0; index < 6; index++) {
+      const angle = index / 6 * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(Math.cos(angle) * 19, Math.sin(angle) * 5 + 1, 2, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (tower.type === "castle") {
+    ctx.fillStyle = "rgba(244,205,105,.18)"; ctx.strokeStyle = "rgba(244,205,105,.7)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#77766d"; ctx.fillRect(-18, -9, 36, 25);
+    ctx.fillStyle = "#99978c"; ctx.fillRect(-10, -19, 20, 29);
+    for (const x of [-18, 18]) {
+      ctx.fillStyle = "#89877d"; ctx.fillRect(x - 6, -16, 12, 31);
+      ctx.fillStyle = "#9d3c32"; ctx.beginPath(); ctx.moveTo(x - 9, -16); ctx.lineTo(x, -27); ctx.lineTo(x + 9, -16); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = "#24211d"; ctx.fillRect(-4, 3, 8, 13);
+    ctx.strokeStyle = "#453d2d"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(0, -35); ctx.stroke();
+    ctx.fillStyle = "#315b75"; ctx.beginPath(); ctx.moveTo(1, -34); ctx.lineTo(13, -30); ctx.lineTo(1, -26); ctx.closePath(); ctx.fill();
+  } else if (tower.type === "mage") {
     ctx.fillStyle = "#3f3452"; ctx.beginPath(); ctx.moveTo(-16, 12); ctx.lineTo(0,-25); ctx.lineTo(16,12); ctx.closePath(); ctx.fill();
     ctx.shadowColor = color; ctx.shadowBlur = 12; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0,-23,6 + tower.level,0,Math.PI*2); ctx.fill();
   } else {
@@ -131,7 +154,7 @@ function drawTower(tower) {
     if (tower.type === "archer") { ctx.strokeStyle = "#c9b170"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(3,0,13,-1.15,1.15); ctx.stroke(); }
   }
   ctx.restore();
-  for (let i = 0; i < tower.level; i++) {
+  for (let i = 0; tower.type !== "castle" && i < tower.level; i++) {
     ctx.fillStyle = "#e3bd60"; ctx.beginPath(); ctx.arc(tower.x - 7 + i * 7, tower.y + 28, 2.2, 0, Math.PI * 2); ctx.fill();
   }
 }

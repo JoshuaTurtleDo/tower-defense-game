@@ -24,14 +24,14 @@ function placeTower(col, row) {
     kills: 0,
     specialization: null,
     workers: 0,
-    productionTimer: 0,
-    excavationTimer: 0,
+    incomeRemainder: 0,
     summonTimer: 4,
     goldMined: 0,
     relicsExcavated: 0,
     throwSwing: 0,
     fearPulse: 0,
     enemiesFeared: 0,
+    enemiesPossessed: 0,
     volleyShotsRemaining: 0,
     volleyTimer: 0,
     archerShotTimers: [0, 0, 0],
@@ -40,6 +40,9 @@ function placeTower(col, row) {
     bloodDrainTarget: null,
     bloodDrainTargets: [],
     bloodParticleTimer: 0,
+    batCurseCooldown: 0,
+    batCursePulse: 0,
+    enemiesBatCursed: 0,
     minionsRaised: 0,
     items: [],
     spent: cost
@@ -60,6 +63,21 @@ function canPlace(col, row) {
     !state.towers.some(t => t.col === col && t.row === row);
 }
 
+function towersAreAdjacent(first, second) {
+  if (!first || !second || first === second) return false;
+  return Math.max(Math.abs(first.col - second.col), Math.abs(first.row - second.row)) === 1;
+}
+
+function hasTinyCastleAura(tower) {
+  if (!tower || tower.type === "castle" || tower.type === "mine") return false;
+  return state.towers.some(castle => castle.type === "castle" && towersAreAdjacent(castle, tower));
+}
+
+function tinyCastleBuffedTowers(castle) {
+  if (!castle || castle.type !== "castle") return [];
+  return state.towers.filter(tower => tower.type !== "castle" && tower.type !== "mine" && towersAreAdjacent(castle, tower));
+}
+
 function towerStats(tower) {
   const base = towerTypes[tower.type];
   const n = tower.level - 1;
@@ -70,8 +88,9 @@ function towerStats(tower) {
     splash: base.splash * (1 + n * .12),
     knockback: (base.knockback || 0) * (1 + n * .22),
     fearDuration: base.fearDuration || 0,
-    fearCount: base.fearCount || 0,
-    drainCount: tower.type === "vampire" && tower.specialization === "bloodstorm" ? 5 : 1
+    fearCount: (base.fearCount || 0) + (tower.type === "ghost" ? n : 0),
+    drainCount: tower.type === "vampire" && tower.specialization === "bloodstorm" ? 5 : 1,
+    laserCount: tower.type === "ufo" && tower.specialization === "twinlaser" ? 2 : 1
   };
   if (tower.type === "mage" && tower.specialization === "frost") {
     stats.damage *= .82;
@@ -93,21 +112,36 @@ function towerStats(tower) {
     stats.damage *= 1.5;
     stats.cooldown *= .85;
   }
-  if (tower.items?.includes("sword")) stats.damage *= 1.25;
-  if (tower.items?.includes("amulet")) stats.range *= 1.2;
-  if (tower.items?.includes("boots")) stats.cooldown *= .82;
+  if (tower.type === "ufo" && tower.specialization === "massivebeam") {
+    stats.damage *= base.massiveDamageMultiplier;
+    stats.cooldown *= base.massiveCooldownMultiplier;
+    stats.splash = base.massiveSplash;
+    stats.projectileSpeed = 760;
+  }
+  stats.damage *= relicMultiplier(tower, "damage");
+  if (tower.type === "vampire" && hasRelic(tower, "draculaCloak")) {
+    const maxLevelDamage = base.damage * Math.pow(1.55, 2);
+    stats.damage = maxLevelDamage * relicMultiplier(tower, "draculaPower") * relicMultiplier(tower, "damage");
+  }
+  stats.range *= relicMultiplier(tower, "range");
+  stats.cooldown *= relicMultiplier(tower, "cooldown");
+  if (hasTinyCastleAura(tower)) {
+    stats.damage *= TINY_CASTLE_AURA_MULTIPLIER;
+    stats.range *= TINY_CASTLE_AURA_MULTIPLIER;
+    stats.cooldown /= TINY_CASTLE_AURA_MULTIPLIER;
+  }
   return stats;
 }
 
 function upgradeCost(tower) {
-  if (tower.type === "mine") return null;
+  if (tower.type === "mine" || tower.type === "castle") return null;
   const base = towerTypes[tower.type];
   return tower.level >= 3 ? null : Math.round(base.cost * (.85 + tower.level * .55) * (base.upgradeCostMultiplier || 1));
 }
 
 function upgradeTower() {
   const tower = state.selectedTower;
-  if (!tower || tower.type === "mine") return;
+  if (!tower || tower.type === "mine" || tower.type === "castle") return;
   const cost = upgradeCost(tower);
   if (cost === null || state.gold < cost) return;
   state.gold -= cost;
@@ -142,8 +176,8 @@ function hireWorker() {
   updateUI();
 }
 
-function treasureCoveExcavationInterval(mine) {
-  return TREASURE_COVE_RELIC_INTERVAL * (mine.items?.includes("ring") ? .8 : 1);
+function treasureCoveRelicChance(mine) {
+  return Math.min(1, TREASURE_COVE_RELIC_CHANCE * relicMultiplier(mine, "coveChance"));
 }
 
 function upgradeTreasureCove() {
@@ -153,8 +187,7 @@ function upgradeTreasureCove() {
   mine.spent += TREASURE_COVE_COST;
   mine.specialization = "treasureCove";
   mine.level = 2;
-  mine.productionTimer = 0;
-  mine.excavationTimer = 0;
+  mine.incomeRemainder = 0;
   burst(mine.x, mine.y, "#8cd6d1", 15);
   burst(mine.x, mine.y, "#c18bea", 15);
   burst(mine.x, mine.y, "#efbc55", 15);

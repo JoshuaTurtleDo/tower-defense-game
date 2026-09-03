@@ -6,11 +6,15 @@ function enemyProgress(enemy) {
   return enemy.pathIndex * 1000 - Math.hypot(pathPoints[enemy.pathIndex]?.x - enemy.x || 0, pathPoints[enemy.pathIndex]?.y - enemy.y || 0);
 }
 
-function fireProjectile(tower, target, stats, archerIndex = null) {
+function fireProjectile(tower, target, stats, archerIndex = null, overrides = {}) {
   const base = towerTypes[tower.type];
   const flamingBallista = tower.type === "ballista" && tower.level >= 3;
-  const projectileColor = flamingBallista ? "#ff7429" : tower.type === "mage" && tower.specialization === "frost" ? "#8fe8f4" : base.color;
-  const variant = tower.type === "archer" ? tower.specialization === "slingshooters" ? "slingRock" : tower.specialization === "riflemen" ? "rifle" : "arrow" : flamingBallista ? "flamingBolt" : null;
+  const projectileColor = overrides.color || (flamingBallista ? "#ff7429" : tower.type === "mage" && tower.specialization === "frost" ? "#8fe8f4" : base.color);
+  let variant = null;
+  if (tower.type === "archer") variant = tower.specialization === "slingshooters" ? "slingRock" : tower.specialization === "riflemen" ? "rifle" : "arrow";
+  else if (flamingBallista) variant = "flamingBolt";
+  else if (tower.type === "ufo") variant = tower.specialization === "massivebeam" ? "ufoMassiveLaser" : "ufoLaser";
+  variant = overrides.variant || variant;
   let originX = tower.x + Math.cos(tower.angle) * 17;
   let originY = tower.y + Math.sin(tower.angle) * 17;
   if (tower.type === "archer" && archerIndex !== null) {
@@ -18,6 +22,10 @@ function fireProjectile(tower, target, stats, archerIndex = null) {
     const forward = 17 + formation.forward;
     originX = tower.x + Math.cos(tower.angle) * forward - Math.sin(tower.angle) * formation.lateral;
     originY = tower.y + Math.sin(tower.angle) * forward + Math.cos(tower.angle) * formation.lateral;
+  }
+  if (overrides.sideOffset) {
+    originX -= Math.sin(tower.angle) * overrides.sideOffset;
+    originY += Math.cos(tower.angle) * overrides.sideOffset;
   }
   state.projectiles.push({
     x: originX,
@@ -37,7 +45,7 @@ function fireProjectile(tower, target, stats, archerIndex = null) {
 
 function hitEnemy(projectile, target) {
   if (projectile.splash > 0) {
-    burst(target.x, target.y, projectile.color, 12);
+    burst(target.x, target.y, projectile.color, projectile.variant === "ufoMassiveLaser" ? 24 : 12);
     for (const enemy of state.enemies) {
       if (!enemy.dead && !enemy.reached && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= projectile.splash) {
         damageEnemy(enemy, projectile.damage * (enemy === target ? 1 : .7), projectile.owner, projectile.damageType);
@@ -47,7 +55,11 @@ function hitEnemy(projectile, target) {
       }
     }
   } else {
-    if (projectile.variant === "flamingBolt") {
+    if (projectile.variant === "ufoLaser" || projectile.variant === "ufoLaserRed" || projectile.variant === "ufoMassiveLaser") {
+      const massive = projectile.variant === "ufoMassiveLaser";
+      burst(target.x, target.y, projectile.color, massive ? 22 : 8);
+      burst(target.x, target.y, massive ? "#e8fff0" : "#d6ffe0", massive ? 8 : 3);
+    } else if (projectile.variant === "flamingBolt") {
       burst(target.x, target.y, "#ff5b20", 13);
       burst(target.x, target.y, "#ffd35a", 7);
     } else {
@@ -63,15 +75,18 @@ function applyFrostSlow(enemy) {
 }
 
 function damageEnemy(enemy, amount, owner, damageType = "physical", source = owner) {
+  if ((enemy.isBoss || enemy.isMiniBoss) && source?.owner?.type === "barracks") enemy.barracksProvoked = true;
   const resistance = damageType === "magic" ? enemy.magicResistance : enemy.physicalResistance;
-  const actual = amount * (1 - THREE.MathUtils.clamp(resistance || 0, 0, .8));
+  const damageTakenMultiplier = enemy.batFormTimer > 0 ? DRACULA_BAT_DAMAGE_MULTIPLIER : 1;
+  const actual = amount * (1 - THREE.MathUtils.clamp(resistance || 0, 0, .8)) * damageTakenMultiplier;
   enemy.hp -= actual;
   enemy.lastDamageType = damageType;
   enemy.lastResistance = resistance || 0;
+  enemy.lastDamageTakenMultiplier = damageTakenMultiplier;
   enemy.hitFlash = .09;
   if (enemy.hp <= 0 && !enemy.dead) {
     const merchantDefeated = enemy.type === "merchant";
-    const bossDefeated = enemy.isBoss;
+    const bossDefeated = enemy.isBoss || enemy.isMiniBoss;
     enemy.dead = true;
     awardGold(enemy.reward);
     state.totalKills++;
@@ -81,7 +96,7 @@ function damageEnemy(enemy, amount, owner, damageType = "physical", source = own
     burst(enemy.x, enemy.y, "#e2b958", 9);
     if (state.selectedTower === owner) showInspectPanel(owner);
     updateUI();
-    if (bossDefeated) recordBossDefeat();
+    if (bossDefeated) recordBossDefeat(enemy);
     if (merchantDefeated) queueMerchantStore();
   }
 }

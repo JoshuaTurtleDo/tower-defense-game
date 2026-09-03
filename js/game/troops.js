@@ -24,7 +24,7 @@ function ensureRallyIndex(tower) {
 
 function knightMaxHp(tower) {
   const baseHp = tower.specialization === "graveyard" ? 90 : tower.specialization === "gladiators" ? 240 : 72 * Math.pow(1.5, tower.level - 1);
-  return Math.round(baseHp * (tower.items?.includes("shield") ? 1.3 : 1));
+  return Math.round(baseHp * relicMultiplier(tower, "troopHealth"));
 }
 
 function barracksUnitType(tower) {
@@ -177,8 +177,12 @@ function enemyMeleeDamage(enemy) {
     horseman: 190,
     cyclops: 240
   }[enemy.type] || 12;
-  if (enemyTypes[enemy.type]?.boss) return baseDamage;
-  return baseDamage * (1 + Math.max(0, state.wave - 1) * .04);
+  if (enemyTypes[enemy.type]?.boss && !enemy.isBossMinion) return baseDamage * (enemy.damageMultiplier || 1);
+  return baseDamage * (enemy.damageMultiplier || 1) * (1 + Math.max(0, state.wave - 1) * .04);
+}
+
+function bossIgnoresBarracks(enemy) {
+  return Boolean((enemy.isBoss || enemy.isMiniBoss) && !enemy.barracksProvoked);
 }
 
 function breatheDragonFire(dragon, blocker) {
@@ -232,6 +236,25 @@ function summonWraiths(witch) {
   witch.summonsRemaining -= amount;
   witch.summonCooldown = 4.5;
   burst(witch.x, witch.y, "#9be7d7", 18);
+}
+
+function summonBossMinions(boss) {
+  const base = enemyTypes[boss.type];
+  const count = base.bossSummonCount || 5;
+  const interval = base.bossSummonInterval || 15;
+  const angle = boss.combatAngle || Math.atan2(pathPoints[Math.min(pathPoints.length - 1, boss.pathIndex + 1)].y - boss.y, pathPoints[Math.min(pathPoints.length - 1, boss.pathIndex + 1)].x - boss.x);
+  for (let index = 0; index < count; index++) {
+    spawnEnemy(boss.type, { bossMinion: true });
+    const minion = state.enemies[state.enemies.length - 1];
+    const side = (index - (count - 1) / 2) * 10;
+    minion.x = boss.x - Math.cos(angle) * 13 - Math.sin(angle) * side;
+    minion.y = boss.y - Math.sin(angle) * 13 + Math.cos(angle) * side;
+    minion.pathIndex = Math.max(1, boss.pathIndex);
+    minion.phase = boss.phase + index * .8;
+  }
+  boss.bossSummonTimer = interval;
+  boss.bossSummonsMade = (boss.bossSummonsMade || 0) + count;
+  burst(boss.x, boss.y, base.color, 24);
 }
 
 function fireWitchProjectile(witch, target) {
@@ -319,9 +342,9 @@ function updateKnights(dt) {
     }
 
     const stats = towerStats(tower);
-    if (!knight.target || knight.target.dead || knight.target.reached || knight.target.thrown || knight.target.ignoresBarracks || knight.target.fearTimer > 0 || Math.hypot(knight.target.x - tower.x, knight.target.y - tower.y) > stats.range + 28) {
+    if (!knight.target || knight.target.dead || knight.target.reached || knight.target.thrown || knight.target.ignoresBarracks || knight.target.fearTimer > 0 || knight.target.possessionTimer > 0 || Math.hypot(knight.target.x - tower.x, knight.target.y - tower.y) > stats.range + 28) {
       const claimed = new Set(state.knights.filter(other => other !== knight && other.alive && other.owner === tower && other.target && !other.target.dead).map(other => other.target));
-      const candidates = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && !enemy.ignoresBarracks && enemy.fearTimer <= 0 && Math.hypot(enemy.x - tower.x, enemy.y - tower.y) <= stats.range);
+      const candidates = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && !enemy.ignoresBarracks && enemy.fearTimer <= 0 && enemy.possessionTimer <= 0 && Math.hypot(enemy.x - tower.x, enemy.y - tower.y) <= stats.range);
       candidates.sort((a, b) => enemyProgress(b) - enemyProgress(a));
       knight.target = candidates.find(enemy => !claimed.has(enemy)) || candidates[0] || null;
     }

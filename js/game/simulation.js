@@ -20,6 +20,7 @@ function update(dt) {
   for (const enemy of state.enemies) {
     if (enemy.dead || enemy.reached) continue;
     enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
+    updateBatForm(enemy, dt);
     enemy.attackSwing = Math.max(0, enemy.attackSwing - dt);
     enemy.fireBreathTimer = Math.max(0, (enemy.fireBreathTimer || 0) - dt);
     enemy.blocked = false;
@@ -28,11 +29,15 @@ function update(dt) {
       updateThrownEnemy(enemy, dt);
       continue;
     }
-    if (enemy.type === "covenwitch" && enemy.summonsRemaining > 0) {
+    if (!enemy.isBossMinion && (enemy.isBoss || enemy.isMiniBoss)) {
+      enemy.bossSummonTimer -= dt;
+      if (enemy.bossSummonTimer <= 0) summonBossMinions(enemy);
+    }
+    if (!enemy.isBossMinion && enemy.type === "covenwitch" && enemy.summonsRemaining > 0) {
       enemy.summonCooldown -= dt;
       if (enemy.summonCooldown <= 0) summonWraiths(enemy);
     }
-    if (enemy.type === "covenwitch") {
+    if (!enemy.isBossMinion && enemy.type === "covenwitch" && !bossIgnoresBarracks(enemy)) {
       enemy.rangedCooldown -= dt;
       const rangedTargets = state.knights.filter(unit => unit.alive && !unit.expired && Math.hypot(unit.x - enemy.x, unit.y - enemy.y) <= 150);
       rangedTargets.sort((a, b) => Math.hypot(a.x - enemy.x, a.y - enemy.y) - Math.hypot(b.x - enemy.x, b.y - enemy.y));
@@ -40,21 +45,22 @@ function update(dt) {
     }
     enemy.slowTimer = Math.max(0, enemy.slowTimer - dt);
     if (enemy.slowTimer === 0) enemy.slowStrength = 0;
+    if (enemy.possessionTimer > 0 && updatePossessedEnemy(enemy, dt)) continue;
     if (enemy.fearTimer > 0) {
       updateFearedEnemy(enemy, dt);
       continue;
     }
     enemy.fearCooldown = Math.max(0, enemy.fearCooldown - dt);
-    const blocker = enemy.ignoresBarracks ? null : state.knights.find(knight => knight.alive && knight.target === enemy && Math.hypot(knight.x - enemy.x, knight.y - enemy.y) <= 24);
+    const blocker = enemy.ignoresBarracks || bossIgnoresBarracks(enemy) ? null : state.knights.find(knight => knight.alive && knight.target === enemy && Math.hypot(knight.x - enemy.x, knight.y - enemy.y) <= 24);
     if (blocker) {
       enemy.blocked = true;
       enemy.combatAngle = Math.atan2(blocker.y - enemy.y, blocker.x - enemy.x);
-      if (enemy.type === "dragon") {
+      if (enemy.type === "dragon" && !enemy.isBossMinion) {
         enemy.fireBreathCooldown -= dt;
         if (enemy.fireBreathCooldown <= 0) breatheDragonFire(enemy, blocker);
         continue;
       }
-      if (enemy.type === "covenwitch") continue;
+      if (enemy.type === "covenwitch" && !enemy.isBossMinion) continue;
       enemy.meleeCooldown -= dt;
       if (enemy.meleeCooldown <= 0) {
         blocker.hp -= enemyMeleeDamage(enemy);
@@ -99,32 +105,14 @@ function update(dt) {
     tower.throwSwing = Math.max(0, tower.throwSwing - dt);
     tower.fearPulse = Math.max(0, (tower.fearPulse || 0) - dt);
     tower.bloodDrainTimer = Math.max(0, (tower.bloodDrainTimer || 0) - dt);
-    if (tower.type === "mine") {
-      if (state.waveActive && tower.workers > 0) {
-        if (tower.specialization === "treasureCove") {
-          tower.excavationTimer += dt;
-          const excavationInterval = treasureCoveExcavationInterval(tower);
-          while (tower.excavationTimer >= excavationInterval) {
-            tower.excavationTimer -= excavationInterval;
-            excavateTreasureCoveRelic(tower);
-          }
-        } else {
-          tower.productionTimer += dt;
-          while (tower.productionTimer >= 1) {
-            tower.productionTimer -= 1;
-            const relicMultiplier = tower.items?.includes("ring") ? 1.5 : 1;
-            const earnings = awardUnscaledGold(tower.workers * MINE_GOLD_PER_WORKER_PER_SECOND * relicMultiplier);
-            tower.goldMined += earnings;
-            burst(tower.x, tower.y, "#e7bd52", 5 + tower.workers * 2);
-            updateUI();
-          }
-        }
-      }
+    tower.batCursePulse = Math.max(0, (tower.batCursePulse || 0) - dt);
+    if (tower.type === "mine" || tower.type === "castle") {
       continue;
     }
     if (tower.type === "vampire") {
       tower.cooldown -= dt;
       updateBloodDrainEffect(tower, dt);
+      updateDraculaBatCurse(tower, dt);
       const stats = towerStats(tower);
       const candidates = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && Math.hypot(enemy.x - tower.x, enemy.y - tower.y) <= stats.range);
       candidates.sort((a, b) => enemyProgress(b) - enemyProgress(a));
@@ -148,18 +136,36 @@ function update(dt) {
     if (tower.type === "ghost") {
       tower.cooldown -= dt;
       const stats = towerStats(tower);
-      const candidates = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && enemy.fearTimer <= 0 && enemy.fearCooldown <= 0 && Math.hypot(enemy.x - tower.x, enemy.y - tower.y) <= stats.range);
+      const umbral = hasRelic(tower, "umbralForm");
+      const candidates = state.enemies.filter(enemy => {
+        if (enemy.dead || enemy.reached || enemy.thrown || Math.hypot(enemy.x - tower.x, enemy.y - tower.y) > stats.range) return false;
+        if (!umbral || enemy.isBoss || enemy.isMiniBoss) return enemy.fearTimer <= 0 && enemy.fearCooldown <= 0;
+        return enemy.possessionTimer <= 0;
+      });
       candidates.sort((a, b) => Math.hypot(a.x - tower.x, a.y - tower.y) - Math.hypot(b.x - tower.x, b.y - tower.y));
       const target = candidates[0];
       if (target) {
         tower.angle = Math.atan2(target.y - tower.y, target.x - tower.x);
         if (tower.cooldown <= 0) {
           const victims = candidates.slice(0, stats.fearCount);
-          victims.forEach(enemy => fearEnemy(enemy, stats.fearDuration));
-          tower.enemiesFeared += victims.length;
+          if (umbral) {
+            let possessed = 0;
+            let bossesFeared = 0;
+            for (const enemy of victims) {
+              if (enemy.isBoss || enemy.isMiniBoss) {
+                fearEnemy(enemy, UMBRAL_BOSS_FEAR_DURATION);
+                bossesFeared++;
+              } else if (possessEnemy(enemy, tower)) possessed++;
+            }
+            tower.enemiesPossessed += possessed;
+            tower.enemiesFeared += bossesFeared;
+          } else {
+            victims.forEach(enemy => fearEnemy(enemy, stats.fearDuration));
+            tower.enemiesFeared += victims.length;
+          }
           tower.fearPulse = .8;
           tower.cooldown = stats.cooldown;
-          burst(tower.x, tower.y, towerTypes.ghost.color, 20);
+          burst(tower.x, tower.y, umbral ? "#a441ff" : towerTypes.ghost.color, umbral ? 28 : 20);
           if (state.selectedTower === tower) showInspectPanel(tower);
         }
       }
@@ -247,6 +253,24 @@ function update(dt) {
       }
       continue;
     }
+    if (tower.type === "ufo") {
+      tower.cooldown -= dt;
+      const stats = towerStats(tower);
+      const candidates = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && Math.hypot(enemy.x - tower.x, enemy.y - tower.y) <= stats.range);
+      candidates.sort((a, b) => enemyProgress(b) - enemyProgress(a));
+      const target = candidates[0];
+      if (target) {
+        tower.angle = Math.atan2(target.y - tower.y, target.x - tower.x);
+        if (tower.cooldown <= 0) {
+          fireProjectile(tower, target, stats);
+          if (tower.specialization === "twinlaser") {
+            fireProjectile(tower, target, stats, null, { variant: "ufoLaserRed", color: towerTypes.ufo.twinLaserColor, sideOffset: 8 });
+          }
+          tower.cooldown = stats.cooldown;
+        }
+      }
+      continue;
+    }
     tower.cooldown -= dt;
     const stats = towerStats(tower);
     const candidates = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && Math.hypot(enemy.x - tower.x, enemy.y - tower.y) <= stats.range);
@@ -327,12 +351,31 @@ function update(dt) {
     state.waveActive = false;
     state.activeEvent = null;
     dismissVampireMinions();
+    const minePayout = payGoldMineRoundIncome();
+    const coveRelics = rollTreasureCoveRoundRelics();
     if (state.gameMode === "campaign" && state.wave >= CAMPAIGN_WAVE_COUNT) endGame(true);
     else {
       const bonus = 18 + state.wave * 3;
       state.gold += bonus;
-      showAnnouncement(`Wave cleared — ${bonus} gold earned`);
+      const coveMessage = coveRelics ? ` + ${coveRelics} cove relic` : "";
+      showAnnouncement(`Wave cleared — ${bonus} bonus gold${minePayout ? ` + ${minePayout} mine gold` : ""}${coveMessage}${coveRelics === 1 ? "" : coveRelics ? "s" : ""}`);
       updateUI();
     }
   }
+}
+
+function payGoldMineRoundIncome() {
+  let totalPayout = 0;
+  for (const mine of state.towers) {
+    if (mine.type !== "mine" || mine.specialization === "treasureCove" || mine.workers <= 0) continue;
+    const ringMultiplier = relicMultiplier(mine, "mineIncome");
+    const exactIncome = mine.workers * MINE_GOLD_PER_WORKER_PER_ROUND * ringMultiplier + (mine.incomeRemainder || 0);
+    const payout = Math.floor(exactIncome + 1e-9);
+    mine.incomeRemainder = exactIncome - payout;
+    mine.goldMined += payout;
+    state.gold += payout;
+    totalPayout += payout;
+    burst(mine.x, mine.y, "#e7bd52", 8 + mine.workers * 2);
+  }
+  return totalPayout;
 }

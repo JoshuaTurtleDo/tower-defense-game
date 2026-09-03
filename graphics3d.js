@@ -67,6 +67,7 @@ class ThreeGraphics {
       bone: mat(0xddd3b6), goblin: mat(0x719849), orc: mat(0x476f42), ogre: mat(0x81764d),
       red: mat(0xaf3f2e), roofRed: mat(0x923125), roofLight: mat(0xc85034), darkRed: mat(0x5d201d), cloth: mat(0x673128),
       purple: mat(0x8f6cdd, .28, .08, { emissive: 0x35245f, emissiveIntensity: .85 }),
+      frostCloth: mat(0x347fbd, .55, .04, { emissive: 0x173f68, emissiveIntensity: .5 }),
       frost: mat(0x91e9f3, .22, .12, { emissive: 0x2f8fa8, emissiveIntensity: 1.25 }),
       spectral: mat(0xf2fff9, .3, .01, { emissive: 0x7caf9f, emissiveIntensity: .72, transparent: true, opacity: .94, depthWrite: false, side: THREE.DoubleSide }),
       spectralDark: mat(0xc9e5dc, .45, .01, { emissive: 0x4e8177, emissiveIntensity: .5, transparent: true, opacity: .88, depthWrite: false, side: THREE.DoubleSide }),
@@ -502,6 +503,23 @@ class ThreeGraphics {
       const p = this.worldFromGame(tower.x, tower.y);
       group.position.set(p.x, 0, p.z);
       group.scale.setScalar(this.towerModelScale * (tower.type === "ogre" ? 1.1 : 1));
+      const receivesCastleAura = tower.type !== "castle" && tower.type !== "mine" && towers.some(castle =>
+        castle.type === "castle" && Math.max(Math.abs(castle.col - tower.col), Math.abs(castle.row - tower.row)) === 1
+      );
+      if (group.userData.castleBuffAura) {
+        const aura = group.userData.castleBuffAura;
+        aura.visible = receivesCastleAura;
+        if (aura.visible) {
+          const pulse = 1 + Math.sin(performance.now() * .004 + tower.col) * .06;
+          aura.scale.setScalar(pulse);
+          aura.material.opacity = .3 + Math.sin(performance.now() * .005 + tower.row) * .08;
+        }
+      }
+      if (group.userData.castleAura) {
+        const pulse = 1 + Math.sin(performance.now() * .0035 + tower.row) * .05;
+        group.userData.castleAura.scale.setScalar(pulse);
+        group.userData.castleAura.material.opacity = .22 + Math.sin(performance.now() * .0045 + tower.col) * .06;
+      }
       if (group.userData.turret) group.userData.turret.rotation.y = -tower.angle;
       if (group.userData.crystal) {
         group.userData.crystal.rotation.y += .018;
@@ -511,6 +529,9 @@ class ThreeGraphics {
           group.userData.crystal.material = frost ? this.mat.frost : this.mat.purple;
           if (group.userData.wizardFocus) group.userData.wizardFocus.material = frost ? this.mat.frost : this.mat.purple;
           if (group.userData.wizardLight) group.userData.wizardLight.color.setHex(frost ? 0x91e9f3 : 0x9c7de9);
+          if (group.userData.wizardRobePieces) {
+            group.userData.wizardRobePieces.forEach(piece => { piece.material = frost ? this.mat.frostCloth : this.mat.purple; });
+          }
           group.userData.frost = frost;
         }
       }
@@ -666,12 +687,26 @@ class ThreeGraphics {
       if (group.userData.ghostBody) {
         const now = performance.now() * .001;
         const ghost = group.userData.ghostBody;
+        const umbralEmpowered = tower.items?.includes("umbralForm");
         const pulse = THREE.MathUtils.clamp((tower.fearPulse || 0) / .8, 0, 1);
         const cast = Math.sin((1 - pulse) * Math.PI);
+        if (group.userData.umbralActive !== umbralEmpowered) {
+          group.userData.umbralActive = umbralEmpowered;
+          group.userData.ghostMaterialBindings.forEach(binding => {
+            binding.mesh.material = umbralEmpowered ? binding.umbral : binding.normal;
+          });
+          group.userData.ghostFacePieces.forEach(piece => {
+            piece.material = umbralEmpowered ? group.userData.umbralFaceMaterial : group.userData.normalGhostFaceMaterial;
+          });
+          group.userData.umbralFeatures.visible = umbralEmpowered;
+          group.userData.ghostAura.material.color.setHex(umbralEmpowered ? 0x9a43ff : 0x9be3d6);
+          group.userData.ghostAuraWisps.forEach(wisp => wisp.material.color.setHex(umbralEmpowered ? 0xd8a0ff : 0xc6fff3));
+          group.userData.ghostLight.color.setHex(umbralEmpowered ? 0xa347ff : 0x7de8d3);
+        }
         ghost.rotation.y = Math.PI / 2 - tower.angle;
         ghost.rotation.z = Math.sin(now * 1.45 + tower.col) * .035;
         ghost.position.y = .09 + Math.sin(now * 2.15 + tower.row * .7) * .055 + cast * .08;
-        ghost.scale.setScalar(1 + cast * .12);
+        ghost.scale.setScalar((umbralEmpowered ? 1.14 : 1) + cast * .12);
         group.userData.ghostHead.rotation.y = Math.sin(now * .9 + tower.col) * .12;
         const blanket = group.userData.ghostBlanket;
         blanket.rotation.z = Math.sin(now * 1.35 + tower.row) * .018;
@@ -682,7 +717,9 @@ class ThreeGraphics {
         group.userData.ghostAura.rotation.y += .035 + cast * .06;
         group.userData.ghostAura.scale.setScalar(1 + cast * .55);
         group.userData.ghostAura.material.opacity = .24 + pulse * .36;
-        group.userData.ghostLight.intensity = 2.2 + cast * 5.5;
+        group.userData.ghostLight.intensity = (umbralEmpowered ? 4 : 2.2) + cast * 5.5;
+        group.userData.umbralFeatures.rotation.y = Math.sin(now * 1.2) * .035;
+        group.userData.umbralFeatures.scale.setScalar(1 + Math.sin(now * 3.1) * .025 + cast * .08);
       }
       if (group.userData.vampireBody) {
         const now = performance.now() * .001;
@@ -691,7 +728,9 @@ class ThreeGraphics {
         const progress = timer > 0 ? THREE.MathUtils.clamp(1 - timer / .85, 0, 1) : 0;
         const cast = timer > 0 ? Math.sin(progress * Math.PI) : 0;
         const breathe = Math.sin(now * 1.65 + tower.col * .6);
+        const draculaEmpowered = tower.items?.includes("draculaCloak");
         vampire.rotation.y = Math.PI / 2 - tower.angle;
+        vampire.scale.setScalar(.82 * (draculaEmpowered ? 1.24 : 1));
         vampire.position.y = .03 + breathe * .008 + cast * .035;
         vampire.rotation.z = breathe * .012;
         group.userData.vampireLeftArm.rotation.x = -.62 - cast * .72;
@@ -700,6 +739,14 @@ class ThreeGraphics {
         group.userData.vampireRightArm.rotation.z = .3 - cast * .24;
         group.userData.vampireCape.scale.set(1 + cast * .18, 1 + breathe * .012, 1 + cast * .12);
         group.userData.vampireCape.rotation.z = Math.sin(now * 1.1) * .018;
+        group.userData.vampireCape.visible = !draculaEmpowered;
+        group.userData.draculaCape.visible = draculaEmpowered;
+        group.userData.draculaCape.scale.set(1 + cast * .25, 1 + breathe * .018, 1 + cast * .16);
+        group.userData.draculaCape.rotation.z = Math.sin(now * 1.1) * .025;
+        group.userData.draculaAura.visible = draculaEmpowered;
+        group.userData.draculaAura.rotation.z = now * .65;
+        group.userData.draculaAura.scale.setScalar(1 + Math.sin(now * 3.4) * .08 + (tower.batCursePulse || 0) * .32);
+        group.userData.draculaLight.intensity = draculaEmpowered ? 2.8 + cast * 7 + (tower.batCursePulse || 0) * 5 : 0;
         group.userData.vampireHead.rotation.y = Math.sin(now * .7 + tower.row) * .055;
         group.userData.vampireBloodOrb.visible = timer > 0;
         group.userData.vampireBloodOrb.scale.setScalar(.75 + cast * 1.15);
@@ -707,13 +754,26 @@ class ThreeGraphics {
         group.userData.vampireBloodOrb.rotation.x += .045;
         group.userData.vampireLight.intensity = timer > 0 ? 2.5 + cast * 6 : .45;
       }
+      if (group.userData.ufoBody) {
+        const now = performance.now() * .001;
+        const ufo = group.userData.ufoBody;
+        ufo.position.y = ufo.userData.baseY + Math.sin(now * 2.4 + tower.col * .7) * .065;
+        ufo.rotation.z = Math.sin(now * 1.35 + tower.row) * .025;
+        group.userData.ufoLightRing.rotation.y += .055;
+        group.userData.ufoDome.rotation.y -= .018;
+        group.userData.ufoLights.forEach((light, index) => {
+          const pulse = .78 + (Math.sin(now * 8 + index * .9) * .5 + .5) * .42;
+          light.scale.setScalar(pulse);
+        });
+        group.userData.ufoGlow.intensity = 2.6 + Math.sin(now * 9) * .8;
+      }
       group.userData.levelPips.forEach((pip, i) => pip.visible = i < tower.level);
     }
   }
 
   createTower(tower) {
     const group = new THREE.Group();
-    if (tower.type !== "ogre" && tower.type !== "mage" && tower.type !== "archer" && tower.type !== "ghost" && tower.type !== "vampire") {
+    if (tower.type !== "ogre" && tower.type !== "mage" && tower.type !== "archer" && tower.type !== "ghost" && tower.type !== "vampire" && tower.type !== "ufo") {
       const trim = this.mesh(new THREE.CylinderGeometry(.47, .5, .085, 10), this.mat.goldDark, 0, .055, 0, group);
       trim.receiveShadow = true;
       const base = this.mesh(new THREE.CylinderGeometry(.39, .46, .24, 10), this.mat.darkStone, 0, .13, 0, group);
@@ -731,10 +791,20 @@ class ThreeGraphics {
     else if (tower.type === "ogre") this.buildPlayerOgre(group);
     else if (tower.type === "ghost") this.buildGhost(group);
     else if (tower.type === "vampire") this.buildVampire(group);
+    else if (tower.type === "ufo") this.buildUfo(group);
+    else if (tower.type === "castle") this.buildTinyCastle(group);
     else if (tower.type === "mine" && tower.specialization === "treasureCove") this.buildTreasureCove(group);
     else this.buildGoldMine(group);
+    if (tower.type !== "mine" && tower.type !== "castle") {
+      const auraMaterial = new THREE.MeshBasicMaterial({ color: 0xffd77a, transparent: true, opacity: .3, side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
+      const buffAura = this.mesh(new THREE.RingGeometry(.56, .64, 28), auraMaterial, 0, .145, 0, group);
+      buffAura.rotation.x = -Math.PI / 2;
+      buffAura.visible = false;
+      buffAura.castShadow = false;
+      group.userData.castleBuffAura = buffAura;
+    }
     group.userData.levelPips = [];
-    if (tower.type !== "mine") {
+    if (tower.type !== "mine" && tower.type !== "castle") {
       const pipHeight = tower.type === "archer" ? .31 : .08;
       for (let i = 0; i < 3; i++) {
         const pip = this.mesh(new THREE.OctahedronGeometry(.045), this.mat.gold, -.11 + i * .11, pipHeight, -.48, group);
@@ -965,7 +1035,7 @@ class ThreeGraphics {
     this.addEyes(head, .055, .025, .145, .018);
     const beardMesh = this.mesh(new THREE.ConeGeometry(.11, .3, 7), beard, 0, -.16, .115, head);
     beardMesh.rotation.z = Math.PI;
-    this.mesh(new THREE.CylinderGeometry(.29, .29, .045, 10), this.mat.purple, 0, .145, 0, head);
+    const hatBrim = this.mesh(new THREE.CylinderGeometry(.29, .29, .045, 10), this.mat.purple, 0, .145, 0, head);
     const hat = this.mesh(new THREE.ConeGeometry(.235, .42, 9), this.mat.purple, 0, .36, 0, head);
     hat.rotation.z = -.08;
     const hatTip = this.mesh(new THREE.ConeGeometry(.11, .25, 8), this.mat.roofLight, -.08, .61, 0, head);
@@ -1000,6 +1070,10 @@ class ThreeGraphics {
     group.userData.wizardStaff = staff;
     group.userData.wizardFocus = focus;
     group.userData.wizardLight = light;
+    group.userData.wizardRobePieces = [robe, hatBrim, hat];
+    for (const arm of [staffArm, castingArm]) {
+      arm.traverse(object => { if (object.isMesh && object.material === this.mat.purple) group.userData.wizardRobePieces.push(object); });
+    }
   }
 
   buildBallista(group) {
@@ -1044,6 +1118,78 @@ class ThreeGraphics {
     shield.rotation.x = Math.PI / 2;
     this.mesh(new THREE.CylinderGeometry(.07, .07, .04, 8), this.mat.gold, -.48, .27, -.2, group).rotation.x = Math.PI / 2;
     this.mesh(new THREE.BoxGeometry(.035, .5, .035), this.mat.wood, -.46, .27, -.25, group);
+  }
+
+  buildTinyCastle(group) {
+    const castle = new THREE.Group();
+    castle.position.y = .04;
+    castle.scale.setScalar(.86);
+    group.add(castle);
+
+    const doorway = new THREE.MeshStandardMaterial({ color: 0x171512, roughness: 1, flatShading: true });
+    const royalBlue = new THREE.MeshStandardMaterial({ color: 0x315b75, roughness: .78, flatShading: true, side: THREE.DoubleSide });
+    const windowGlow = new THREE.MeshBasicMaterial({ color: 0xffd978, toneMapped: false });
+
+    const outerWall = this.mesh(new THREE.BoxGeometry(.92, .4, .76), this.mat.stone, 0, .46, 0, castle);
+    outerWall.receiveShadow = true;
+    this.mesh(new THREE.BoxGeometry(.96, .075, .8), this.mat.goldDark, 0, .68, 0, castle);
+
+    const keep = this.mesh(new THREE.BoxGeometry(.5, .62, .48), this.mat.stoneLight, 0, .75, -.04, castle);
+    keep.receiveShadow = true;
+    this.mesh(new THREE.BoxGeometry(.54, .07, .52), this.mat.goldDark, 0, 1.07, -.04, castle);
+
+    for (const [x, z] of [[-.38, -.31], [.38, -.31], [-.38, .31], [.38, .31]]) {
+      const turret = this.mesh(new THREE.CylinderGeometry(.16, .18, .65, 10), this.mat.stoneLight, x, .67, z, castle);
+      turret.receiveShadow = true;
+      this.mesh(new THREE.CylinderGeometry(.18, .18, .07, 10), this.mat.goldDark, x, 1.01, z, castle);
+      const roof = this.mesh(new THREE.ConeGeometry(.24, .32, 8), this.mat.roofRed, x, 1.2, z, castle);
+      roof.rotation.y = Math.PI / 8;
+      this.mesh(new THREE.SphereGeometry(.035, 7, 5), this.mat.goldLight, x, 1.38, z, castle);
+    }
+
+    const battlements = [
+      [-.2, 1.16, -.22], [0, 1.16, -.22], [.2, 1.16, -.22],
+      [-.2, 1.16, .14], [0, 1.16, .14], [.2, 1.16, .14],
+      [-.24, 1.16, -.04], [.24, 1.16, -.04]
+    ];
+    battlements.forEach(([x, y, z]) => this.mesh(new THREE.BoxGeometry(.12, .18, .12), this.mat.stoneLight, x, y, z, castle));
+
+    this.mesh(new THREE.BoxGeometry(.22, .3, .035), doorway, 0, .39, .4, castle);
+    const doorArch = this.mesh(new THREE.SphereGeometry(.11, 9, 6, 0, Math.PI * 2, 0, Math.PI * .55), doorway, 0, .54, .4, castle);
+    doorArch.scale.z = .16;
+    const drawbridge = this.mesh(new THREE.BoxGeometry(.3, .045, .34), this.mat.lightWood, 0, .19, .55, castle);
+    drawbridge.rotation.x = -.08;
+    for (const x of [-.08, .08]) this.mesh(new THREE.BoxGeometry(.018, .06, .33), this.mat.goldDark, x, .215, .55, castle).rotation.x = -.08;
+
+    for (const x of [-.16, .16]) {
+      const window = this.mesh(new THREE.BoxGeometry(.075, .13, .025), windowGlow, x, .78, .215, castle);
+      window.scale.y = 1.15;
+    }
+
+    const flagPole = this.mesh(new THREE.CylinderGeometry(.014, .018, .62, 7), this.mat.iron, 0, 1.42, -.04, castle);
+    flagPole.castShadow = true;
+    const bannerShape = new THREE.Shape();
+    bannerShape.moveTo(0, .16);
+    bannerShape.lineTo(.34, .11);
+    bannerShape.lineTo(.27, -.07);
+    bannerShape.lineTo(.34, -.2);
+    bannerShape.lineTo(0, -.16);
+    bannerShape.closePath();
+    const banner = this.mesh(new THREE.ShapeGeometry(bannerShape), royalBlue, .015, 1.58, -.04, castle);
+    banner.rotation.y = Math.PI / 2;
+    this.mesh(new THREE.BoxGeometry(.12, .055, .025), this.mat.gold, .02, 1.58, .005, castle).rotation.z = Math.PI / 4;
+
+    const auraMaterial = new THREE.MeshBasicMaterial({ color: 0xffd978, transparent: true, opacity: .22, side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
+    const aura = this.mesh(new THREE.RingGeometry(.93, 1.04, 36), auraMaterial, 0, .16, 0, group);
+    aura.rotation.x = -Math.PI / 2;
+    aura.castShadow = false;
+    const auraLight = new THREE.PointLight(0xffcf69, 1.15, 2.2, 2);
+    auraLight.position.set(0, .65, 0);
+    group.add(auraLight);
+
+    group.userData.tinyCastle = castle;
+    group.userData.castleAura = aura;
+    group.userData.castleBanner = banner;
   }
 
   buildGravestone(group) {
@@ -1213,6 +1359,7 @@ class ThreeGraphics {
     const crown = this.mesh(new THREE.SphereGeometry(.255, 14, 10), this.mat.spectral, 0, 0, 0, head);
     crown.scale.set(.9, 1.2, .78);
     const faceMaterial = new THREE.MeshBasicMaterial({ color: 0x111014, side: THREE.DoubleSide });
+    const umbralFaceMaterial = new THREE.MeshBasicMaterial({ color: 0xff8cf5, toneMapped: false, side: THREE.DoubleSide });
     const leftEye = this.mesh(new THREE.SphereGeometry(.052, 10, 7), faceMaterial, -.08, .035, .205, head);
     const rightEye = this.mesh(new THREE.SphereGeometry(.052, 10, 7), faceMaterial, .08, .035, .205, head);
     leftEye.scale.set(.72, 1.42, .28);
@@ -1251,14 +1398,44 @@ class ThreeGraphics {
       return streamer;
     });
 
+    const umbralSpectral = new THREE.MeshStandardMaterial({ color: 0x7220a8, roughness: .52, transparent: true, opacity: .94, emissive: 0x26003f, emissiveIntensity: 1.05, flatShading: true, side: THREE.DoubleSide });
+    const umbralDark = new THREE.MeshStandardMaterial({ color: 0x260032, roughness: .68, emissive: 0x16001f, emissiveIntensity: .8, flatShading: true, side: THREE.DoubleSide });
+    const ghostMaterialBindings = [];
+    ghost.traverse(piece => {
+      if (!piece.isMesh || (piece.material !== this.mat.spectral && piece.material !== this.mat.spectralDark)) return;
+      ghostMaterialBindings.push({ mesh: piece, normal: piece.material, umbral: piece.material === this.mat.spectral ? umbralSpectral : umbralDark });
+    });
+
+    const umbralFeatures = new THREE.Group();
+    umbralFeatures.visible = false;
+    ghost.add(umbralFeatures);
+    for (const side of [-1, 1]) {
+      const horn = this.mesh(new THREE.ConeGeometry(.065, .3, 6), umbralDark, side * .18, 1.17, -.015, umbralFeatures);
+      horn.rotation.z = side * -.48;
+      const shoulderSpike = this.mesh(new THREE.ConeGeometry(.055, .28, 5), umbralDark, side * .42, .72, -.02, umbralFeatures);
+      shoulderSpike.rotation.z = side * -.92;
+      const claw = this.mesh(new THREE.ConeGeometry(.045, .25, 5), umbralFaceMaterial, side * .51, .26, .035, umbralFeatures);
+      claw.rotation.z = side * -.64;
+    }
+    const browLeft = this.mesh(new THREE.BoxGeometry(.12, .028, .035), umbralDark, -.08, .995, .232, umbralFeatures);
+    const browRight = this.mesh(new THREE.BoxGeometry(.12, .028, .035), umbralDark, .08, .995, .232, umbralFeatures);
+    browLeft.rotation.z = -.22;
+    browRight.rotation.z = .22;
+    for (const side of [-1, 1]) {
+      const fang = this.mesh(new THREE.ConeGeometry(.018, .11, 5), umbralFaceMaterial, side * .035, .77, .245, umbralFeatures);
+      fang.rotation.z = Math.PI;
+    }
+
     const auraMaterial = new THREE.MeshBasicMaterial({ color: 0x9be3d6, transparent: true, opacity: .24, side: THREE.DoubleSide, depthWrite: false });
     const auraWispMaterial = new THREE.MeshBasicMaterial({ color: 0xc6fff3, transparent: true, opacity: .98, depthWrite: false });
     const aura = this.mesh(new THREE.RingGeometry(.37, .43, 28), auraMaterial, 0, .12, 0, group);
     aura.rotation.x = -Math.PI / 2;
+    const auraWisps = [];
     for (let index = 0; index < 3; index++) {
       const angle = index / 3 * Math.PI * 2;
       const wisp = this.mesh(new THREE.TetrahedronGeometry(.055, 0), auraWispMaterial, Math.cos(angle) * .36, .12, Math.sin(angle) * .36, group);
       aura.add(wisp);
+      auraWisps.push(wisp);
     }
     const light = new THREE.PointLight(0x7de8d3, 2.2, 2.4, 2);
     light.position.set(0, .72, .08);
@@ -1269,7 +1446,14 @@ class ThreeGraphics {
     group.userData.ghostBlanket = blanket;
     group.userData.ghostStreamers = streamers;
     group.userData.ghostAura = aura;
+    group.userData.ghostAuraWisps = auraWisps;
     group.userData.ghostLight = light;
+    group.userData.ghostMaterialBindings = ghostMaterialBindings;
+    group.userData.ghostFacePieces = [leftEye, rightEye, mouth];
+    group.userData.normalGhostFaceMaterial = faceMaterial;
+    group.userData.umbralFaceMaterial = umbralFaceMaterial;
+    group.userData.umbralFeatures = umbralFeatures;
+    group.userData.umbralActive = false;
   }
 
   buildVampire(group) {
@@ -1295,6 +1479,24 @@ class ThreeGraphics {
     const capeRight = this.mesh(new THREE.ConeGeometry(.35, .78, 4), crimson, .24, -.05, -.04, cape);
     capeRight.scale.z = .35;
     capeRight.rotation.z = .18;
+
+    const draculaBlack = new THREE.MeshStandardMaterial({ color: 0x100b12, roughness: .68, metalness: .08, flatShading: true });
+    const draculaCrimson = new THREE.MeshStandardMaterial({ color: 0xb41e2f, roughness: .58, emissive: 0x3b070d, emissiveIntensity: .5, flatShading: true });
+    const draculaOrange = new THREE.MeshBasicMaterial({ color: 0xff8a32, toneMapped: false });
+    const draculaCape = new THREE.Group();
+    draculaCape.position.copy(cape.position);
+    draculaCape.visible = false;
+    vampire.add(draculaCape);
+    const draculaCapeBack = this.mesh(new THREE.ConeGeometry(.58, 1.04, 5), draculaBlack, 0, -.02, 0, draculaCape);
+    draculaCapeBack.scale.set(1.18, 1, .46);
+    draculaCapeBack.rotation.y = Math.PI;
+    for (const side of [-1, 1]) {
+      const flare = this.mesh(new THREE.ConeGeometry(.38, .92, 4), draculaCrimson, side * .29, -.08, -.025, draculaCape);
+      flare.scale.z = .38;
+      flare.rotation.z = side * .22;
+      const clasp = this.mesh(new THREE.OctahedronGeometry(.042, 0), draculaOrange, side * .15, .36, .15, draculaCape);
+      clasp.castShadow = false;
+    }
 
     const torso = this.mesh(new THREE.CylinderGeometry(.17, .27, .58, 8), blackCloth, 0, .57, 0, vampire);
     torso.scale.z = .72;
@@ -1362,14 +1564,90 @@ class ThreeGraphics {
     light.position.set(0, .7, .3);
     vampire.add(light);
 
+    const draculaAura = this.mesh(new THREE.RingGeometry(.39, .48, 28), new THREE.MeshBasicMaterial({ color: 0xff7b29, transparent: true, opacity: .72, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }), 0, .045, 0, group);
+    draculaAura.rotation.x = -Math.PI / 2;
+    draculaAura.visible = false;
+    draculaAura.castShadow = false;
+    const draculaLight = new THREE.PointLight(0xff4a1c, 0, 3.2, 2);
+    draculaLight.position.set(0, .75, .15);
+    group.add(draculaLight);
+
     group.userData.vampireBody = vampire;
     group.userData.vampireHead = head;
     group.userData.vampireSlickHair = slickHair;
     group.userData.vampireCape = cape;
+    group.userData.draculaCape = draculaCape;
+    group.userData.draculaAura = draculaAura;
+    group.userData.draculaLight = draculaLight;
     group.userData.vampireLeftArm = leftArm;
     group.userData.vampireRightArm = rightArm;
     group.userData.vampireBloodOrb = bloodOrb;
     group.userData.vampireLight = light;
+  }
+
+  buildUfo(group) {
+    const ufo = new THREE.Group();
+    ufo.position.y = .72;
+    ufo.userData.baseY = .72;
+    ufo.scale.setScalar(.96);
+    group.add(ufo);
+
+    const silver = new THREE.MeshStandardMaterial({ color: 0x98a7aa, metalness: .72, roughness: .26, flatShading: true });
+    const darkMetal = new THREE.MeshStandardMaterial({ color: 0x273137, metalness: .58, roughness: .34, flatShading: true });
+    const greenGlow = new THREE.MeshBasicMaterial({ color: 0x52ff78, toneMapped: false });
+    const paleGlow = new THREE.MeshBasicMaterial({ color: 0xd6ffe0, toneMapped: false });
+    const glass = new THREE.MeshStandardMaterial({
+      color: 0x5ecf9c,
+      emissive: 0x174f38,
+      emissiveIntensity: 1.15,
+      metalness: .08,
+      roughness: .12,
+      transparent: true,
+      opacity: .72,
+      flatShading: true
+    });
+
+    const lowerHull = this.mesh(new THREE.CylinderGeometry(.34, .5, .16, 18), darkMetal, 0, -.04, 0, ufo);
+    lowerHull.castShadow = true;
+    const upperHull = this.mesh(new THREE.CylinderGeometry(.32, .48, .15, 18), silver, 0, .08, 0, ufo);
+    upperHull.castShadow = true;
+    this.mesh(new THREE.TorusGeometry(.43, .055, 7, 24), darkMetal, 0, .035, 0, ufo).rotation.x = Math.PI / 2;
+    this.mesh(new THREE.TorusGeometry(.36, .022, 6, 24), greenGlow, 0, -.055, 0, ufo).rotation.x = Math.PI / 2;
+
+    const dome = this.mesh(new THREE.SphereGeometry(.29, 16, 10, 0, Math.PI * 2, 0, Math.PI * .55), glass, 0, .14, 0, ufo);
+    dome.scale.set(1, .78, 1);
+    dome.castShadow = false;
+    this.mesh(new THREE.TorusGeometry(.29, .025, 7, 22), silver, 0, .14, 0, ufo).rotation.x = Math.PI / 2;
+
+    const antenna = this.mesh(new THREE.CylinderGeometry(.012, .018, .24, 7), silver, 0, .48, 0, ufo);
+    antenna.rotation.z = -.14;
+    this.mesh(new THREE.SphereGeometry(.045, 8, 6), paleGlow, -.017, .6, 0, ufo);
+
+    const lightRing = new THREE.Group();
+    ufo.add(lightRing);
+    const lights = [];
+    for (let index = 0; index < 10; index++) {
+      const angle = index / 10 * Math.PI * 2;
+      const lamp = this.mesh(new THREE.SphereGeometry(.035, 8, 6), index % 2 ? greenGlow : paleGlow, Math.cos(angle) * .43, -.075, Math.sin(angle) * .43, lightRing);
+      lamp.castShadow = false;
+      lights.push(lamp);
+    }
+
+    const emitter = this.mesh(new THREE.CylinderGeometry(.11, .16, .09, 12), darkMetal, 0, -.17, 0, ufo);
+    emitter.castShadow = true;
+    const emitterCore = this.mesh(new THREE.SphereGeometry(.075, 10, 7), greenGlow, 0, -.225, 0, ufo);
+    emitterCore.scale.y = .55;
+    emitterCore.castShadow = false;
+    const glow = new THREE.PointLight(0x52ff78, 2.6, 3.1, 2);
+    glow.position.set(0, -.16, 0);
+    ufo.add(glow);
+
+    group.userData.ufoBody = ufo;
+    group.userData.ufoDome = dome;
+    group.userData.ufoLightRing = lightRing;
+    group.userData.ufoLights = lights;
+    group.userData.ufoEmitter = emitter;
+    group.userData.ufoGlow = glow;
   }
 
   buildGoldMine(group) {
@@ -1683,10 +1961,21 @@ class ThreeGraphics {
         this.scene.add(bar);
       }
       const p = this.worldFromGame(enemy.x, enemy.y);
-      const renderScale = this.enemyModelScale * (this.config.enemyTypes[enemy.type].modelScale || 1);
+      const miniatureScale = enemy.isBossMinion ? .55 : 1;
+      const renderScale = this.enemyModelScale * (this.config.enemyTypes[enemy.type].modelScale || 1) * miniatureScale;
       const bob = this.animateEnemy(group, enemy, now) * renderScale;
       const throwHeight = enemy.thrown ? enemy.throwArc : 0;
       group.position.set(p.x, .08 + bob + throwHeight, p.z);
+      const batCursed = enemy.batFormTimer > 0;
+      group.userData.enemyModelRoot.visible = !batCursed;
+      group.userData.batForm.visible = batCursed;
+      if (batCursed) {
+        const flap = Math.sin(now * 14 + enemy.phase) * .72;
+        group.userData.batForm.position.y = .18 + Math.sin(now * 5 + enemy.phase) * .08;
+        group.userData.batForm.rotation.y = Math.sin(now * 2.2 + enemy.phase) * .18;
+        group.userData.batLeftWing.rotation.z = -.15 - flap;
+        group.userData.batRightWing.rotation.z = .15 + flap;
+      }
       group.rotation.x = enemy.thrown ? enemy.throwSpin : 0;
       if (enemy.thrown) group.rotation.z = enemy.throwSpin * .55;
       if (enemy.blocked) {
@@ -1743,11 +2032,19 @@ class ThreeGraphics {
         group.userData.fearAura.rotation.y = now * 5 + enemy.phase;
         group.userData.fearAura.position.y = 1.02 + Math.sin(now * 5 + enemy.phase) * .08;
       }
+      group.userData.possessionAura.visible = enemy.possessionTimer > 0;
+      if (enemy.possessionTimer > 0) {
+        group.userData.possessionAura.rotation.y = -now * 4.2 + enemy.phase;
+        group.userData.possessionAura.position.y = .62 + Math.sin(now * 5.5 + enemy.phase) * .06;
+        group.userData.possessionAura.scale.setScalar(1 + Math.sin(now * 7 + enemy.phase) * .12);
+      }
       group.scale.setScalar(renderScale * (enemy.hitFlash > 0 ? 1.06 : 1));
 
       const bar = this.enemyBars.get(enemy);
       bar.visible = this.showHealthBars;
-      const height = this.enemyHeight(enemy.type);
+      const barScale = enemy.isBossMinion ? .62 : 1;
+      bar.scale.set(bar.userData.baseScale * barScale, bar.userData.baseScale * bar.userData.baseAspect * barScale, 1);
+      const height = batCursed ? .82 : this.enemyHeight(enemy.type);
       bar.position.set(p.x, .08 + height * renderScale + .13 + bob + throwHeight, p.z);
       const ratio = THREE.MathUtils.clamp(enemy.hp / enemy.maxHp, 0, 1);
       this.updateHealthBar(bar, ratio);
@@ -1756,25 +2053,30 @@ class ThreeGraphics {
 
   createEnemy(type) {
     const group = new THREE.Group();
-    if (type === "goblin") this.buildGoblin(group);
-    else if (type === "skeleton") this.buildSkeleton(group);
-    else if (type === "orc") this.buildOrc(group);
-    else if (type === "ogre") this.buildOgre(group);
-    else if (type === "dragon") this.buildDragon(group);
-    else if (type === "horseman") this.buildHeadlessHorseman(group);
-    else if (type === "cyclops") this.buildCyclops(group);
-    else if (type === "merchant") this.buildMerchant(group);
-    else if (type === "davyjones") this.buildDavyJones(group);
-    else if (type === "moonalpha") this.buildMoonfangAlpha(group);
-    else if (type === "longship") this.buildVikingLongship(group);
-    else if (type === "covenwitch") this.buildCovenWitch(group);
-    else if (type === "riftlord") this.buildRiftOverlord(group);
-    else if (type === "pirate") this.buildPirate(group);
-    else if (type === "werewolf") this.buildWerewolf(group);
-    else if (type === "viking") this.buildViking(group);
-    else if (type === "wraith") this.buildWraith(group);
-    else if (type === "demon") this.buildDemon(group);
-    else this.buildGoblin(group);
+    const modelRoot = new THREE.Group();
+    group.add(modelRoot);
+    if (type === "goblin") this.buildGoblin(modelRoot);
+    else if (type === "skeleton") this.buildSkeleton(modelRoot);
+    else if (type === "orc") this.buildOrc(modelRoot);
+    else if (type === "ogre") this.buildOgre(modelRoot);
+    else if (type === "dragon") this.buildDragon(modelRoot);
+    else if (type === "horseman") this.buildHeadlessHorseman(modelRoot);
+    else if (type === "cyclops") this.buildCyclops(modelRoot);
+    else if (type === "merchant") this.buildMerchant(modelRoot);
+    else if (type === "davyjones") this.buildDavyJones(modelRoot);
+    else if (type === "moonalpha") this.buildMoonfangAlpha(modelRoot);
+    else if (type === "longship") this.buildVikingLongship(modelRoot);
+    else if (type === "covenwitch") this.buildCovenWitch(modelRoot);
+    else if (type === "riftlord") this.buildRiftOverlord(modelRoot);
+    else if (type === "pirate") this.buildPirate(modelRoot);
+    else if (type === "werewolf") this.buildWerewolf(modelRoot);
+    else if (type === "viking") this.buildViking(modelRoot);
+    else if (type === "wraith") this.buildWraith(modelRoot);
+    else if (type === "demon") this.buildDemon(modelRoot);
+    else this.buildGoblin(modelRoot);
+    Object.assign(group.userData, modelRoot.userData);
+    group.userData.enemyModelRoot = modelRoot;
+    this.buildBatForm(group);
     const ring = new THREE.Mesh(new THREE.RingGeometry(.22, .29, 24), new THREE.MeshBasicMaterial({ color: 0x8fe8f4, transparent: true, opacity: .68, side: THREE.DoubleSide, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = .02;
@@ -1794,7 +2096,45 @@ class ThreeGraphics {
     }
     group.add(fearAura);
     group.userData.fearAura = fearAura;
+    const possessionAura = new THREE.Group();
+    possessionAura.visible = false;
+    const possessionMaterial = new THREE.MeshBasicMaterial({ color: 0xae55ff, transparent: true, opacity: .92, depthWrite: false, toneMapped: false });
+    const possessionRing = this.mesh(new THREE.TorusGeometry(.31, .035, 6, 22), possessionMaterial, 0, 0, 0, possessionAura);
+    possessionRing.rotation.x = Math.PI / 2;
+    for (let index = 0; index < 4; index++) {
+      const angle = index / 4 * Math.PI * 2;
+      const shard = this.mesh(new THREE.OctahedronGeometry(.055, 0), possessionMaterial, Math.cos(angle) * .35, index % 2 ? .13 : -.1, Math.sin(angle) * .35, possessionAura);
+      shard.rotation.z = angle;
+    }
+    group.add(possessionAura);
+    group.userData.possessionAura = possessionAura;
     return group;
+  }
+
+  buildBatForm(group) {
+    const bat = new THREE.Group();
+    bat.visible = false;
+    group.add(bat);
+    const fur = new THREE.MeshStandardMaterial({ color: 0x171119, roughness: .92, flatShading: true });
+    const wing = new THREE.MeshStandardMaterial({ color: 0x301326, roughness: .84, emissive: 0x12040b, emissiveIntensity: .4, flatShading: true, side: THREE.DoubleSide });
+    const glow = new THREE.MeshBasicMaterial({ color: 0xff7b29, toneMapped: false });
+    const body = this.mesh(new THREE.SphereGeometry(.13, 8, 6), fur, 0, .43, 0, bat);
+    body.scale.set(.72, 1.45, .68);
+    this.mesh(new THREE.SphereGeometry(.1, 8, 6), fur, 0, .59, .015, bat);
+    for (const side of [-1, 1]) {
+      const ear = this.mesh(new THREE.ConeGeometry(.035, .13, 4), fur, side * .055, .71, 0, bat);
+      ear.rotation.z = side * -.18;
+      const eye = this.mesh(new THREE.SphereGeometry(.016, 6, 4), glow, side * .035, .61, .085, bat);
+      eye.castShadow = false;
+      const wingPivot = new THREE.Group();
+      wingPivot.position.set(side * .08, .49, 0);
+      bat.add(wingPivot);
+      const membrane = this.mesh(new THREE.ConeGeometry(.2, .48, 3), wing, side * .19, 0, 0, wingPivot);
+      membrane.rotation.z = side * -Math.PI / 2;
+      membrane.scale.z = .35;
+      group.userData[side < 0 ? "batLeftWing" : "batRightWing"] = wingPivot;
+    }
+    group.userData.batForm = bat;
   }
 
   buildMerchant(group) {
@@ -2578,6 +2918,8 @@ class ThreeGraphics {
     sprite.userData.canvas = canvas;
     sprite.userData.context = context;
     sprite.userData.texture = texture;
+    sprite.userData.baseScale = width;
+    sprite.userData.baseAspect = canvas.height / canvas.width;
     sprite.userData.lastRatio = -1;
     sprite.userData.filledPixels = 0;
     sprite.userData.friendly = type === "knight" || type === "zombie" || type === "gladiator" || type === "vampireMinion";
@@ -2636,6 +2978,31 @@ class ThreeGraphics {
           object.userData.core = core;
           object.userData.aura = aura;
           object.userData.crossAura = crossAura;
+        } else if (projectile.variant === "ufoLaser" || projectile.variant === "ufoLaserRed" || projectile.variant === "ufoMassiveLaser") {
+          const massive = projectile.variant === "ufoMassiveLaser";
+          const red = projectile.variant === "ufoLaserRed";
+          const coreColor = red ? 0xffd0d8 : massive ? 0xe8fff0 : 0xd6ffe0;
+          const beamColor = red ? 0xff4e68 : massive ? 0xb9ffd0 : 0x52ff78;
+          const beamLength = massive ? .86 : .48;
+          const coreMaterial = new THREE.MeshBasicMaterial({ color: coreColor, toneMapped: false });
+          const beamMaterial = new THREE.MeshBasicMaterial({ color: beamColor, transparent: true, opacity: massive ? .88 : .78, depthWrite: false, toneMapped: false });
+          const core = this.mesh(new THREE.CylinderGeometry(massive ? .038 : .018, massive ? .052 : .026, beamLength, 7), coreMaterial, 0, 0, 0, object);
+          core.rotation.x = Math.PI / 2;
+          core.castShadow = false;
+          const beam = this.mesh(new THREE.CylinderGeometry(massive ? .12 : .052, massive ? .15 : .064, beamLength + (massive ? .08 : .04), 9), beamMaterial, 0, 0, 0, object);
+          beam.rotation.x = Math.PI / 2;
+          beam.castShadow = false;
+          const tip = this.mesh(new THREE.SphereGeometry(massive ? .14 : .07, 9, 7), coreMaterial, 0, 0, (beamLength / 2) + .02, object);
+          tip.scale.z = 1.5;
+          tip.castShadow = false;
+          const light = new THREE.PointLight(beamColor, massive ? 6 : 3.5, massive ? 3.6 : 2.4, 2);
+          light.position.z = beamLength * .38;
+          object.add(light);
+          object.userData.ufoLaser = true;
+          object.userData.massiveLaser = massive;
+          object.userData.laserCore = core;
+          object.userData.laserBeam = beam;
+          object.userData.laserLight = light;
         } else if (projectile.type === "mage") {
           const frostShot = String(projectile.color).toLowerCase() === "#8fe8f4";
           const glowColor = frostShot ? 0x8fe8f4 : 0xd94cff;
@@ -2694,7 +3061,7 @@ class ThreeGraphics {
         this.projectileMeshes.set(projectile, object);
         this.scene.add(object);
       }
-      const p = this.worldFromGame(projectile.x, projectile.y, projectile.type === "mage" ? .38 : projectile.type === "witchMagic" ? .58 : projectile.variant === "slingRock" ? .5 : .62);
+      const p = this.worldFromGame(projectile.x, projectile.y, projectile.type === "ufo" ? .82 : projectile.type === "mage" ? .38 : projectile.type === "witchMagic" ? .58 : projectile.variant === "slingRock" ? .5 : .62);
       object.position.copy(p);
       if (projectile.type === "witchMagic") {
         object.rotation.x += .09;
@@ -2703,6 +3070,13 @@ class ThreeGraphics {
         object.userData.crossAura.rotation.x -= .14;
         const pulse = 1 + Math.sin(performance.now() * .018) * .14;
         object.userData.core.scale.setScalar(pulse);
+      } else if ((projectile.variant === "ufoLaser" || projectile.variant === "ufoLaserRed" || projectile.variant === "ufoMassiveLaser") && projectile.target) {
+        const target = this.worldFromGame(projectile.target.x, projectile.target.y);
+        object.rotation.y = Math.atan2(target.x - p.x, target.z - p.z);
+        const pulse = 1 + Math.sin(performance.now() * .045) * .16;
+        object.userData.laserBeam.scale.set(pulse, 1, pulse);
+        object.userData.laserBeam.material.opacity = .68 + Math.sin(performance.now() * .04) * .16;
+        object.userData.laserLight.intensity = 3.2 + Math.sin(performance.now() * .05) * 1.2;
       } else if (projectile.type === "mage") {
         object.rotation.x += object.userData.spin.x;
         object.rotation.y += object.userData.spin.y;
@@ -2788,13 +3162,13 @@ class ThreeGraphics {
       this.rangeDisc.visible = true;
       this.rangeDisc.position.set(p.x, .17, p.z);
       this.rangeDisc.scale.setScalar(range);
-      this.rangeDisc.material.color.setHex(chosen.specialization === "frost" ? 0x8fe8f4 : 0xf2d682);
+      this.rangeDisc.material.color.setHex(chosen.type === "ufo" ? 0x52ff78 : chosen.specialization === "frost" ? 0x8fe8f4 : 0xf2d682);
     } else if (state.selectedBuild && state.selectedBuild !== "mine" && hoverCell) {
       const base = this.config.towerTypes[state.selectedBuild];
       this.rangeDisc.visible = true;
       this.rangeDisc.position.set(hoverCell.col - this.config.COLS / 2 + .5, .17, hoverCell.row - this.config.ROWS / 2 + .5);
       this.rangeDisc.scale.setScalar(base.range / this.config.CELL);
-      this.rangeDisc.material.color.setHex(0xe7d88d);
+      this.rangeDisc.material.color.setHex(state.selectedBuild === "ufo" ? 0x52ff78 : 0xe7d88d);
     } else this.rangeDisc.visible = false;
 
     if (state.selectedBuild && hoverCell) {
