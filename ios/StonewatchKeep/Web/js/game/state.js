@@ -116,20 +116,18 @@ function spawnEnemy(type, options = {}) {
   discoverMonster(type);
   const bossMinion = Boolean(options.bossMinion);
   const scale = 1 + Math.max(0, state.wave - 1) * .11;
-  const minionHealthScale = bossMinion ? base.bossSummonHealthScale || .02 : 1;
-  const minionDamageScale = bossMinion ? base.bossSummonDamageScale || .05 : 1;
-  const bossSummonsUnlocked = state.wave >= BOSS_SUMMON_UNLOCK_WAVE;
+  const minionScale = bossMinion ? base.bossSummonScale || .05 : 1;
   state.enemies.push({
     type,
     x: pathPoints[0].x,
     y: pathPoints[0].y,
     pathIndex: 1,
-    hp: base.hp * scale * minionHealthScale,
-    maxHp: base.hp * scale * minionHealthScale,
+    hp: base.hp * scale * minionScale,
+    maxHp: base.hp * scale * minionScale,
     speed: base.speed * (1 + Math.max(0, state.wave - 1) * .012),
     reward: bossMinion ? 0 : base.reward,
-    damage: base.damage * minionDamageScale,
-    damageMultiplier: minionDamageScale,
+    damage: base.damage * minionScale,
+    damageMultiplier: minionScale,
     isBoss: !bossMinion && Boolean(base.boss),
     isMiniBoss: !bossMinion && Boolean(base.miniBoss),
     isBossMinion: bossMinion,
@@ -144,7 +142,7 @@ function spawnEnemy(type, options = {}) {
     summonCooldown: !bossMinion && type === "covenwitch" ? 3.5 : 0,
     summonsRemaining: !bossMinion && type === "covenwitch" ? 6 : 0,
     rangedCooldown: !bossMinion && type === "covenwitch" ? 1.2 : 0,
-    bossSummonTimer: !bossMinion && bossSummonsUnlocked && (base.boss || base.miniBoss) ? base.bossSummonInterval : 0,
+    bossSummonTimer: !bossMinion && (base.boss || base.miniBoss) ? base.bossSummonInterval : 0,
     bossSummonsMade: 0,
     blocked: false,
     moving: true,
@@ -154,9 +152,6 @@ function spawnEnemy(type, options = {}) {
     throwSpin: 0,
     slowTimer: 0,
     slowStrength: 0,
-    stunTimer: 0,
-    burnEffects: [],
-    shockTimer: 0,
     fearTimer: 0,
     fearCooldown: 0,
     fearTargetIndex: 0,

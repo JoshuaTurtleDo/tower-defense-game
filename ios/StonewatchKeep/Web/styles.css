@@ -159,7 +159,6 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .action-button { justify-content: space-between; font-size: 11px; }
 .action-button span { font-size: 9px; }
 .branch-hint { margin: -2px 0 9px; color: #aebfca; font-size: 9px; line-height: 1.45; }
-.zeus-action { color: #10233b; border-color: #bfeaff; background: linear-gradient(#d8f5ff, #62b9ee); box-shadow: inset 0 1px rgba(255,255,255,.55), 0 0 13px rgba(89,190,255,.3); }
 .tree-emblem { color: #9ac16d; background: radial-gradient(circle, rgba(70,112,55,.46), rgba(17,46,29,.72)); border-color: #66864c; }
 .tree-panel-copy { margin: 12px 0 15px; color: #a7ac9b; font-size: 10px; line-height: 1.55; }
 .tree-stat-list { margin-bottom: 14px; }
@@ -168,7 +167,6 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .grave-action { margin-top: 7px; color: #e7efd8; border-color: #78915d; background: linear-gradient(#526d45, #283f30); }
 .sling-action { margin-top: 7px; color: #21180c; border-color: #d2a45b; background: linear-gradient(#d8b16e, #9b6d35); }
 .nightspawn-action { margin-top: 7px; color: #ffe9ed; border-color: #c33b54; background: linear-gradient(#7e1d31, #3d111c); }
-.stone-throw-action { margin-top: 7px; color: #fff2d5; border-color: #9c7d4d; background: linear-gradient(#725a38, #392d20); }
 .ufo-twin-action { margin-top: 7px; color: #ffe7eb; border-color: #ff6680; background: linear-gradient(#7d2438, #3a1724); }
 .ufo-massive-action { margin-top: 7px; color: #102018; border-color: #8affad; background: linear-gradient(#b9ffd0, #62c987); }
 .mine-controls { margin-top: -3px; }

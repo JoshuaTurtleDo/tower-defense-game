@@ -1,6 +1,15 @@
 # Stonewatch Keep
 
-A medieval tower-defense game for Windows that can also run directly in a web browser. The battlefield is rendered as a fully lit 3D low-poly diorama using WebGL and a local copy of Three.js. Electron provides the Windows desktop application while the editable game remains ordinary HTML, CSS, and JavaScript.
+A medieval tower-defense game for iPhone, iPad, Windows, and web browsers. The battlefield is rendered as a fully lit 3D low-poly diorama using WebGL and a local copy of Three.js. The iOS app uses Apple's WKWebView, Electron provides the Windows desktop application, and the editable game remains ordinary HTML, CSS, and JavaScript.
+
+## Run on an iPhone
+
+1. Install Xcode on a Mac and connect the iPhone by cable (or enable wireless development in Xcode).
+2. Run `npm run ios:open` from this project. This refreshes the bundled game files and opens `ios/StonewatchKeep.xcodeproj`.
+3. In Xcode, select the **Stonewatch Keep** project, open **Signing & Capabilities**, and choose your Apple ID's development team. A free Apple ID works for installing on your own phone.
+4. Choose the connected iPhone in Xcode's device menu and press the Run button (▶). If prompted on the phone, enable Developer Mode and trust the developer certificate.
+
+The app is landscape-only. Tap to build or inspect, drag one finger over the battlefield to orbit, and use the −/+ battlefield buttons to zoom. The complete game is bundled in the app and does not need a network connection. After changing web game files, run `npm run ios:sync` before the next Xcode build.
 
 ## Play the Windows game
 
@@ -45,6 +54,8 @@ The **Monster Index** button sits in the lower-right of the battlefield. Every e
 - `npm run smoke` runs an invisible load test of the game and desktop wrapper.
 - `npm run make` creates the x64 Windows installer in `out/make`.
 - `npm run icon` rebuilds the Windows icon from the source PNG.
+- `npm run ios:sync` refreshes the offline web bundle embedded by the Xcode project.
+- `npm run ios:open` syncs that bundle and opens the ready-to-run iOS project.
 
 The generated `out` directory is intentionally excluded from Git. Make changes to the source files, test them, and rebuild the installer rather than editing the packaged `.exe`.
 
@@ -130,6 +141,7 @@ At level 2, each Alien UFO gains a permanent final-upgrade choice:
 - `js/game/` contains the gameplay as small purpose-based modules. Its own `README.md` is a map showing exactly where each kind of feature belongs.
 - `graphics3d.js` builds and animates the 3D terrain, models, lighting, shadows, health bars, and effects.
 - `electron-main.js` creates and secures the Windows game window.
+- `ios/StonewatchKeep.xcodeproj` and `ios/StonewatchKeep/` contain the lightweight native iOS wrapper, app icon, and offline game bundle.
 - `forge.config.js` configures the x64 Windows package and Squirrel installer.
 - `assets/stonewatch-keep.png` is the source artwork for the application icon.
 - `scripts/build-icon.mjs` converts the icon artwork into Windows `.ico` format.

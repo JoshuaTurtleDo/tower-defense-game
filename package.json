@@ -12,6 +12,8 @@
     "smoke": "electron . --smoke-test",
     "capture": "electron scripts/capture-preview.js",
     "icon": "node scripts/build-icon.mjs",
+    "ios:sync": "node scripts/sync-ios-web.mjs",
+    "ios:open": "npm run ios:sync && open ios/StonewatchKeep.xcodeproj",
     "package": "npm run icon && electron-forge package",
     "make": "npm run icon && electron-forge make"
   },

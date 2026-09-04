@@ -109,8 +109,6 @@ document.getElementById("upgradeButton").addEventListener("click", upgradeTower)
 document.getElementById("frostUpgradeButton").addEventListener("click", chooseFrostPath);
 document.getElementById("graveUpgradeButton").addEventListener("click", chooseGravestonePath);
 document.getElementById("slingUpgradeButton").addEventListener("click", chooseSlingshooterPath);
-document.getElementById("stoneThrowUpgradeButton").addEventListener("click", chooseStoneThrowPath);
-document.getElementById("zeusBowUpgradeButton").addEventListener("click", chooseZeusBowPath);
 document.getElementById("nightspawnUpgradeButton").addEventListener("click", chooseNightspawnPath);
 document.getElementById("twinLaserUpgradeButton").addEventListener("click", chooseTwinLaserPath);
 document.getElementById("massiveBeamUpgradeButton").addEventListener("click", chooseMassiveBeamPath);
