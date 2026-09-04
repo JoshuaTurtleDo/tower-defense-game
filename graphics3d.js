@@ -488,7 +488,7 @@ class ThreeGraphics {
     this.removeMissing(this.towerMeshes, towers);
     for (const tower of towers) {
       let group = this.towerMeshes.get(tower);
-      const tracksVisualSpecialization = tower.type === "barracks" || tower.type === "archer" || tower.type === "mine";
+      const tracksVisualSpecialization = tower.type === "barracks" || tower.type === "archer" || tower.type === "ballista" || tower.type === "ogre" || tower.type === "mine";
       const visualSpecialization = tracksVisualSpecialization ? tower.specialization || null : null;
       if (group && tracksVisualSpecialization && group.userData.visualSpecialization !== visualSpecialization) {
         this.scene.remove(group);
@@ -521,6 +521,14 @@ class ThreeGraphics {
         group.userData.castleAura.material.opacity = .22 + Math.sin(performance.now() * .0045 + tower.col) * .06;
       }
       if (group.userData.turret) group.userData.turret.rotation.y = -tower.angle;
+      if (group.userData.zeusCrystal) {
+        const now = performance.now() * .001;
+        const pulse = 1 + Math.sin(now * 9 + tower.col) * .16;
+        group.userData.zeusCrystal.rotation.x += .045;
+        group.userData.zeusCrystal.rotation.y += .07;
+        group.userData.zeusCrystal.scale.setScalar(pulse);
+        group.userData.zeusLight.intensity = 4.2 + Math.sin(now * 12) * 1.4;
+      }
       if (group.userData.crystal) {
         group.userData.crystal.rotation.y += .018;
         group.userData.crystal.position.y = group.userData.crystal.userData.baseY + Math.sin(performance.now() * .003) * .045;
@@ -683,6 +691,7 @@ class ThreeGraphics {
           head.rotation.y = Math.sin(now * .72 + tower.col) * .075;
           torso.scale.y = 1.18 + breath * .025;
         }
+        if (group.userData.stonePile) group.userData.stonePile.visible = (tower.stoneThrowTimer || 0) <= 0;
       }
       if (group.userData.ghostBody) {
         const now = performance.now() * .001;
@@ -784,10 +793,12 @@ class ThreeGraphics {
     else if (tower.type === "archer" && tower.specialization === "slingshooters") this.buildSlingshooterTower(group);
     else if (tower.type === "archer") this.buildArcherTower(group);
     else if (tower.type === "mage") this.buildMageTower(group);
-    else if (tower.type === "ballista") this.buildBallista(group);
+    else if (tower.type === "ballista") this.buildBallista(group, tower.specialization);
     else if (tower.type === "barracks" && tower.specialization === "graveyard") this.buildGravestone(group);
     else if (tower.type === "barracks" && tower.specialization === "gladiators") this.buildGladiatorCamp(group);
     else if (tower.type === "barracks") this.buildBarracks(group);
+    else if (tower.type === "ogre" && tower.specialization === "togga") this.buildToggaRally(group);
+    else if (tower.type === "ogre" && tower.specialization === "stoneThrow") this.buildStoneThrowOgre(group);
     else if (tower.type === "ogre") this.buildPlayerOgre(group);
     else if (tower.type === "ghost") this.buildGhost(group);
     else if (tower.type === "vampire") this.buildVampire(group);
@@ -812,7 +823,7 @@ class ThreeGraphics {
       }
     }
     group.scale.setScalar(this.towerModelScale);
-    if (tower.type === "barracks" || tower.type === "archer" || tower.type === "mine") group.userData.visualSpecialization = tower.specialization || null;
+    if (tower.type === "barracks" || tower.type === "archer" || tower.type === "ballista" || tower.type === "ogre" || tower.type === "mine") group.userData.visualSpecialization = tower.specialization || null;
     return group;
   }
 
@@ -1076,7 +1087,7 @@ class ThreeGraphics {
     }
   }
 
-  buildBallista(group) {
+  buildBallista(group, specialization = null) {
     this.mesh(new THREE.CylinderGeometry(.34, .38, .46, 10), this.mat.stone, 0, .35, 0, group);
     this.mesh(new THREE.CylinderGeometry(.355, .355, .055, 10), this.mat.goldDark, 0, .58, 0, group);
     for (let i = 0; i < 5; i++) {
@@ -1092,6 +1103,35 @@ class ThreeGraphics {
     const leftBrace = this.mesh(new THREE.BoxGeometry(.42, .045, .045), this.mat.iron, -.02, -.04, -.22, turret); leftBrace.rotation.y = -.55;
     const rightBrace = this.mesh(new THREE.BoxGeometry(.42, .045, .045), this.mat.iron, -.02, -.04, .22, turret); rightBrace.rotation.y = .55;
     this.mesh(new THREE.ConeGeometry(.07, .22, 6), this.mat.iron, .58, 0, 0, turret).rotation.z = -Math.PI / 2;
+    if (specialization === "flameBazooka") {
+      const barrel = this.mesh(new THREE.CylinderGeometry(.105, .135, .76, 10), this.mat.iron, .28, .035, 0, turret);
+      barrel.rotation.z = -Math.PI / 2;
+      this.mesh(new THREE.TorusGeometry(.12, .025, 6, 12), this.mat.gold, .62, .035, 0, turret).rotation.y = Math.PI / 2;
+      const muzzleMaterial = new THREE.MeshStandardMaterial({ color: 0x5a2416, roughness: .62, emissive: 0x7a1d08, emissiveIntensity: .8, flatShading: true });
+      const muzzle = this.mesh(new THREE.CylinderGeometry(.095, .095, .035, 10), muzzleMaterial, .67, .035, 0, turret);
+      muzzle.rotation.z = Math.PI / 2;
+      const fuelTank = this.mesh(new THREE.CylinderGeometry(.11, .11, .38, 9), this.mat.roofRed, -.14, .14, 0, turret);
+      fuelTank.rotation.z = Math.PI / 2;
+      this.mesh(new THREE.TorusGeometry(.115, .018, 5, 10), this.mat.goldDark, -.14, .14, 0, turret).rotation.y = Math.PI / 2;
+      group.userData.flameBazooka = true;
+      group.userData.flameMuzzle = muzzle;
+    } else if (specialization === "zeusBow") {
+      const lightningMaterial = new THREE.MeshStandardMaterial({ color: 0x9fe7ff, roughness: .24, metalness: .35, emissive: 0x238fe0, emissiveIntensity: 1.7, flatShading: true });
+      for (const side of [-1, 1]) {
+        const limb = this.mesh(new THREE.BoxGeometry(.1, .08, .52), lightningMaterial, .14, .04, side * .25, turret);
+        limb.rotation.x = side * .42;
+        const coil = this.mesh(new THREE.TorusGeometry(.075, .018, 5, 12), this.mat.goldLight, .25, .08, side * .17, turret);
+        coil.rotation.y = Math.PI / 2;
+      }
+      const crystal = this.mesh(new THREE.OctahedronGeometry(.105, 0), lightningMaterial, .48, .08, 0, turret);
+      crystal.rotation.z = Math.PI / 4;
+      const light = new THREE.PointLight(0x67cfff, 4.5, 2.4, 2);
+      light.position.set(.43, .12, 0);
+      turret.add(light);
+      group.userData.zeusBow = true;
+      group.userData.zeusCrystal = crystal;
+      group.userData.zeusLight = light;
+    }
     group.userData.turret = turret;
   }
 
@@ -1312,6 +1352,61 @@ class ThreeGraphics {
     group.userData.ogreRightLeg = rightLegParts.upper;
     group.userData.ogreLeftLowerLeg = leftLegParts.lower;
     group.userData.ogreRightLowerLeg = rightLegParts.lower;
+  }
+
+  buildToggaRally(group) {
+    const plate = this.mesh(new THREE.CylinderGeometry(.55, .62, .12, 10), this.mat.darkStone, 0, .07, 0, group);
+    plate.receiveShadow = true;
+    this.mesh(new THREE.RingGeometry(.35, .48, 10), this.mat.goldDark, 0, .135, 0, group).rotation.x = -Math.PI / 2;
+    const pole = this.mesh(new THREE.CylinderGeometry(.025, .032, .95, 7), this.mat.wood, -.28, .58, -.18, group);
+    pole.rotation.z = -.04;
+    const banner = new THREE.MeshStandardMaterial({ color: 0x315b75, roughness: .82, side: THREE.DoubleSide, flatShading: true });
+    const cloth = this.mesh(new THREE.BoxGeometry(.45, .34, .025), banner, -.08, .88, -.18, group);
+    cloth.rotation.z = -.06;
+    this.mesh(new THREE.BoxGeometry(.31, .055, .04), this.mat.gold, -.08, .88, -.155, group).rotation.z = -.06;
+    group.userData.toggaRally = plate;
+  }
+
+  buildStoneThrowOgre(group) {
+    this.buildPlayerOgre(group);
+    const stones = new THREE.Group();
+    stones.position.set(.56, .08, .28);
+    group.add(stones);
+    const mainRock = this.mesh(new THREE.DodecahedronGeometry(.24, 0), this.mat.stone, 0, .19, 0, stones);
+    mainRock.scale.set(1.1, .9, 1);
+    this.mesh(new THREE.DodecahedronGeometry(.11, 0), this.mat.stoneLight, -.19, .08, .08, stones);
+    this.mesh(new THREE.DodecahedronGeometry(.095, 0), this.mat.darkStone, .19, .07, -.04, stones);
+    group.userData.stonePile = stones;
+    group.userData.stoneThrowRock = mainRock;
+  }
+
+  buildToggaWarrior(group) {
+    this.buildPlayerOgre(group);
+    const body = group.userData.playerOgre;
+    const armor = new THREE.MeshStandardMaterial({ color: 0x4b5558, roughness: .38, metalness: .72, flatShading: true });
+    const armorLight = new THREE.MeshStandardMaterial({ color: 0x798386, roughness: .3, metalness: .76, flatShading: true });
+    const blue = new THREE.MeshStandardMaterial({ color: 0x244e68, roughness: .76, flatShading: true });
+    const chest = this.mesh(new THREE.BoxGeometry(.62, .62, .24), armor, 0, .62, .22, body);
+    chest.scale.set(1, 1, .72);
+    this.mesh(new THREE.BoxGeometry(.48, .1, .3), armorLight, 0, .78, .24, body);
+    for (const side of [-1, 1]) {
+      const shoulder = this.mesh(new THREE.DodecahedronGeometry(.22, 0), armor, side * .42, .82, .02, body);
+      shoulder.scale.set(1.22, .72, 1.05);
+      this.mesh(new THREE.CylinderGeometry(.13, .15, .29, 8), armor, 0, -.18, .025, side < 0 ? group.userData.ogreLeftForearm : group.userData.ogreRightForearm);
+      this.mesh(new THREE.BoxGeometry(.22, .18, .25), armor, 0, -.15, .1, side < 0 ? group.userData.ogreLeftLowerLeg : group.userData.ogreRightLowerLeg);
+    }
+    const head = group.userData.ogreHead;
+    const helmet = this.mesh(new THREE.SphereGeometry(.265, 12, 8, 0, Math.PI * 2, 0, Math.PI * .58), armor, 0, .04, -.015, head);
+    helmet.scale.set(1.05, .95, 1);
+    this.mesh(new THREE.BoxGeometry(.42, .075, .09), armorLight, 0, -.015, .22, head);
+    const crest = this.mesh(new THREE.ConeGeometry(.075, .38, 6), blue, 0, .34, -.06, head);
+    crest.rotation.x = -.18;
+    const belt = this.mesh(new THREE.BoxGeometry(.7, .12, .4), armor, 0, .34, 0, body);
+    this.mesh(new THREE.CylinderGeometry(.1, .1, .055, 8), this.mat.gold, 0, .34, .23, body).rotation.x = Math.PI / 2;
+    group.userData.toggaWarrior = true;
+    group.userData.toggaChest = chest;
+    group.userData.toggaHelmet = helmet;
+    group.userData.toggaBelt = belt;
   }
 
   buildGhost(group) {
@@ -1797,6 +1892,28 @@ class ThreeGraphics {
       bar.visible = knight.alive && this.showHealthBars;
       if (!knight.alive) continue;
       const p = this.worldFromGame(knight.x, knight.y);
+      if (knight.unitType === "togga") {
+        const stride = Math.sin(now * 7.2 + knight.phase);
+        const walking = knight.moving && !knight.clashing;
+        const bob = walking ? Math.abs(stride) * .025 : Math.sin(now * 2.1 + knight.phase) * .006;
+        const poundProgress = knight.groundPound > 0 ? 1 - knight.groundPound / .72 : 0;
+        const pound = knight.groundPound > 0 ? Math.sin(THREE.MathUtils.clamp(poundProgress, 0, 1) * Math.PI) : 0;
+        group.position.set(p.x, .035 + bob - pound * .035, p.z);
+        group.rotation.y = Math.PI / 2 - knight.angle;
+        group.rotation.z = walking ? stride * .045 : 0;
+        group.scale.setScalar(.64 * (knight.hitFlash > 0 ? 1.07 : 1));
+        group.userData.ogreLeftLeg.rotation.x = walking ? -.68 + stride * .35 : -.68;
+        group.userData.ogreRightLeg.rotation.x = walking ? -.68 - stride * .35 : -.68;
+        group.userData.ogreLeftArm.rotation.x = -.54 - pound * 1.3;
+        group.userData.ogreRightArm.rotation.x = -.54 - pound * 1.3;
+        group.userData.ogreLeftForearm.rotation.x = -.82 - pound * .55;
+        group.userData.ogreRightForearm.rotation.x = -.82 - pound * .55;
+        group.userData.playerOgre.rotation.z = -Math.sin(poundProgress * Math.PI * 2) * .08;
+        group.userData.ogreTorso.scale.y = 1.18 - pound * .08;
+        bar.position.set(p.x, 1.08 + bob, p.z);
+        this.updateHealthBar(bar, knight.hp / knight.maxHp);
+        continue;
+      }
       const strideRate = knight.unitType === "zombie" ? 6.5 : knight.unitType === "gladiator" ? 10 : knight.unitType === "vampireMinion" ? 12 : 11;
       const stride = Math.sin(now * strideRate + knight.phase);
       const walking = knight.moving && !knight.clashing;
@@ -1833,6 +1950,10 @@ class ThreeGraphics {
 
   createKnight(unitType = "knight") {
     const group = new THREE.Group();
+    if (unitType === "togga") {
+      this.buildToggaWarrior(group);
+      return group;
+    }
     const isZombie = unitType === "zombie";
     const isGladiator = unitType === "gladiator";
     const isVampireMinion = unitType === "vampireMinion";
@@ -2027,6 +2148,27 @@ class ThreeGraphics {
         group.userData.crownFlame.scale.setScalar(pulse);
       }
       group.userData.frostRing.visible = enemy.slowTimer > 0;
+      group.userData.burnAura.visible = Boolean(enemy.burnEffects?.length);
+      if (group.userData.burnAura.visible) {
+        group.userData.burnFlames.forEach((flame, index) => {
+          const flicker = 1 + Math.sin(now * (10 + index) + flame.userData.phase) * .28;
+          flame.scale.set(.82 + flicker * .2, flicker, .82 + flicker * .2);
+          flame.position.y = flame.userData.baseY + Math.sin(now * 8 + flame.userData.phase) * .035;
+        });
+        group.userData.burnLight.intensity = 3.8 + Math.sin(now * 13 + enemy.phase) * 1.6;
+      }
+      group.userData.shockAura.visible = enemy.shockTimer > 0;
+      if (enemy.shockTimer > 0) {
+        group.userData.shockAura.rotation.y = now * 7.5 + enemy.phase;
+        group.userData.shockAura.rotation.z = Math.sin(now * 12 + enemy.phase) * .15;
+        group.userData.shockAura.scale.setScalar(1 + Math.sin(now * 17) * .12);
+        group.userData.shockLight.intensity = 3.5 + Math.sin(now * 20) * 1.8;
+      }
+      group.userData.stunAura.visible = enemy.stunTimer > 0;
+      if (enemy.stunTimer > 0) {
+        group.userData.stunAura.rotation.y = now * 4.8 + enemy.phase;
+        group.userData.stunAura.position.y = .92 + Math.sin(now * 8 + enemy.phase) * .05;
+      }
       group.userData.fearAura.visible = enemy.fearTimer > 0;
       if (enemy.fearTimer > 0) {
         group.userData.fearAura.rotation.y = now * 5 + enemy.phase;
@@ -2096,6 +2238,53 @@ class ThreeGraphics {
     }
     group.add(fearAura);
     group.userData.fearAura = fearAura;
+    const stunAura = new THREE.Group();
+    stunAura.visible = false;
+    const stunMaterial = new THREE.MeshBasicMaterial({ color: 0xffd45b, toneMapped: false, transparent: true, opacity: .96, depthWrite: false });
+    for (let index = 0; index < 3; index++) {
+      const angle = index / 3 * Math.PI * 2;
+      const star = this.mesh(new THREE.OctahedronGeometry(.07, 0), stunMaterial, Math.cos(angle) * .31, 0, Math.sin(angle) * .31, stunAura);
+      star.scale.set(1.45, .55, 1.45);
+    }
+    group.add(stunAura);
+    group.userData.stunAura = stunAura;
+    const burnAura = new THREE.Group();
+    burnAura.visible = false;
+    const burnOuter = new THREE.MeshBasicMaterial({ color: 0xff5b20, transparent: true, opacity: .82, depthWrite: false, toneMapped: false });
+    const burnInner = new THREE.MeshBasicMaterial({ color: 0xffdc58, transparent: true, opacity: .94, depthWrite: false, toneMapped: false });
+    const burnFlames = [];
+    for (let index = 0; index < 5; index++) {
+      const angle = index / 5 * Math.PI * 2;
+      const flame = this.mesh(new THREE.ConeGeometry(.075, .28 + index % 2 * .06, 6), index % 2 ? burnInner : burnOuter, Math.cos(angle) * .24, .2 + index % 2 * .08, Math.sin(angle) * .24, burnAura);
+      flame.userData.baseY = flame.position.y;
+      flame.userData.phase = index * 1.37;
+      burnFlames.push(flame);
+    }
+    const burnLight = new THREE.PointLight(0xff6428, 4, 2.1, 2);
+    burnLight.position.y = .42;
+    burnAura.add(burnLight);
+    group.add(burnAura);
+    group.userData.burnAura = burnAura;
+    group.userData.burnFlames = burnFlames;
+    group.userData.burnLight = burnLight;
+    const shockAura = new THREE.Group();
+    shockAura.visible = false;
+    const shockMaterial = new THREE.MeshBasicMaterial({ color: 0x72d8ff, transparent: true, opacity: .9, depthWrite: false, toneMapped: false });
+    const shockRing = this.mesh(new THREE.TorusGeometry(.31, .025, 5, 18), shockMaterial, 0, .52, 0, shockAura);
+    shockRing.rotation.x = Math.PI / 2;
+    const shockCrossRing = this.mesh(new THREE.TorusGeometry(.27, .018, 5, 16), shockMaterial, 0, .52, 0, shockAura);
+    shockCrossRing.rotation.z = Math.PI / 2;
+    for (let index = 0; index < 4; index++) {
+      const angle = index / 4 * Math.PI * 2;
+      const spark = this.mesh(new THREE.TetrahedronGeometry(.065, 0), shockMaterial, Math.cos(angle) * .34, .52 + (index % 2 ? .18 : -.18), Math.sin(angle) * .34, shockAura);
+      spark.rotation.z = angle;
+    }
+    const shockLight = new THREE.PointLight(0x67cfff, 4, 2.3, 2);
+    shockLight.position.y = .55;
+    shockAura.add(shockLight);
+    group.add(shockAura);
+    group.userData.shockAura = shockAura;
+    group.userData.shockLight = shockLight;
     const possessionAura = new THREE.Group();
     possessionAura.visible = false;
     const possessionMaterial = new THREE.MeshBasicMaterial({ color: 0xae55ff, transparent: true, opacity: .92, depthWrite: false, toneMapped: false });
@@ -2912,7 +3101,7 @@ class ThreeGraphics {
       toneMapped: false
     });
     const sprite = new THREE.Sprite(material);
-    const width = { goblin: .48, skeleton: .53, orc: .61, ogre: .71, dragon: 1.05, horseman: 1.18, cyclops: 1.28, merchant: .68, pirate: .55, werewolf: .59, viking: .62, wraith: .64, demon: .69, davyjones: .9, moonalpha: .94, longship: 1.08, covenwitch: .92, riftlord: 1.12, knight: .43, zombie: .4, gladiator: .5, vampireMinion: .43 }[type];
+    const width = { goblin: .48, skeleton: .53, orc: .61, ogre: .71, dragon: 1.05, horseman: 1.18, cyclops: 1.28, merchant: .68, pirate: .55, werewolf: .59, viking: .62, wraith: .64, demon: .69, davyjones: .9, moonalpha: .94, longship: 1.08, covenwitch: .92, riftlord: 1.12, knight: .43, zombie: .4, gladiator: .5, vampireMinion: .43, togga: .82 }[type];
     sprite.scale.set(width, width * canvas.height / canvas.width, 1);
     sprite.renderOrder = 30;
     sprite.userData.canvas = canvas;
@@ -2922,7 +3111,7 @@ class ThreeGraphics {
     sprite.userData.baseAspect = canvas.height / canvas.width;
     sprite.userData.lastRatio = -1;
     sprite.userData.filledPixels = 0;
-    sprite.userData.friendly = type === "knight" || type === "zombie" || type === "gladiator" || type === "vampireMinion";
+    sprite.userData.friendly = type === "knight" || type === "zombie" || type === "gladiator" || type === "vampireMinion" || type === "togga";
     this.updateHealthBar(sprite, 1);
     return sprite;
   }
@@ -3017,16 +3206,45 @@ class ThreeGraphics {
           object.userData.shell = shell;
           const randomSpin = () => (Math.random() * .12 + .075) * (Math.random() < .5 ? -1 : 1);
           object.userData.spin = new THREE.Vector3(randomSpin(), randomSpin(), randomSpin());
-        } else if (projectile.variant === "slingRock") {
-          const rock = this.mesh(new THREE.DodecahedronGeometry(.125, 0), this.mat.stone, 0, 0, 0, object);
+        } else if (projectile.variant === "slingRock" || projectile.variant === "ogreRock") {
+          const ogreRock = projectile.variant === "ogreRock";
+          const rock = this.mesh(new THREE.DodecahedronGeometry(ogreRock ? .22 : .125, 0), this.mat.stone, 0, 0, 0, object);
           rock.castShadow = true;
           object.userData.rock = rock;
+          object.userData.ogreRock = ogreRock;
           object.userData.spin = new THREE.Vector3(.08 + Math.random() * .08, .07 + Math.random() * .09, .06 + Math.random() * .08);
         } else if (projectile.variant === "rifle") {
           const shot = this.mesh(new THREE.CylinderGeometry(.016, .02, .19, 7), this.mat.iron, 0, 0, 0, object);
           shot.rotation.x = Math.PI / 2;
           const tip = this.mesh(new THREE.ConeGeometry(.026, .07, 7), this.mat.goldLight, 0, 0, .125, object);
           tip.rotation.x = Math.PI / 2;
+        } else if (projectile.variant === "lightningBolt") {
+          const lightningMaterial = new THREE.MeshBasicMaterial({ color: 0xcaf5ff, toneMapped: false });
+          const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x3aaeff, transparent: true, opacity: .5, depthWrite: false, toneMapped: false });
+          const lightningSegments = [];
+          const points = [
+            new THREE.Vector3(0, 0, -.34), new THREE.Vector3(.075, .035, -.23),
+            new THREE.Vector3(-.065, -.025, -.12), new THREE.Vector3(.07, .045, 0),
+            new THREE.Vector3(-.055, -.035, .12), new THREE.Vector3(.045, .025, .23),
+            new THREE.Vector3(0, 0, .36)
+          ];
+          for (let index = 1; index < points.length; index++) {
+            const start = points[index - 1];
+            const end = points[index];
+            const delta = new THREE.Vector3().subVectors(end, start);
+            const length = delta.length();
+            const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(.5);
+            const glow = this.mesh(new THREE.CylinderGeometry(.034, .034, length, 5), glowMaterial, midpoint.x, midpoint.y, midpoint.z, object);
+            glow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.clone().normalize());
+            const core = this.mesh(new THREE.CylinderGeometry(.014, .014, length, 5), lightningMaterial, midpoint.x, midpoint.y, midpoint.z, object);
+            core.quaternion.copy(glow.quaternion);
+            lightningSegments.push(glow, core);
+          }
+          const light = new THREE.PointLight(0x68d6ff, 5.5, 2.8, 2);
+          object.add(light);
+          object.userData.lightningBolt = true;
+          object.userData.lightningSegments = lightningSegments;
+          object.userData.lightningLight = light;
         } else {
           const bolt = projectile.type === "ballista";
           const flamingBolt = projectile.variant === "flamingBolt";
@@ -3061,7 +3279,7 @@ class ThreeGraphics {
         this.projectileMeshes.set(projectile, object);
         this.scene.add(object);
       }
-      const p = this.worldFromGame(projectile.x, projectile.y, projectile.type === "ufo" ? .82 : projectile.type === "mage" ? .38 : projectile.type === "witchMagic" ? .58 : projectile.variant === "slingRock" ? .5 : .62);
+      const p = this.worldFromGame(projectile.x, projectile.y, projectile.type === "ufo" ? .82 : projectile.type === "mage" ? .38 : projectile.type === "witchMagic" ? .58 : projectile.variant === "ogreRock" ? .78 : projectile.variant === "slingRock" ? .5 : .62);
       object.position.copy(p);
       if (projectile.type === "witchMagic") {
         object.rotation.x += .09;
@@ -3083,10 +3301,16 @@ class ThreeGraphics {
         object.rotation.z += object.userData.spin.z;
         object.userData.shell.rotation.y -= object.userData.spin.y * .7;
         object.userData.shell.rotation.x += object.userData.spin.z * .45;
-      } else if (projectile.variant === "slingRock") {
+      } else if (projectile.variant === "slingRock" || projectile.variant === "ogreRock") {
         object.rotation.x += object.userData.spin.x;
         object.rotation.y += object.userData.spin.y;
         object.rotation.z += object.userData.spin.z;
+      } else if (projectile.variant === "lightningBolt" && projectile.target) {
+        const target = this.worldFromGame(projectile.target.x, projectile.target.y);
+        object.rotation.y = Math.atan2(target.x - p.x, target.z - p.z);
+        const pulse = 1 + Math.sin(performance.now() * .08) * .24;
+        object.userData.lightningSegments.forEach((segment, index) => segment.scale.setScalar(index % 2 ? pulse : 1 + (pulse - 1) * .5));
+        object.userData.lightningLight.intensity = 4.8 + Math.sin(performance.now() * .09) * 2;
       } else if (projectile.variant === "flamingBolt" && projectile.target) {
         const target = this.worldFromGame(projectile.target.x, projectile.target.y);
         object.rotation.y = Math.atan2(target.x - p.x, target.z - p.z);

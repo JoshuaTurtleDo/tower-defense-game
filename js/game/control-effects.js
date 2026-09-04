@@ -1,6 +1,42 @@
 "use strict";
 
-// Stoneback Ogre throws, Dread Ghost control, and Dracula's Cloak bat curses.
+// Ballista ailments, Stoneback Ogre throws, Dread Ghost control, and Dracula's Cloak bat curses.
+
+function igniteEnemy(enemy, initialDamage, tower) {
+  const base = towerTypes.ballista;
+  if (!enemy || enemy.dead || initialDamage <= 0 || tower.specialization !== "flameBazooka") return null;
+  const totalDamage = initialDamage * base.flameBurnRatio;
+  const effect = {
+    owner: tower,
+    remainingDamage: totalDamage,
+    remainingTime: base.flameBurnDuration,
+    damagePerSecond: totalDamage / base.flameBurnDuration
+  };
+  enemy.burnEffects.push(effect);
+  return effect;
+}
+
+function shockEnemy(enemy, tower) {
+  const base = towerTypes.ballista;
+  if (!enemy || enemy.dead || tower.specialization !== "zeusBow") return false;
+  enemy.shockTimer = Math.max(enemy.shockTimer || 0, base.shockDuration);
+  enemy.stunTimer = Math.max(enemy.stunTimer || 0, base.shockStunDuration);
+  return true;
+}
+
+function updateBallistaStatusEffects(enemy, dt) {
+  enemy.shockTimer = Math.max(0, (enemy.shockTimer || 0) - dt);
+  if (!enemy.burnEffects?.length) return;
+  for (const effect of enemy.burnEffects) {
+    if (enemy.dead) break;
+    const activeTime = Math.min(dt, effect.remainingTime);
+    const damage = Math.min(effect.remainingDamage, effect.damagePerSecond * activeTime);
+    effect.remainingTime -= activeTime;
+    effect.remainingDamage -= damage;
+    if (damage > 0) damageEnemy(enemy, damage, effect.owner, "fire", effect.owner, { fixedDamage: true });
+  }
+  enemy.burnEffects = enemy.burnEffects.filter(effect => effect.remainingTime > 0 && effect.remainingDamage > .001);
+}
 
 function curseEnemiesIntoBats(tower) {
   if (!hasRelic(tower, "draculaCloak")) return [];

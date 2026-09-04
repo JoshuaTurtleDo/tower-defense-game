@@ -5,9 +5,9 @@
 const towerTypes = {
   archer: { name: "Royal Archers", cost: 70, range: 145, damage: 16.8, rifleDamageMultiplier: 2.365, slingshooterDamage: 120, damageType: "physical", cooldown: 1.35, projectileSpeed: 480, color: "#d6d19c", splash: 0, emblem: "➶", className: "archer-emblem" },
   mage: { name: "Royal Wizard", cost: 130, upgradeCostMultiplier: .9, range: 128, damage: 35, damageType: "magic", cooldown: 1.15, projectileSpeed: 330, color: "#a788eb", splash: 62, emblem: "✦", className: "mage-emblem" },
-  ballista: { name: "Royal Ballista", cost: 160, upgradeCostMultiplier: .9, range: 215, damage: 120, damageType: "physical", cooldown: 2.05, projectileSpeed: 650, color: "#e5a654", splash: 0, emblem: "✧", className: "ballista-emblem" },
+  ballista: { name: "Royal Ballista", cost: 160, upgradeCostMultiplier: .9, range: 215, damage: 120, damageType: "physical", cooldown: 2.05, projectileSpeed: 650, color: "#e5a654", splash: 0, flameBurnRatio: .5, flameBurnDuration: 2, shockDuration: 3, shockDamageTakenMultiplier: 1.1, shockStunDuration: .2, emblem: "✧", className: "ballista-emblem" },
   barracks: { name: "Royal Barracks", cost: 135, range: 138, damage: 12, damageType: "physical", cooldown: .85, projectileSpeed: 0, color: "#b9c8cf", splash: 0, emblem: "⚔", className: "barracks-emblem" },
-  ogre: { name: "Stoneback Ogre", cost: 150, range: 132, damage: 200, damageType: "physical", cooldown: 3.8, projectileSpeed: 0, color: "#8e8050", splash: 0, knockback: 150, emblem: "✊", className: "ogre-emblem" },
+  ogre: { name: "Stoneback Ogre", cost: 150, range: 132, damage: 200, damageType: "physical", cooldown: 3.8, projectileSpeed: 0, color: "#8e8050", splash: 0, knockback: 150, warriorDamage: 500, warriorCooldown: 3, warriorHp: 900, warriorAttackTargets: 6, warriorBlockers: 10, warriorStunDuration: 1, warriorRetreatHealth: 450, warriorRetreatDuration: 6, warriorRespawnDuration: 15, stoneDamage: 400, stoneSplashDamage: 250, stoneSplash: CELL, stoneCooldown: 3, stoneProjectileSpeed: 315, emblem: "✊", className: "ogre-emblem" },
   ghost: { name: "Dread Ghost", cost: 175, range: 145, damage: 0, damageType: "control", cooldown: 3.8, projectileSpeed: 0, color: "#9be3d6", splash: 0, fearDuration: 2, fearCount: 1, bossFearCooldown: 8, emblem: "◉", className: "ghost-emblem" },
   vampire: { name: "Crimson Vampire", cost: 205, range: 142, damage: 72, damageType: "magic", cooldown: 2.85, projectileSpeed: 0, color: "#c83645", splash: 0, emblem: "♠", className: "vampire-emblem" },
   ufo: { name: "Alien UFO", cost: 400, range: 185, damage: 24, damageType: "magic", cooldown: .3, projectileSpeed: 1100, color: "#52ff78", splash: 0, twinLaserColor: "#ff4e68", massiveDamageMultiplier: 3.3, massiveCooldownMultiplier: 4.4, massiveSplash: 105, emblem: "⌁", className: "ufo-emblem" },
@@ -15,7 +15,8 @@ const towerTypes = {
   mine: { name: "Gold Mine", cost: 150, range: 0, damage: 0, damageType: "economy", cooldown: 1, projectileSpeed: 0, color: "#e2b84f", splash: 0, emblem: "⚒", className: "mine-emblem" }
 };
 
-const bossSummonDefaults = { bossSummonInterval: 15, bossSummonCount: 5, bossSummonScale: .05 };
+const BOSS_SUMMON_UNLOCK_WAVE = 20;
+const bossSummonDefaults = { bossSummonInterval: 15, bossSummonCount: 5, bossSummonHealthScale: .02, bossSummonDamageScale: .05 };
 
 const enemyTypes = {
   goblin: { name: "Goblin", hp: 48, speed: 78, reward: 8, damage: 1, color: "#66833e", physicalResistance: 0, magicResistance: 0, symbol: "G", scale: .82, barWidth: 27, barOffset: 23 },

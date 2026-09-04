@@ -8,11 +8,13 @@ function enemyProgress(enemy) {
 
 function fireProjectile(tower, target, stats, archerIndex = null, overrides = {}) {
   const base = towerTypes[tower.type];
-  const flamingBallista = tower.type === "ballista" && tower.level >= 3;
-  const projectileColor = overrides.color || (flamingBallista ? "#ff7429" : tower.type === "mage" && tower.specialization === "frost" ? "#8fe8f4" : base.color);
+  const flamingBallista = tower.type === "ballista" && tower.specialization === "flameBazooka";
+  const lightningBallista = tower.type === "ballista" && tower.specialization === "zeusBow";
+  const projectileColor = overrides.color || (lightningBallista ? "#78d8ff" : flamingBallista ? "#ff7429" : tower.type === "mage" && tower.specialization === "frost" ? "#8fe8f4" : base.color);
   let variant = null;
   if (tower.type === "archer") variant = tower.specialization === "slingshooters" ? "slingRock" : tower.specialization === "riflemen" ? "rifle" : "arrow";
   else if (flamingBallista) variant = "flamingBolt";
+  else if (lightningBallista) variant = "lightningBolt";
   else if (tower.type === "ufo") variant = tower.specialization === "massivebeam" ? "ufoMassiveLaser" : "ufoLaser";
   variant = overrides.variant || variant;
   let originX = tower.x + Math.cos(tower.angle) * 17;
@@ -36,6 +38,7 @@ function fireProjectile(tower, target, stats, archerIndex = null, overrides = {}
     damage: stats.damage,
     damageType: base.damageType,
     splash: stats.splash,
+    splashDamage: overrides.splashDamage,
     speed: stats.projectileSpeed || base.projectileSpeed,
     color: projectileColor,
     variant,
@@ -45,10 +48,11 @@ function fireProjectile(tower, target, stats, archerIndex = null, overrides = {}
 
 function hitEnemy(projectile, target) {
   if (projectile.splash > 0) {
-    burst(target.x, target.y, projectile.color, projectile.variant === "ufoMassiveLaser" ? 24 : 12);
+    burst(target.x, target.y, projectile.color, projectile.variant === "ufoMassiveLaser" ? 24 : projectile.variant === "ogreRock" ? 22 : 12);
     for (const enemy of state.enemies) {
       if (!enemy.dead && !enemy.reached && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= projectile.splash) {
-        damageEnemy(enemy, projectile.damage * (enemy === target ? 1 : .7), projectile.owner, projectile.damageType);
+        const splashDamage = enemy === target ? projectile.damage : projectile.splashDamage ?? projectile.damage * .7;
+        damageEnemy(enemy, splashDamage, projectile.owner, projectile.damageType);
         if (projectile.owner.type === "mage" && projectile.owner.specialization === "frost" && !enemy.dead) {
           applyFrostSlow(enemy);
         }
@@ -62,10 +66,15 @@ function hitEnemy(projectile, target) {
     } else if (projectile.variant === "flamingBolt") {
       burst(target.x, target.y, "#ff5b20", 13);
       burst(target.x, target.y, "#ffd35a", 7);
+    } else if (projectile.variant === "lightningBolt") {
+      burst(target.x, target.y, "#78d8ff", 14);
+      burst(target.x, target.y, "#fff4a8", 7);
     } else {
       burst(target.x, target.y, projectile.color, 4);
     }
-    damageEnemy(target, projectile.damage, projectile.owner, projectile.damageType);
+    const damageDealt = damageEnemy(target, projectile.damage, projectile.owner, projectile.damageType);
+    if (projectile.variant === "flamingBolt" && !target.dead) igniteEnemy(target, damageDealt, projectile.owner);
+    if (projectile.variant === "lightningBolt" && !target.dead) shockEnemy(target, projectile.owner);
   }
 }
 
@@ -74,11 +83,13 @@ function applyFrostSlow(enemy) {
   enemy.slowTimer = Math.max(enemy.slowTimer, 2.75);
 }
 
-function damageEnemy(enemy, amount, owner, damageType = "physical", source = owner) {
+function damageEnemy(enemy, amount, owner, damageType = "physical", source = owner, options = {}) {
   if ((enemy.isBoss || enemy.isMiniBoss) && source?.owner?.type === "barracks") enemy.barracksProvoked = true;
-  const resistance = damageType === "magic" ? enemy.magicResistance : enemy.physicalResistance;
-  const damageTakenMultiplier = enemy.batFormTimer > 0 ? DRACULA_BAT_DAMAGE_MULTIPLIER : 1;
-  const actual = amount * (1 - THREE.MathUtils.clamp(resistance || 0, 0, .8)) * damageTakenMultiplier;
+  const resistance = damageType === "magic" ? enemy.magicResistance : damageType === "physical" ? enemy.physicalResistance : 0;
+  const batMultiplier = enemy.batFormTimer > 0 ? DRACULA_BAT_DAMAGE_MULTIPLIER : 1;
+  const shockMultiplier = enemy.shockTimer > 0 ? towerTypes.ballista.shockDamageTakenMultiplier : 1;
+  const damageTakenMultiplier = batMultiplier * shockMultiplier;
+  const actual = options.fixedDamage ? amount : amount * (1 - THREE.MathUtils.clamp(resistance || 0, 0, .8)) * damageTakenMultiplier;
   enemy.hp -= actual;
   enemy.lastDamageType = damageType;
   enemy.lastResistance = resistance || 0;
@@ -99,6 +110,7 @@ function damageEnemy(enemy, amount, owner, damageType = "physical", source = own
     if (bossDefeated) recordBossDefeat(enemy);
     if (merchantDefeated) queueMerchantStore();
   }
+  return actual;
 }
 
 function spawnEnemyDebris(enemy) {

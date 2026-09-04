@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#17140f" />
     <title>Stonewatch Keep</title>
-    <link rel="stylesheet" href="styles.css?v=20260901-unique-relics" />
+    <link rel="stylesheet" href="styles.css?v=20260903-ballista-paths" />
   </head>
   <body>
     <main class="game-shell">
@@ -129,6 +129,8 @@
             <button id="frostUpgradeButton" class="action-button frost-action hidden"><span>Frost Path</span><span id="frostUpgradeCost">170 gold</span></button>
             <button id="graveUpgradeButton" class="action-button grave-action hidden"><span>Gravestone Path</span><span id="graveUpgradeCost">255 gold</span></button>
             <button id="slingUpgradeButton" class="action-button sling-action hidden"><span>Slingshooters Path</span><span id="slingUpgradeCost">150 gold</span></button>
+            <button id="stoneThrowUpgradeButton" class="action-button stone-throw-action hidden"><span>StoneThrow Ogre</span><span id="stoneThrowUpgradeCost">293 gold</span></button>
+            <button id="zeusBowUpgradeButton" class="action-button zeus-action hidden"><span>Zeus's Bow</span><span id="zeusBowUpgradeCost">281 gold</span></button>
             <button id="nightspawnUpgradeButton" class="action-button nightspawn-action hidden"><span>Nightspawn Path</span><span id="nightspawnUpgradeCost">400 gold</span></button>
             <button id="twinLaserUpgradeButton" class="action-button ufo-twin-action hidden"><span>Twin Laser Path</span><span id="twinLaserUpgradeCost">780 gold</span></button>
             <button id="massiveBeamUpgradeButton" class="action-button ufo-massive-action hidden"><span>Massive Beam Path</span><span id="massiveBeamUpgradeCost">780 gold</span></button>
@@ -275,22 +277,22 @@
     </div>
 
     <script src="node_modules/three/build/three.min.js"></script>
-    <script src="graphics3d.js?v=20260901-umbral-form"></script>
+    <script src="graphics3d.js?v=20260903-ballista-paths"></script>
     <!-- Game modules are deliberately ordered from shared data through startup. -->
     <script src="js/game/config.js?v=20260901-umbral-form"></script>
-    <script src="js/game/content.js?v=20260901-merchant-events"></script>
-    <script src="js/game/state.js?v=20260901-boss-retaliation"></script>
-    <script src="js/game/defenses.js?v=20260901-umbral-form"></script>
-    <script src="js/game/troops.js?v=20260901-boss-retaliation"></script>
-    <script src="js/game/upgrade-paths.js?v=20260901-ufo-paths"></script>
+    <script src="js/game/content.js?v=20260903-boss-summons"></script>
+    <script src="js/game/state.js?v=20260903-boss-summons"></script>
+    <script src="js/game/defenses.js?v=20260903-ballista-paths"></script>
+    <script src="js/game/troops.js?v=20260903-ogre-paths"></script>
+    <script src="js/game/upgrade-paths.js?v=20260903-ballista-paths"></script>
     <script src="js/game/relics-and-trees.js?v=20260901-unique-relics"></script>
-    <script src="js/game/control-effects.js?v=20260901-umbral-form"></script>
-    <script src="js/game/simulation.js?v=20260901-boss-retaliation"></script>
-    <script src="js/game/combat.js?v=20260901-boss-retaliation"></script>
+    <script src="js/game/control-effects.js?v=20260903-ballista-paths"></script>
+    <script src="js/game/simulation.js?v=20260903-boss-summons"></script>
+    <script src="js/game/combat.js?v=20260903-ballista-paths"></script>
     <script src="js/game/fallback-renderer.js?v=20260831-mine-income"></script>
-    <script src="js/game/interface.js?v=20260901-umbral-form"></script>
+    <script src="js/game/interface.js?v=20260903-ballista-paths"></script>
     <script src="js/game/monster-index.js?v=20260831-mine-income"></script>
-    <script src="js/game/input.js?v=20260901-space-hotkey-fix"></script>
+    <script src="js/game/input.js?v=20260903-ballista-paths"></script>
     <script src="js/game/main.js?v=20260831-mine-income"></script>
   </body>
 </html>

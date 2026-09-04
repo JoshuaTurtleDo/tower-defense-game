@@ -29,6 +29,8 @@ function placeTower(col, row) {
     goldMined: 0,
     relicsExcavated: 0,
     throwSwing: 0,
+    stoneThrowTimer: 0,
+    toggaUnit: null,
     fearPulse: 0,
     enemiesFeared: 0,
     enemiesPossessed: 0,
@@ -112,6 +114,24 @@ function towerStats(tower) {
     stats.damage *= 1.5;
     stats.cooldown *= .85;
   }
+  if (tower.type === "ogre" && tower.specialization === "togga") {
+    stats.damage = base.warriorDamage;
+    stats.cooldown = base.warriorCooldown;
+    stats.splash = 0;
+  } else if (tower.type === "ogre" && tower.specialization === "stoneThrow") {
+    stats.damage = base.stoneDamage;
+    stats.cooldown = base.stoneCooldown;
+    stats.splash = base.stoneSplash;
+    stats.splashDamage = base.stoneSplashDamage;
+    stats.projectileSpeed = base.stoneProjectileSpeed;
+  }
+  if (tower.type === "ballista") {
+    stats.burnRatio = tower.specialization === "flameBazooka" ? base.flameBurnRatio : 0;
+    stats.burnDuration = tower.specialization === "flameBazooka" ? base.flameBurnDuration : 0;
+    stats.shockDuration = tower.specialization === "zeusBow" ? base.shockDuration : 0;
+    stats.shockDamageTakenMultiplier = tower.specialization === "zeusBow" ? base.shockDamageTakenMultiplier : 1;
+    stats.shockStunDuration = tower.specialization === "zeusBow" ? base.shockStunDuration : 0;
+  }
   if (tower.type === "ufo" && tower.specialization === "massivebeam") {
     stats.damage *= base.massiveDamageMultiplier;
     stats.cooldown *= base.massiveCooldownMultiplier;
@@ -119,6 +139,7 @@ function towerStats(tower) {
     stats.projectileSpeed = 760;
   }
   stats.damage *= relicMultiplier(tower, "damage");
+  if (stats.splashDamage !== undefined) stats.splashDamage *= relicMultiplier(tower, "damage");
   if (tower.type === "vampire" && hasRelic(tower, "draculaCloak")) {
     const maxLevelDamage = base.damage * Math.pow(1.55, 2);
     stats.damage = maxLevelDamage * relicMultiplier(tower, "draculaPower") * relicMultiplier(tower, "damage");
@@ -127,6 +148,7 @@ function towerStats(tower) {
   stats.cooldown *= relicMultiplier(tower, "cooldown");
   if (hasTinyCastleAura(tower)) {
     stats.damage *= TINY_CASTLE_AURA_MULTIPLIER;
+    if (stats.splashDamage !== undefined) stats.splashDamage *= TINY_CASTLE_AURA_MULTIPLIER;
     stats.range *= TINY_CASTLE_AURA_MULTIPLIER;
     stats.cooldown /= TINY_CASTLE_AURA_MULTIPLIER;
   }
@@ -150,8 +172,11 @@ function upgradeTower() {
   if (tower.type === "barracks" && tower.level === 2) tower.specialization = "gladiators";
   if (tower.type === "archer" && tower.level === 2) tower.specialization = "riflemen";
   if (tower.type === "vampire" && tower.level === 2) tower.specialization = "bloodstorm";
+  if (tower.type === "ogre" && tower.level === 2) tower.specialization = "togga";
+  if (tower.type === "ballista" && tower.level === 2) tower.specialization = "flameBazooka";
   tower.level++;
   if (tower.type === "barracks") ensureBarracksKnights(tower, true);
+  if (tower.type === "ogre" && tower.specialization === "togga") ensureToggaWarrior(tower, true);
   burst(tower.x, tower.y, towerTypes[tower.type].color, 18);
   showInspectPanel(tower);
   updateUI();

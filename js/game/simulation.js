@@ -21,6 +21,8 @@ function update(dt) {
     if (enemy.dead || enemy.reached) continue;
     enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
     updateBatForm(enemy, dt);
+    updateBallistaStatusEffects(enemy, dt);
+    if (enemy.dead) continue;
     enemy.attackSwing = Math.max(0, enemy.attackSwing - dt);
     enemy.fireBreathTimer = Math.max(0, (enemy.fireBreathTimer || 0) - dt);
     enemy.blocked = false;
@@ -29,7 +31,11 @@ function update(dt) {
       updateThrownEnemy(enemy, dt);
       continue;
     }
-    if (!enemy.isBossMinion && (enemy.isBoss || enemy.isMiniBoss)) {
+    if (enemy.stunTimer > 0) {
+      enemy.stunTimer = Math.max(0, enemy.stunTimer - dt);
+      continue;
+    }
+    if (state.wave >= BOSS_SUMMON_UNLOCK_WAVE && !enemy.isBossMinion && (enemy.isBoss || enemy.isMiniBoss)) {
       enemy.bossSummonTimer -= dt;
       if (enemy.bossSummonTimer <= 0) summonBossMinions(enemy);
     }
@@ -37,9 +43,9 @@ function update(dt) {
       enemy.summonCooldown -= dt;
       if (enemy.summonCooldown <= 0) summonWraiths(enemy);
     }
-    if (!enemy.isBossMinion && enemy.type === "covenwitch" && !bossIgnoresBarracks(enemy)) {
+    if (!enemy.isBossMinion && enemy.type === "covenwitch") {
       enemy.rangedCooldown -= dt;
-      const rangedTargets = state.knights.filter(unit => unit.alive && !unit.expired && Math.hypot(unit.x - enemy.x, unit.y - enemy.y) <= 150);
+      const rangedTargets = state.knights.filter(unit => unit.alive && !unit.expired && (unit.unitType === "togga" || !bossIgnoresBarracks(enemy)) && Math.hypot(unit.x - enemy.x, unit.y - enemy.y) <= 150);
       rangedTargets.sort((a, b) => Math.hypot(a.x - enemy.x, a.y - enemy.y) - Math.hypot(b.x - enemy.x, b.y - enemy.y));
       if (rangedTargets.length && enemy.rangedCooldown <= 0) fireWitchProjectile(enemy, rangedTargets[0]);
     }
@@ -51,7 +57,9 @@ function update(dt) {
       continue;
     }
     enemy.fearCooldown = Math.max(0, enemy.fearCooldown - dt);
-    const blocker = enemy.ignoresBarracks || bossIgnoresBarracks(enemy) ? null : state.knights.find(knight => knight.alive && knight.target === enemy && Math.hypot(knight.x - enemy.x, knight.y - enemy.y) <= 24);
+    const toggaBlocker = enemy.ignoresBarracks ? null : state.knights.find(unit => unit.unitType === "togga" && unit.alive && !unit.retreating && unit.engagedEnemies?.includes(enemy) && Math.hypot(unit.x - enemy.x, unit.y - enemy.y) <= 42);
+    const barracksBlocker = enemy.ignoresBarracks || bossIgnoresBarracks(enemy) ? null : state.knights.find(knight => knight.unitType !== "togga" && knight.alive && knight.target === enemy && Math.hypot(knight.x - enemy.x, knight.y - enemy.y) <= 24);
+    const blocker = toggaBlocker || barracksBlocker;
     if (blocker) {
       enemy.blocked = true;
       enemy.combatAngle = Math.atan2(blocker.y - enemy.y, blocker.x - enemy.x);
@@ -85,7 +93,9 @@ function update(dt) {
       enemy.pathIndex++;
       if (enemy.pathIndex >= pathPoints.length) {
         enemy.reached = true;
-        if (enemy.isBoss) {
+        if (enemy.isBossMinion || enemy.type === "merchant") {
+          updateUI();
+        } else if (enemy.isBoss) {
           state.lives = 0;
           updateUI();
           endGame(false, `The ${enemyTypes[enemy.type].name} reached Stonewatch Keep. Any boss breach ends the defense immediately.`);
@@ -103,6 +113,7 @@ function update(dt) {
 
   for (const tower of state.towers) {
     tower.throwSwing = Math.max(0, tower.throwSwing - dt);
+    tower.stoneThrowTimer = Math.max(0, (tower.stoneThrowTimer || 0) - dt);
     tower.fearPulse = Math.max(0, (tower.fearPulse || 0) - dt);
     tower.bloodDrainTimer = Math.max(0, (tower.bloodDrainTimer || 0) - dt);
     tower.batCursePulse = Math.max(0, (tower.batCursePulse || 0) - dt);
@@ -193,6 +204,10 @@ function update(dt) {
       continue;
     }
     if (tower.type === "ogre") {
+      if (tower.specialization === "togga") {
+        ensureToggaWarrior(tower);
+        continue;
+      }
       tower.cooldown -= dt;
       const stats = towerStats(tower);
       const candidates = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && Math.hypot(enemy.x - tower.x, enemy.y - tower.y) <= stats.range);
@@ -201,7 +216,11 @@ function update(dt) {
       if (target) {
         tower.angle = Math.atan2(target.y - tower.y, target.x - tower.x);
         if (tower.cooldown <= 0) {
-          if (target.isBoss || target.isMiniBoss) {
+          if (tower.specialization === "stoneThrow") {
+            fireProjectile(tower, target, stats, null, { variant: "ogreRock", color: "#9d8d64", splashDamage: stats.splashDamage });
+            tower.throwSwing = .9;
+            tower.stoneThrowTimer = .9;
+          } else if (target.isBoss || target.isMiniBoss) {
             tower.throwSwing = .9;
             damageEnemy(target, stats.damage, tower, "physical");
             burst(target.x, target.y, "#8e8050", 8);

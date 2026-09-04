@@ -65,6 +65,42 @@ function chooseSlingshooterPath() {
   updateUI();
 }
 
+function chooseStoneThrowPath() {
+  const tower = state.selectedTower;
+  if (!tower || tower.type !== "ogre" || tower.level !== 2) return;
+  const cost = upgradeCost(tower);
+  if (cost === null || state.gold < cost) return;
+  state.gold -= cost;
+  tower.spent += cost;
+  tower.level++;
+  tower.specialization = "stoneThrow";
+  tower.cooldown = 0;
+  tower.stoneThrowTimer = 0;
+  state.knights = state.knights.filter(unit => unit.owner !== tower);
+  tower.toggaUnit = null;
+  burst(tower.x, tower.y, "#9d8d64", 30);
+  showAnnouncement("StoneThrow Path unlocked — crushing boulders damage groups");
+  showInspectPanel(tower);
+  updateUI();
+}
+
+function chooseZeusBowPath() {
+  const tower = state.selectedTower;
+  if (!tower || tower.type !== "ballista" || tower.level !== 2) return;
+  const cost = upgradeCost(tower);
+  if (cost === null || state.gold < cost) return;
+  state.gold -= cost;
+  tower.spent += cost;
+  tower.level++;
+  tower.specialization = "zeusBow";
+  tower.cooldown = 0;
+  burst(tower.x, tower.y, "#78cfff", 30);
+  burst(tower.x, tower.y, "#fff4a8", 16);
+  showAnnouncement("Zeus's Bow unlocked — lightning exposes and stuns its targets");
+  showInspectPanel(tower);
+  updateUI();
+}
+
 function chooseTwinLaserPath() {
   const tower = state.selectedTower;
   if (!tower || tower.type !== "ufo" || tower.level !== 2) return;

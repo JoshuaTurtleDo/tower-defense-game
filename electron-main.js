@@ -257,24 +257,51 @@ function createWindow() {
           bossSummons: (() => {
             try {
               resetGame();
+              state.wave = 10;
               spawnEnemy("dragon");
               const dragon = state.enemies[0];
               dragon.speed = 0;
               update(15.01);
-              const dragonMinions = state.enemies.filter(enemy => enemy.isBossMinion);
-              graphics3D.render(state, hoverCell, canPlace, towerStats);
-              const dragonMinionModel = graphics3D.enemyMeshes.get(dragonMinions[0]);
-              const dragonModel = graphics3D.enemyMeshes.get(dragon);
-              const waveBossWorks = dragonMinions.length === 5 && dragonMinions.every(minion => !minion.isBoss && !minion.isMiniBoss && minion.reward === 0 && Math.abs(minion.maxHp - dragon.maxHp * .05) < .001 && Math.abs(enemyMeleeDamage(minion) - 7.5) < .001) && dragonMinionModel?.scale.x < dragonModel?.scale.x;
+              const dragonWaitsForWaveTwenty = state.enemies.filter(enemy => enemy.isBossMinion).length === 0 && dragon.bossSummonTimer === 0;
 
               resetGame();
-              spawnEnemy("davyjones");
+              state.wave = 18;
+              spawnEnemy("longship");
+              const earlyEventBoss = state.enemies[0];
+              earlyEventBoss.speed = 0;
+              update(15.01);
+              const earlyEventsWaitForWaveTwenty = state.enemies.filter(enemy => enemy.isBossMinion).length === 0 && earlyEventBoss.bossSummonTimer === 0;
+
+              resetGame();
+              state.wave = 20;
+              spawnEnemy("horseman");
+              const waveBoss = state.enemies[0];
+              waveBoss.speed = 0;
+              update(15.01);
+              const waveBossMinions = state.enemies.filter(enemy => enemy.isBossMinion);
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const waveBossMinionModel = graphics3D.enemyMeshes.get(waveBossMinions[0]);
+              const waveBossModel = graphics3D.enemyMeshes.get(waveBoss);
+              const waveBossWorks = waveBossMinions.length === 5 && waveBossMinions.every(minion => !minion.isBoss && !minion.isMiniBoss && minion.reward === 0 && Math.abs(minion.maxHp - waveBoss.maxHp * .02) < .001 && minion.damageMultiplier === .05) && waveBossMinionModel?.scale.x < waveBossModel?.scale.x;
+              const finish = pathPoints[pathPoints.length - 1];
+              const harmlessMinion = waveBossMinions[0];
+              harmlessMinion.x = finish.x;
+              harmlessMinion.y = finish.y;
+              harmlessMinion.pathIndex = pathPoints.length - 1;
+              harmlessMinion.speed = 100;
+              const livesBeforeMinionEscape = state.lives;
+              update(.01);
+              const minionEscapeIsHarmless = harmlessMinion.reached && state.lives === livesBeforeMinionEscape && !state.ended;
+
+              resetGame();
+              state.wave = 24;
+              spawnEnemy("covenwitch");
               const eventBoss = state.enemies[0];
               eventBoss.speed = 0;
               update(15.01);
               const eventMinions = state.enemies.filter(enemy => enemy.isBossMinion);
-              const eventBossWorks = eventMinions.length === 5 && eventBoss.isMiniBoss && eventMinions.every(minion => Math.abs(minion.maxHp - eventBoss.maxHp * .05) < .001);
-              return enemyTypes.dragon.bossSummonInterval === 15 && enemyTypes.dragon.bossSummonCount === 5 && enemyTypes.dragon.bossSummonScale === .05 && waveBossWorks && eventBossWorks;
+              const eventBossWorks = eventMinions.length === 5 && eventBoss.isMiniBoss && eventMinions.every(minion => Math.abs(minion.maxHp - eventBoss.maxHp * .02) < .001);
+              return BOSS_SUMMON_UNLOCK_WAVE === 20 && enemyTypes.horseman.bossSummonInterval === 15 && enemyTypes.horseman.bossSummonCount === 5 && enemyTypes.horseman.bossSummonHealthScale === .02 && enemyTypes.horseman.bossSummonDamageScale === .05 && dragonWaitsForWaveTwenty && earlyEventsWaitForWaveTwenty && waveBossWorks && minionEscapeIsHarmless && eventBossWorks;
             } catch (error) {
               return "Boss summon error: " + (error.stack || error.message);
             }
@@ -461,7 +488,7 @@ function createWindow() {
               return "Archer path error: " + (error.stack || error.message);
             }
           })(),
-          ballistaFlame: (() => {
+          ballistaPaths: (() => {
             try {
               resetGame();
               state.gold = 9999;
@@ -471,6 +498,7 @@ function createWindow() {
               const firstUpgradeDiscounted = towerTypes.ballista.upgradeCostMultiplier === .9 && upgradeCost(ballista) === 202;
               upgradeTower();
               const finalUpgradeDiscounted = upgradeCost(ballista) === 281;
+              const pathChoiceShown = document.getElementById("upgradeLabel").textContent === "Flame Bazooka" && !document.getElementById("zeusBowUpgradeButton").classList.contains("hidden");
               upgradeTower();
               spawnEnemy("ogre");
               const target = state.enemies[0];
@@ -478,6 +506,7 @@ function createWindow() {
               target.y = ballista.y;
               target.speed = 0;
               target.physicalResistance = 0;
+              target.hp = target.maxHp = 2000;
               const startingHealth = target.hp;
               ballista.cooldown = 0;
               update(.01);
@@ -485,11 +514,54 @@ function createWindow() {
               const projectile = state.projectiles.find(item => item.variant === "flamingBolt");
               const projectileModel = projectile ? graphics3D.projectileMeshes.get(projectile) : null;
               if (projectile) hitEnemy(projectile, target);
+              state.projectiles = [];
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
               const impactFire = state.particles.some(particle => particle.color === "#ff5b20") && state.particles.some(particle => particle.color === "#ffd35a");
-              const damageCorrect = Math.abs(startingHealth - target.hp - towerStats(ballista).damage) < .001;
-              return firstUpgradeDiscounted && finalUpgradeDiscounted && ballista.level === 3 && projectile?.damageType === "physical" && projectileModel?.userData.flamingBolt === true && projectileModel.userData.fireLight.intensity > 0 && impactFire && damageCorrect;
+              const directDamage = towerStats(ballista).damage;
+              const directDamageCorrect = Math.abs(startingHealth - target.hp - directDamage) < .001;
+              const burnVisual = graphics3D.enemyMeshes.get(target)?.userData.burnAura?.visible === true;
+              const beforeBurn = target.hp;
+              ballista.cooldown = 999;
+              update(1);
+              const burnDamageCorrect = Math.abs(beforeBurn - target.hp - directDamage * .25) < .001 && target.burnEffects.length === 1;
+              const flameModel = graphics3D.towerMeshes.get(ballista);
+              const flameWorks = ballista.level === 3 && ballista.specialization === "flameBazooka" && projectile?.damageType === "physical" && projectileModel?.userData.flamingBolt === true && projectileModel.userData.fireLight.intensity > 0 && flameModel?.userData.flameBazooka === true && impactFire && directDamageCorrect && burnDamageCorrect && burnVisual;
+
+              resetGame();
+              state.gold = 9999;
+              state.selectedBuild = "ballista";
+              placeTower(1, 1);
+              const zeus = state.towers[0];
+              upgradeTower();
+              chooseZeusBowPath();
+              spawnEnemy("ogre");
+              const shocked = state.enemies[0];
+              shocked.x = zeus.x + 120;
+              shocked.y = zeus.y;
+              shocked.speed = 0;
+              shocked.physicalResistance = 0;
+              shocked.hp = shocked.maxHp = 2000;
+              zeus.cooldown = 0;
+              update(.01);
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const lightning = state.projectiles.find(item => item.variant === "lightningBolt");
+              const lightningModel = lightning ? graphics3D.projectileMeshes.get(lightning) : null;
+              const beforeLightning = shocked.hp;
+              if (lightning) hitEnemy(lightning, shocked);
+              state.projectiles = [];
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const triggeringHitNormal = Math.abs(beforeLightning - shocked.hp - towerStats(zeus).damage) < .001;
+              const beforeExposedHit = shocked.hp;
+              const helperOwner = { type: "archer", kills: 0 };
+              damageEnemy(shocked, 100, helperOwner, "physical");
+              const vulnerabilityWorks = Math.abs(beforeExposedHit - shocked.hp - 110) < .001;
+              const zeusModel = graphics3D.towerMeshes.get(zeus);
+              const shockVisual = graphics3D.enemyMeshes.get(shocked)?.userData.shockAura?.visible === true;
+              const zeusWorks = zeus.level === 3 && zeus.specialization === "zeusBow" && shocked.shockTimer === towerTypes.ballista.shockDuration && shocked.stunTimer === towerTypes.ballista.shockStunDuration && triggeringHitNormal && vulnerabilityWorks && lightningModel?.userData.lightningBolt === true && zeusModel?.userData.zeusBow === true && shockVisual && document.getElementById("selectedName").textContent === "Zeus's Bow";
+
+              return firstUpgradeDiscounted && finalUpgradeDiscounted && pathChoiceShown && flameWorks && zeusWorks;
             } catch (error) {
-              return "Ballista flame error: " + (error.stack || error.message);
+              return "Ballista path error: " + (error.stack || error.message);
             }
           })(),
           vampireDrain: (() => {
@@ -732,6 +804,116 @@ function createWindow() {
                 placementCost("ogre") === thirdCost && displayedCost === String(thirdCost) && placementCost("mage") === towerTypes.mage.cost;
             } catch (error) {
               return "Placement scaling error: " + (error.stack || error.message);
+            }
+          })(),
+          ogrePaths: (() => {
+            try {
+              resetGame();
+              state.gold = 99999;
+              state.selectedBuild = "ogre";
+              placeTower(1, 1);
+              const toggaTower = state.towers[0];
+              upgradeTower();
+              showInspectPanel(toggaTower);
+              const pathChoiceUi = document.getElementById("upgradeLabel").textContent === "Togga's Strongest Warrior" && !document.getElementById("stoneThrowUpgradeButton").classList.contains("hidden") && document.getElementById("branchHint").textContent.includes("permanent final fighting style");
+              upgradeTower();
+              const togga = state.knights.find(unit => unit.owner === toggaTower && unit.unitType === "togga");
+              const toggaStats = towerStats(toggaTower);
+              const warriorCreated = toggaTower.level === 3 && toggaTower.specialization === "togga" && togga?.hp === 900 && togga.maxHp === 900 && toggaStats.damage === 500 && toggaStats.cooldown === 3;
+
+              state.waveActive = true;
+              state.spawnQueue = [{ type: "goblin", gap: 999 }];
+              state.spawnTimer = 999;
+              for (let index = 0; index < 11; index++) {
+                spawnEnemy("goblin");
+                const enemy = state.enemies[index];
+                enemy.x = togga.x + 17 + index * 1.2;
+                enemy.y = togga.y + (index % 2 ? 3 : -3);
+                enemy.speed = 0;
+                enemy.hp = 1000;
+                enemy.maxHp = 1000;
+                enemy.physicalResistance = 0;
+                enemy.meleeCooldown = 0;
+              }
+              update(.01);
+              const pounded = state.enemies.filter(enemy => enemy.hp === 500);
+              const crowdSnapshot = { engaged: togga.engagedEnemies.length, pounded: pounded.length, stunned: pounded.filter(enemy => enemy.stunTimer > .9).length, hp: togga.hp };
+              const crowdControlWorks = togga.engagedEnemies.length === 10 && pounded.length === 6 && pounded.every(enemy => enemy.stunTimer > .9) && togga.hp < 900;
+
+              togga.hp = 450;
+              togga.x = toggaTower.x + 60;
+              togga.y = toggaTower.y;
+              updateToggaWarrior(togga, .01);
+              const retreatsAtHalfHealth = togga.retreating && togga.retreatTimer === 6 && togga.moving;
+              togga.x = toggaTower.x;
+              togga.y = toggaTower.y;
+              updateToggaWarrior(togga, 5.99);
+              const waitsSixSeconds = togga.retreating;
+              updateToggaWarrior(togga, .02);
+              const returnsFullyRecovered = !togga.retreating && togga.hp === 900;
+
+              defeatKnight(togga);
+              updateToggaWarrior(togga, 14.99);
+              const waitsFifteenSeconds = !togga.alive;
+              updateToggaWarrior(togga, .02);
+              const respawnsAtTile = togga.alive && togga.hp === 900 && togga.x === toggaTower.x && togga.y === toggaTower.y;
+              togga.x += 50;
+              state.waveActive = false;
+              updateToggaWarrior(togga, 1);
+              const returnsBetweenWaves = togga.x === toggaTower.x && togga.y === toggaTower.y;
+
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const toggaModel = graphics3D.knightMeshes.get(togga);
+              const rallyModel = graphics3D.towerMeshes.get(toggaTower);
+              showInspectPanel(toggaTower);
+              const warriorRendered = toggaModel?.userData.toggaWarrior === true && Boolean(toggaModel.userData.toggaChest) && Boolean(toggaModel.userData.toggaHelmet) && Boolean(rallyModel?.userData.toggaRally);
+              const warriorUi = document.getElementById("selectedName").textContent === "Togga's Strongest Warrior" && document.getElementById("damageStat").textContent === "500" && document.getElementById("specialStat").textContent.includes("900 HP");
+
+              resetGame();
+              state.gold = 99999;
+              state.selectedBuild = "ogre";
+              placeTower(1, 1);
+              const stoneTower = state.towers[0];
+              upgradeTower();
+              chooseStoneThrowPath();
+              const stoneStats = towerStats(stoneTower);
+              spawnEnemy("ogre");
+              spawnEnemy("ogre");
+              const directTarget = state.enemies[0];
+              const splashTarget = state.enemies[1];
+              directTarget.x = stoneTower.x + 80;
+              directTarget.y = stoneTower.y;
+              splashTarget.x = directTarget.x + 60;
+              splashTarget.y = directTarget.y;
+              for (const enemy of state.enemies) {
+                enemy.speed = 0;
+                enemy.hp = 1000;
+                enemy.maxHp = 1000;
+                enemy.physicalResistance = 0;
+              }
+              stoneTower.cooldown = 0;
+              update(.01);
+              const rockProjectile = state.projectiles.find(projectile => projectile.variant === "ogreRock");
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const stoneModel = graphics3D.towerMeshes.get(stoneTower);
+              const projectileModel = graphics3D.projectileMeshes.get(rockProjectile);
+              hitEnemy(rockProjectile, directTarget);
+              rockProjectile.dead = true;
+              const exactStoneDamage = directTarget.hp === 600 && splashTarget.hp === 750;
+              const stoneRendered = stoneModel?.userData.stonePile?.visible === false && projectileModel?.userData.ogreRock === true;
+              stoneTower.cooldown = 99;
+              update(.91);
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const rockRespawns = stoneModel.userData.stonePile.visible === true;
+              showInspectPanel(stoneTower);
+              const stoneUi = document.getElementById("selectedName").textContent === "StoneThrow Ogre" && document.getElementById("damageStat").textContent === "400" && document.getElementById("rangeStat").textContent === "1 tile" && document.getElementById("specialStat").textContent.includes("250 splash damage");
+              const stonePathWorks = stoneTower.level === 3 && stoneTower.specialization === "stoneThrow" && stoneStats.damage === 400 && stoneStats.splashDamage === 250 && stoneStats.splash === CELL && stoneStats.cooldown === 3;
+
+              const checks = { pathChoiceUi, warriorCreated, crowdControlWorks, retreatsAtHalfHealth, waitsSixSeconds, returnsFullyRecovered, waitsFifteenSeconds, respawnsAtTile, returnsBetweenWaves, warriorRendered, warriorUi, stonePathWorks, exactStoneDamage, stoneRendered, rockRespawns, stoneUi };
+              const diagnostics = { crowdSnapshot, stoneTimer: stoneTower.stoneThrowTimer, pileVisible: stoneModel?.userData.stonePile?.visible };
+              return Object.values(checks).every(Boolean) || "Ogre path mismatch: " + JSON.stringify({ checks, diagnostics });
+            } catch (error) {
+              return "Ogre paths error: " + (error.stack || error.message);
             }
           })(),
           barracksPaths: (() => {
@@ -1034,8 +1216,9 @@ function createWindow() {
               escapedMerchant.y = finish.y;
               escapedMerchant.pathIndex = pathPoints.length - 1;
               escapedMerchant.speed = 100;
+              const livesBeforeMerchantEscape = state.lives;
               update(.01);
-              const escapeGivesNoShop = escapedMerchant.reached && !state.merchantStorePending && !state.storeOpen && document.getElementById("merchantStoreModal").classList.contains("hidden");
+              const escapeGivesNoShop = escapedMerchant.reached && state.lives === livesBeforeMerchantEscape && !state.ended && !state.merchantStorePending && !state.storeOpen && document.getElementById("merchantStoreModal").classList.contains("hidden");
 
               return shopWaitsForBoss && unrelatedBossDoesNotUnlock && shopOpensAfterBoss && purchasesWork && swordEquipped && amuletEquipped && bootsEquipped && fourthRejected && threeSlotUi && universalBonusesWork && shieldBoostsTroops && ringBoostsMine && escapeGivesNoShop;
             } catch (error) {
@@ -1444,7 +1627,7 @@ function createWindow() {
           })()
         })`);
         const ok = result.title === "Stonewatch Keep" && result.hasCanvas && result.hasThree &&
-          result.hasGraphics && result.hasWheelZoom && result.hasCameraReset && result.speedHotkey === true && result.towerCards >= 10 && result.menuModes === true && result.supportCastle === true && result.ufoDefense === true && result.ufoPaths === true && result.bossSummons === true && result.bossBarracksRetaliation === true && result.monsterIndex === true && result.treeObstacles === true && result.archerVolley === true && result.archerPaths === true && result.ballistaFlame === true && result.vampireDrain === true && result.vampirePaths === true && result.ghostFear === true && result.damageTypes === true && result.combatBalance === true && result.placementScaling === true && result.barracksPaths === true && result.dragonFire === true && result.bossRoster === true && result.campaignWaves === true && result.merchantEscort === true && result.merchantRelicStore === true && result.relicTiers === true && result.uniqueRelic === true && result.umbralRelic === true && result.treasureCove === true && result.incomeScaling === true && result.themedEvents === true;
+          result.hasGraphics && result.hasWheelZoom && result.hasCameraReset && result.speedHotkey === true && result.towerCards >= 10 && result.menuModes === true && result.supportCastle === true && result.ufoDefense === true && result.ufoPaths === true && result.bossSummons === true && result.bossBarracksRetaliation === true && result.monsterIndex === true && result.treeObstacles === true && result.archerVolley === true && result.archerPaths === true && result.ballistaPaths === true && result.vampireDrain === true && result.vampirePaths === true && result.ghostFear === true && result.damageTypes === true && result.combatBalance === true && result.placementScaling === true && result.ogrePaths === true && result.barracksPaths === true && result.dragonFire === true && result.bossRoster === true && result.campaignWaves === true && result.merchantEscort === true && result.merchantRelicStore === true && result.relicTiers === true && result.uniqueRelic === true && result.umbralRelic === true && result.treasureCove === true && result.incomeScaling === true && result.themedEvents === true;
         finishSmokeTest(ok ? 0 : 1, { ok, ...result });
       } catch (error) {
         finishSmokeTest(1, { ok: false, error: error.message });
