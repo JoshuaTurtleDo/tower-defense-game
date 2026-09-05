@@ -28,6 +28,7 @@ const MINE_GOLD_PER_WORKER_PER_ROUND = 15;
 const TREASURE_COVE_COST = 420;
 const TREASURE_COVE_RELIC_CHANCE = .5;
 const TINY_CASTLE_AURA_MULTIPLIER = 1.2;
+const TINY_CASTLE_AURA_RADIUS = 2;
 
 const merchantRelics = {
   sword: { name: "Mercenary Sword", tier: "common", icon: "⚔", color: "#df5f48", cost: 160, description: "+25% damage", modifiers: { damage: 1.25 }, allowed: tower => tower.type !== "mine" && tower.type !== "ghost" && tower.type !== "castle" },

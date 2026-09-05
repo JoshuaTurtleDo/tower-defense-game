@@ -132,7 +132,7 @@ function createWindow() {
               placeTower(6, 5);
               const firstCastle = state.towers[0];
               state.selectedBuild = "archer";
-              placeTower(7, 5);
+              placeTower(8, 6);
               const archer = state.towers[1];
               const oneAuraStats = towerStats(archer);
 
@@ -147,7 +147,7 @@ function createWindow() {
               showInspectPanel(firstCastle);
               const castleUi = document.getElementById("selectedName").textContent === "Tiny Castle" &&
                 document.getElementById("damageStat").textContent.includes("+20%") &&
-                document.getElementById("specialStat").textContent.includes("1 adjacent defense");
+                document.getElementById("specialStat").textContent.includes("1 defense within 2 tiles");
 
               graphics3D.render(state, hoverCell, canPlace, towerStats);
               const castleModel = graphics3D.towerMeshes.get(firstCastle);

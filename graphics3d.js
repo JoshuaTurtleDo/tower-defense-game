@@ -525,7 +525,7 @@ class ThreeGraphics {
         }
       }
       const receivesCastleAura = tower.type !== "castle" && tower.type !== "mine" && towers.some(castle =>
-        castle.type === "castle" && (castle.freezeTimer || 0) <= 0 && Math.max(Math.abs(castle.col - tower.col), Math.abs(castle.row - tower.row)) === 1
+        castle.type === "castle" && (castle.freezeTimer || 0) <= 0 && Math.max(Math.abs(castle.col - tower.col), Math.abs(castle.row - tower.row)) <= TINY_CASTLE_AURA_RADIUS
       );
       if (group.userData.castleBuffAura) {
         const aura = group.userData.castleBuffAura;
@@ -1287,7 +1287,7 @@ class ThreeGraphics {
     group.add(cannon);
 
     const auraMaterial = new THREE.MeshBasicMaterial({ color: 0xffd978, transparent: true, opacity: .22, side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
-    const aura = this.mesh(new THREE.RingGeometry(.93, 1.04, 36), auraMaterial, 0, .16, 0, group);
+    const aura = this.mesh(new THREE.RingGeometry(1.82, 1.94, 48), auraMaterial, 0, .16, 0, group);
     aura.rotation.x = -Math.PI / 2;
     aura.castShadow = false;
     const auraLight = new THREE.PointLight(0xffcf69, 1.15, 2.2, 2);

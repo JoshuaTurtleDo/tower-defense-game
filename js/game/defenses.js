@@ -68,19 +68,19 @@ function canPlace(col, row) {
     !state.towers.some(t => t.col === col && t.row === row);
 }
 
-function towersAreAdjacent(first, second) {
+function towersWithinCastleRadius(first, second) {
   if (!first || !second || first === second) return false;
-  return Math.max(Math.abs(first.col - second.col), Math.abs(first.row - second.row)) === 1;
+  return Math.max(Math.abs(first.col - second.col), Math.abs(first.row - second.row)) <= TINY_CASTLE_AURA_RADIUS;
 }
 
 function hasTinyCastleAura(tower) {
   if (!tower || tower.type === "castle" || tower.type === "mine") return false;
-  return state.towers.some(castle => castle.type === "castle" && (castle.freezeTimer || 0) <= 0 && towersAreAdjacent(castle, tower));
+  return state.towers.some(castle => castle.type === "castle" && (castle.freezeTimer || 0) <= 0 && towersWithinCastleRadius(castle, tower));
 }
 
 function tinyCastleBuffedTowers(castle) {
   if (!castle || castle.type !== "castle" || castle.freezeTimer > 0) return [];
-  return state.towers.filter(tower => tower.type !== "castle" && tower.type !== "mine" && towersAreAdjacent(castle, tower));
+  return state.towers.filter(tower => tower.type !== "castle" && tower.type !== "mine" && towersWithinCastleRadius(castle, tower));
 }
 
 function towerStats(tower) {

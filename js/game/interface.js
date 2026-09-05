@@ -107,7 +107,7 @@ function showInspectPanel(tower) {
     document.getElementById("speedLabel").textContent = "Stacking";
     document.getElementById("killsLabel").textContent = "Defenses empowered";
     document.getElementById("damageStat").textContent = "+20% damage, range & speed";
-    document.getElementById("rangeStat").textContent = "8 surrounding tiles";
+    document.getElementById("rangeStat").textContent = `${TINY_CASTLE_AURA_RADIUS}-tile radius`;
     document.getElementById("speedStat").textContent = "One aura maximum";
     document.getElementById("killsStat").textContent = buffedTowers.length;
     damageTypeRow.classList.add("hidden");
@@ -123,8 +123,8 @@ function showInspectPanel(tower) {
     massiveBeamButton.classList.add("hidden");
     specialRow.classList.remove("hidden");
     document.getElementById("specialStat").textContent = buffedTowers.length
-      ? `${buffedTowers.length} adjacent defense${buffedTowers.length === 1 ? "" : "s"} receiving the Royal Command aura`
-      : "Place combat defenses on a neighboring tile to empower them";
+      ? `${buffedTowers.length} defense${buffedTowers.length === 1 ? "" : "s"} within ${TINY_CASTLE_AURA_RADIUS} tiles receiving the Royal Command aura`
+      : `Place combat defenses within ${TINY_CASTLE_AURA_RADIUS} tiles to empower them`;
   } else {
     const stats = towerStats(tower);
     const isBarracks = tower.type === "barracks";
