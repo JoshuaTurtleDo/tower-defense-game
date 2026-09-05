@@ -152,6 +152,7 @@ At level 2, each Alien UFO gains a permanent final-upgrade choice:
 - `styles.css` controls the visual design and responsive layout.
 - `js/game/` contains the gameplay as small purpose-based modules. Its own `README.md` is a map showing exactly where each kind of feature belongs.
 - `graphics3d.js` builds and animates the 3D terrain, models, lighting, shadows, health bars, and effects.
+- `js/rendering/defense-icons.js` supplies the illustrated defense icons used by the armory and inspection panel.
 - `electron-main.js` creates and secures the Windows game window.
 - `ios/StonewatchKeep.xcodeproj` and `ios/StonewatchKeep/` contain the lightweight native iOS wrapper, app icon, and offline game bundle.
 - `forge.config.js` configures the x64 Windows package and Squirrel installer.

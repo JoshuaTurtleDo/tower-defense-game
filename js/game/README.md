@@ -16,7 +16,7 @@ Stonewatch Keep uses ordinary browser scripts so it still runs by double-clickin
 10. `simulation.js` — the per-frame gameplay update for enemies, defenses, projectiles, waves, and income.
 11. `combat.js` — targeting progress, hits, resistances, damage, kills, debris, particles, and victory/defeat.
 12. `fallback-renderer.js` — retained 2D drawing helpers. The active 3D presentation remains in the root `graphics3d.js` file.
-13. `interface.js` — HUD, build/inspect panels, menus, settings, announcements, and wave previews.
+13. `interface.js` — HUD, build/inspect panels, menus, settings, announcements, and wave previews. It uses `js/rendering/defense-icons.js` for illustrated defense emblems.
 14. `monster-index.js` — persistent enemy discovery and the Monster Index encyclopedia UI.
 15. `input.js` — mouse, camera, keyboard, and button event handlers.
 16. `main.js` — the animation loop and one-time startup. This should stay small.
