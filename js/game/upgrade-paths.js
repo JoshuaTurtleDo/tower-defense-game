@@ -18,6 +18,25 @@ function chooseGravestonePath() {
   showInspectPanel(tower);
   updateUI();
 }
+
+function evolvedBoomersCost(tower) {
+  if (!tower || tower.type !== "barracks" || tower.specialization !== "graveyard" || tower.level !== 3 || tower.evolvedBoomers) return null;
+  return towerTypes.barracks.evolvedBoomersCost;
+}
+
+function upgradeEvolvedBoomers() {
+  const tower = state.selectedTower;
+  const cost = evolvedBoomersCost(tower);
+  if (cost === null || state.gold < cost) return;
+  state.gold -= cost;
+  tower.spent += cost;
+  tower.evolvedBoomers = true;
+  burst(tower.x, tower.y, "#75ff3d", 24);
+  burst(tower.x, tower.y, "#caff62", 12);
+  showAnnouncement("Evolved Boomers unlocked — fallen Zombies now erupt in toxic goo");
+  showInspectPanel(tower);
+  updateUI();
+}
 function chooseFrostPath() {
   const tower = state.selectedTower;
   if (!tower || tower.type !== "mage" || tower.level !== 2) return;

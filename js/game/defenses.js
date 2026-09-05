@@ -20,9 +20,11 @@ function placeTower(col, row) {
     y: row * CELL + CELL / 2,
     level: 1,
     cooldown: Math.random() * .15,
+    freezeTimer: 0,
     angle: -Math.PI / 2,
     kills: 0,
     specialization: null,
+    evolvedBoomers: false,
     workers: 0,
     incomeRemainder: 0,
     summonTimer: 4,
@@ -45,6 +47,7 @@ function placeTower(col, row) {
     batCurseCooldown: 0,
     batCursePulse: 0,
     enemiesBatCursed: 0,
+    cannonCooldown: 0,
     minionsRaised: 0,
     items: [],
     spent: cost
@@ -72,11 +75,11 @@ function towersAreAdjacent(first, second) {
 
 function hasTinyCastleAura(tower) {
   if (!tower || tower.type === "castle" || tower.type === "mine") return false;
-  return state.towers.some(castle => castle.type === "castle" && towersAreAdjacent(castle, tower));
+  return state.towers.some(castle => castle.type === "castle" && (castle.freezeTimer || 0) <= 0 && towersAreAdjacent(castle, tower));
 }
 
 function tinyCastleBuffedTowers(castle) {
-  if (!castle || castle.type !== "castle") return [];
+  if (!castle || castle.type !== "castle" || castle.freezeTimer > 0) return [];
   return state.towers.filter(tower => tower.type !== "castle" && tower.type !== "mine" && towersAreAdjacent(castle, tower));
 }
 
@@ -94,9 +97,11 @@ function towerStats(tower) {
     drainCount: tower.type === "vampire" && tower.specialization === "bloodstorm" ? 5 : 1,
     laserCount: tower.type === "ufo" && tower.specialization === "twinlaser" ? 2 : 1
   };
-  if (tower.type === "mage" && tower.specialization === "frost") {
+  if (tower.type === "mage" && tower.specialization === "arcane") {
+    stats.damage *= base.arcaneDamageMultiplier;
+  } else if (tower.type === "mage" && tower.specialization === "frost") {
     stats.damage *= .82;
-    stats.splash *= 1.22;
+    stats.splash = base.frostSplashRadius;
   }
   if (tower.type === "archer" && tower.specialization === "riflemen") {
     stats.damage *= base.rifleDamageMultiplier;
@@ -126,6 +131,7 @@ function towerStats(tower) {
     stats.projectileSpeed = base.stoneProjectileSpeed;
   }
   if (tower.type === "ballista") {
+    if (tower.specialization === "zeusBow") stats.damage = base.zeusDamage;
     stats.burnRatio = tower.specialization === "flameBazooka" ? base.flameBurnRatio : 0;
     stats.burnDuration = tower.specialization === "flameBazooka" ? base.flameBurnDuration : 0;
     stats.shockDuration = tower.specialization === "zeusBow" ? base.shockDuration : 0;
@@ -146,11 +152,16 @@ function towerStats(tower) {
   }
   stats.range *= relicMultiplier(tower, "range");
   stats.cooldown *= relicMultiplier(tower, "cooldown");
+  stats.damage *= passiveTowerMultiplier(tower, "damage");
+  if (stats.splashDamage !== undefined) stats.splashDamage *= passiveTowerMultiplier(tower, "damage");
+  stats.range *= passiveTowerMultiplier(tower, "range");
+  stats.cooldown *= passiveTowerMultiplier(tower, "cooldown");
   if (hasTinyCastleAura(tower)) {
-    stats.damage *= TINY_CASTLE_AURA_MULTIPLIER;
-    if (stats.splashDamage !== undefined) stats.splashDamage *= TINY_CASTLE_AURA_MULTIPLIER;
-    stats.range *= TINY_CASTLE_AURA_MULTIPLIER;
-    stats.cooldown /= TINY_CASTLE_AURA_MULTIPLIER;
+    const auraMultiplier = passiveCastleAuraMultiplier();
+    stats.damage *= auraMultiplier;
+    if (stats.splashDamage !== undefined) stats.splashDamage *= auraMultiplier;
+    stats.range *= auraMultiplier;
+    stats.cooldown /= auraMultiplier;
   }
   return stats;
 }
@@ -184,7 +195,7 @@ function upgradeTower() {
 
 function workerCost(mine) {
   if (!mine || mine.type !== "mine" || mine.specialization === "treasureCove" || mine.workers >= MAX_MINE_WORKERS) return null;
-  return [45, 65, 85, 110, 140][mine.workers];
+  return [45, 65, 85][mine.workers];
 }
 
 function hireWorker() {

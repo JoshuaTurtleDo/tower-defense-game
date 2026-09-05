@@ -4,14 +4,14 @@
 
 const towerTypes = {
   archer: { name: "Royal Archers", cost: 70, range: 145, damage: 16.8, rifleDamageMultiplier: 2.365, slingshooterDamage: 120, damageType: "physical", cooldown: 1.35, projectileSpeed: 480, color: "#d6d19c", splash: 0, emblem: "➶", className: "archer-emblem" },
-  mage: { name: "Royal Wizard", cost: 130, upgradeCostMultiplier: .9, range: 128, damage: 35, damageType: "magic", cooldown: 1.15, projectileSpeed: 330, color: "#a788eb", splash: 62, emblem: "✦", className: "mage-emblem" },
-  ballista: { name: "Royal Ballista", cost: 160, upgradeCostMultiplier: .9, range: 215, damage: 120, damageType: "physical", cooldown: 2.05, projectileSpeed: 650, color: "#e5a654", splash: 0, flameBurnRatio: .5, flameBurnDuration: 2, shockDuration: 3, shockDamageTakenMultiplier: 1.1, shockStunDuration: .2, emblem: "✧", className: "ballista-emblem" },
-  barracks: { name: "Royal Barracks", cost: 135, range: 138, damage: 12, damageType: "physical", cooldown: .85, projectileSpeed: 0, color: "#b9c8cf", splash: 0, emblem: "⚔", className: "barracks-emblem" },
+  mage: { name: "Royal Wizard", cost: 130, upgradeCostMultiplier: .9, range: 128, damage: 35, damageType: "magic", cooldown: 1.15, projectileSpeed: 330, color: "#a788eb", splash: 62, arcaneDamageMultiplier: 1.2, arcaneBounceCount: 5, arcaneBounceDamageRatio: .2, arcaneBounceRange: CELL * .5, arcaneBounceSpeed: 460, frostSplashRadius: CELL, frostSlowStrength: .38, frostSlowDuration: 2.75, emblem: "✦", className: "mage-emblem" },
+  ballista: { name: "Royal Ballista", cost: 160, upgradeCostMultiplier: .9, range: 215, damage: 120, zeusDamage: 350, damageType: "physical", cooldown: 2.05, projectileSpeed: 650, color: "#e5a654", splash: 0, flameBurnRatio: .5, flameBurnDuration: 2, shockDuration: 3, shockDamageTakenMultiplier: 1.1, shockStunDuration: .2, emblem: "✧", className: "ballista-emblem" },
+  barracks: { name: "Royal Barracks", cost: 135, range: 138, damage: 12, damageType: "physical", cooldown: .85, projectileSpeed: 0, color: "#b9c8cf", splash: 0, evolvedBoomersCost: 360, evolvedBoomersDamage: 150, evolvedBoomersRadius: CELL * .5, evolvedBoomersGooDuration: 5, emblem: "⚔", className: "barracks-emblem" },
   ogre: { name: "Stoneback Ogre", cost: 150, range: 132, damage: 200, damageType: "physical", cooldown: 3.8, projectileSpeed: 0, color: "#8e8050", splash: 0, knockback: 150, warriorDamage: 500, warriorCooldown: 3, warriorHp: 900, warriorAttackTargets: 6, warriorBlockers: 10, warriorStunDuration: 1, warriorRetreatHealth: 450, warriorRetreatDuration: 6, warriorRespawnDuration: 15, stoneDamage: 400, stoneSplashDamage: 250, stoneSplash: CELL, stoneCooldown: 3, stoneProjectileSpeed: 315, emblem: "✊", className: "ogre-emblem" },
   ghost: { name: "Dread Ghost", cost: 175, range: 145, damage: 0, damageType: "control", cooldown: 3.8, projectileSpeed: 0, color: "#9be3d6", splash: 0, fearDuration: 2, fearCount: 1, bossFearCooldown: 8, emblem: "◉", className: "ghost-emblem" },
-  vampire: { name: "Crimson Vampire", cost: 205, range: 142, damage: 72, damageType: "magic", cooldown: 2.85, projectileSpeed: 0, color: "#c83645", splash: 0, emblem: "♠", className: "vampire-emblem" },
-  ufo: { name: "Alien UFO", cost: 400, range: 185, damage: 24, damageType: "magic", cooldown: .3, projectileSpeed: 1100, color: "#52ff78", splash: 0, twinLaserColor: "#ff4e68", massiveDamageMultiplier: 3.3, massiveCooldownMultiplier: 4.4, massiveSplash: 105, emblem: "⌁", className: "ufo-emblem" },
-  castle: { name: "Tiny Castle", cost: 225, range: CELL * Math.SQRT2, damage: 0, damageType: "support", cooldown: 1, projectileSpeed: 0, color: "#e5c66f", splash: 0, emblem: "♜", className: "castle-emblem" },
+  vampire: { name: "Crimson Vampire", cost: 175, range: 142, damage: 72, damageType: "magic", cooldown: 2.85, projectileSpeed: 0, color: "#c83645", splash: 0, emblem: "♠", className: "vampire-emblem" },
+  ufo: { name: "Alien UFO", cost: 700, range: 185, damage: 24, damageType: "magic", cooldown: .3, projectileSpeed: 1100, color: "#52ff78", splash: 0, twinLaserColor: "#ff4e68", massiveDamageMultiplier: 3.3, massiveCooldownMultiplier: 4.4, massiveSplash: 105, emblem: "⌁", className: "ufo-emblem" },
+  castle: { name: "Tiny Castle", cost: 600, range: CELL * Math.SQRT2, damage: 0, damageType: "support", cooldown: 1, projectileSpeed: 0, color: "#e5c66f", splash: 0, emblem: "♜", className: "castle-emblem" },
   mine: { name: "Gold Mine", cost: 150, range: 0, damage: 0, damageType: "economy", cooldown: 1, projectileSpeed: 0, color: "#e2b84f", splash: 0, emblem: "⚒", className: "mine-emblem" }
 };
 
@@ -24,8 +24,9 @@ const enemyTypes = {
   orc: { name: "Armored Orc", hp: 178, speed: 43, reward: 17, damage: 2, color: "#536f3c", physicalResistance: .3, magicResistance: .1, symbol: "O", scale: 1.08, barWidth: 35, barOffset: 30 },
   ogre: { name: "Ogre", hp: 340, speed: 31, reward: 31, damage: 3, color: "#7b7045", physicalResistance: .4, magicResistance: .05, symbol: "Ω", scale: 1.34, barWidth: 43, barOffset: 35 },
   dragon: { ...bossSummonDefaults, name: "Ancient Dragon", hp: 2160, speed: 34, reward: 130, damage: 8, color: "#9b382d", physicalResistance: .22, magicResistance: .35, symbol: "D", scale: 1.65, barWidth: 58, barOffset: 43, modelScale: 1.25, boss: true },
-  horseman: { ...bossSummonDefaults, name: "Headless Horseman", hp: 6480, speed: 38, reward: 220, damage: 12, color: "#6a8d83", physicalResistance: .32, magicResistance: .48, symbol: "H", scale: 2.05, barWidth: 72, barOffset: 55, modelScale: 1.35, boss: true },
-  cyclops: { ...bossSummonDefaults, name: "Titan Cyclops", hp: 9720, speed: 25, reward: 360, damage: 16, color: "#806f4d", physicalResistance: .48, magicResistance: .18, symbol: "C", scale: 2.35, barWidth: 82, barOffset: 62, modelScale: 1.5, boss: true },
+  horseman: { ...bossSummonDefaults, name: "Headless Horseman", hp: 3240, speed: 38, reward: 220, damage: 12, color: "#6a8d83", physicalResistance: .32, magicResistance: .48, symbol: "H", scale: 2.05, barWidth: 72, barOffset: 55, modelScale: 1.35, boss: true },
+  cyclops: { ...bossSummonDefaults, name: "Titan Cyclops", hp: 4860, speed: 25, reward: 360, damage: 16, color: "#806f4d", physicalResistance: .48, magicResistance: .18, symbol: "C", scale: 2.35, barWidth: 82, barOffset: 62, modelScale: 1.5, boss: true },
+  yeti: { ...bossSummonDefaults, name: "Glacier Yeti", hp: 7290, speed: 22, reward: 520, damage: 24, color: "#b9e8ef", physicalResistance: .42, magicResistance: .52, symbol: "Y", scale: 2.7, barWidth: 92, barOffset: 70, modelScale: 1.68, snowballInterval: 5, snowballRange: CELL, snowballSpeed: 260, defenseFreezeDuration: 8, boss: true },
   merchant: { name: "Event Merchant", hp: 624, speed: 52.5, reward: 160, damage: 1, color: "#b7803d", physicalResistance: .1, magicResistance: .1, symbol: "$", scale: 1.12, barWidth: 40, barOffset: 34, modelScale: 1.08, ignoresBarracks: true },
   pirate: { name: "Pirate Cutthroat", hp: 105, speed: 62, reward: 13, damage: 1, color: "#8f3530", physicalResistance: .08, magicResistance: 0, symbol: "P", scale: .96, barWidth: 31, barOffset: 27 },
   werewolf: { name: "Moonfang Werewolf", hp: 155, speed: 72, reward: 18, damage: 2, color: "#635b55", physicalResistance: .12, magicResistance: .08, symbol: "W", scale: 1.05, barWidth: 34, barOffset: 30 },
@@ -69,7 +70,17 @@ const waves = [
   { name: "The Crushing Tide", units: mix([["orc", 36], ["ogre", 22], ["skeleton", 28]], .22) },
   { name: "No Dawn Comes", units: mix([["goblin", 36], ["skeleton", 36], ["orc", 32], ["ogre", 20]], .21) },
   { name: "The Last Siege", units: mix([["ogre", 26], ["orc", 40], ["skeleton", 34], ["goblin", 30]], .21) },
-  { name: "Doom of the Titan Cyclops", units: mix([["goblin", 30], ["skeleton", 30], ["orc", 34], ["ogre", 22], ["cyclops", 1]], .30) }
+  { name: "Doom of the Titan Cyclops", units: mix([["goblin", 30], ["skeleton", 30], ["orc", 34], ["ogre", 22], ["cyclops", 1]], .30) },
+  { name: "After the Titan", units: mix([["goblin", 40], ["skeleton", 36], ["orc", 34], ["ogre", 20]], .21) },
+  { name: "Frozen Graves", units: mix([["skeleton", 44], ["orc", 38], ["ogre", 22], ["goblin", 30]], .20) },
+  { name: "Ironfrost Advance", units: mix([["orc", 44], ["goblin", 40], ["skeleton", 36], ["ogre", 24]], .20) },
+  { name: "Mammoth Footfalls", units: mix([["ogre", 28], ["orc", 44], ["skeleton", 40], ["goblin", 34]], .20) },
+  { name: "Whiteout Horde", units: mix([["goblin", 46], ["skeleton", 44], ["orc", 40], ["ogre", 26]], .19) },
+  { name: "Raiders in the Snow", units: mix([["orc", 46], ["ogre", 28], ["skeleton", 42], ["goblin", 40]], .19) },
+  { name: "Glacial Vanguard", units: mix([["ogre", 30], ["orc", 48], ["skeleton", 44], ["goblin", 42]], .19) },
+  { name: "The Howling Pass", units: mix([["skeleton", 50], ["orc", 48], ["ogre", 32], ["goblin", 44]], .18) },
+  { name: "Beneath the Avalanche", units: mix([["ogre", 36], ["orc", 52], ["skeleton", 48], ["goblin", 46]], .18) },
+  { name: "Wrath of the Glacier Yeti", units: mix([["viking", 30], ["goblin", 38], ["skeleton", 40], ["orc", 42], ["ogre", 28], ["yeti", 1]], .27) }
 ];
 
 const waveEvents = {
@@ -77,8 +88,11 @@ const waveEvents = {
   12: { name: "Moonlit Hunt", description: "A moonfang pack races behind its enormous Alpha and an opportunistic Merchant.", type: "werewolf", bossType: "moonalpha", units: [...sequence("werewolf", 14, .18), { type: "moonalpha", gap: .72 }, { type: "merchant", gap: .55 }] },
   18: { name: "Viking Invasion", description: "Frost Vikings drag a war longship down the road beside an opportunistic Merchant.", type: "viking", bossType: "longship", units: [...sequence("viking", 16, .19), { type: "longship", gap: .8 }, { type: "merchant", gap: .55 }] },
   24: { name: "Spectral Procession", description: "A Coven Witch summons more Wraiths while an opportunistic Merchant follows.", type: "wraith", bossType: "covenwitch", units: [...sequence("wraith", 18, .17), { type: "covenwitch", gap: .75 }, { type: "merchant", gap: .55 }] },
-  30: { name: "Infernal Rift", description: "Rift Demons march beneath a gigantic Rift Overlord and an opportunistic Merchant.", type: "demon", bossType: "riftlord", units: [...sequence("demon", 20, .16), { type: "riftlord", gap: .85 }, { type: "merchant", gap: .55 }] }
+  30: { name: "Infernal Rift", description: "Rift Demons march beneath a gigantic Rift Overlord and an opportunistic Merchant.", type: "demon", bossType: "riftlord", units: [...sequence("demon", 20, .16), { type: "riftlord", gap: .85 }, { type: "merchant", gap: .55 }] },
+  36: { name: "Davy Jones' Revenge", description: "A larger Pirate fleet returns under Davy Jones with another opportunistic Merchant.", type: "pirate", bossType: "davyjones", units: [...sequence("pirate", 24, .15), { type: "davyjones", gap: .7 }, { type: "merchant", gap: .52 }] }
 };
+
+const eventThemeCycle = [waveEvents[6], waveEvents[12], waveEvents[18], waveEvents[24], waveEvents[30]];
 
 const CAMPAIGN_WAVE_COUNT = waves.length;
 
@@ -114,11 +128,10 @@ function getWaveDefinition(waveNumber, mode = state?.gameMode || "campaign") {
 }
 function getWaveEvent(waveNumber, mode = state?.gameMode || "campaign") {
   if (waveNumber <= CAMPAIGN_WAVE_COUNT) return waveEvents[waveNumber] || null;
-  if (mode !== "endless") return null;
+  if (mode !== "endless" || waveNumber % 6 !== 0) return null;
   const cycle = Math.floor((waveNumber - 1) / CAMPAIGN_WAVE_COUNT);
-  const loopWave = (waveNumber - 1) % CAMPAIGN_WAVE_COUNT + 1;
-  const template = waveEvents[loopWave];
-  if (!template) return null;
+  const eventIndex = waveNumber / 6 - 1;
+  const template = eventThemeCycle[eventIndex % eventThemeCycle.length];
   return {
     ...template,
     name: `${template.name} • Endless Cycle ${cycle + 1}`,

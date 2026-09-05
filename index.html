@@ -7,7 +7,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Stonewatch Keep</title>
-    <link rel="stylesheet" href="styles.css?v=20260903-ballista-paths" />
+    <link rel="stylesheet" href="styles.css?v=20260903-glacier-yeti" />
+    <link rel="stylesheet" href="css/art-direction.css?v=20260904" />
   </head>
   <body>
     <main class="game-shell">
@@ -92,12 +93,12 @@
               <button class="tower-card" data-tower="ufo">
                 <span class="tower-emblem ufo-emblem">⌁</span>
                 <span class="tower-info"><strong>Alien UFO</strong><small>Magic • rapid lasers • beam paths</small></span>
-                <span class="tower-cost">400</span>
+                <span class="tower-cost">700</span>
               </button>
               <button class="tower-card" data-tower="castle">
                 <span class="tower-emblem castle-emblem">♜</span>
                 <span class="tower-info"><strong>Tiny Castle</strong><small>Support • empowers adjacent defenses</small></span>
-                <span class="tower-cost">225</span>
+                <span class="tower-cost">600</span>
               </button>
               <button class="tower-card" data-tower="mine">
                 <span class="tower-emblem mine-emblem">⚒</span>
@@ -132,6 +133,7 @@
             <button id="upgradeButton" class="action-button"><span id="upgradeLabel">Upgrade</span><span id="upgradeCost">90 gold</span></button>
             <button id="frostUpgradeButton" class="action-button frost-action hidden"><span>Frost Path</span><span id="frostUpgradeCost">170 gold</span></button>
             <button id="graveUpgradeButton" class="action-button grave-action hidden"><span>Gravestone Path</span><span id="graveUpgradeCost">255 gold</span></button>
+            <button id="evolvedBoomersUpgradeButton" class="action-button boomer-action hidden"><span>Evolved Boomers</span><span id="evolvedBoomersUpgradeCost">360 gold</span></button>
             <button id="slingUpgradeButton" class="action-button sling-action hidden"><span>Slingshooters Path</span><span id="slingUpgradeCost">150 gold</span></button>
             <button id="stoneThrowUpgradeButton" class="action-button stone-throw-action hidden"><span>StoneThrow Ogre</span><span id="stoneThrowUpgradeCost">293 gold</span></button>
             <button id="zeusBowUpgradeButton" class="action-button zeus-action hidden"><span>Zeus's Bow</span><span id="zeusBowUpgradeCost">281 gold</span></button>
@@ -164,7 +166,7 @@
           <section id="relicInventoryPanel" class="relic-inventory-panel">
             <div class="relic-panel-heading"><span>Relic satchel</span><strong id="relicInventoryCount">0</strong></div>
             <div id="relicInventoryItems" class="relic-inventory-items"></div>
-            <p id="relicInventoryHint">Defeat an Event Merchant or establish a Treasure Cove to uncover relics.</p>
+            <p id="relicInventoryHint">Select a defense to equip a relic by clicking or dragging.</p>
           </section>
 
           <div class="wave-card">
@@ -178,7 +180,7 @@
       </section>
 
       <footer>
-        <span id="objectiveText">Defend the keep • Survive all 30 waves</span>
+        <span id="objectiveText">Defend the keep • Survive all 40 waves</span>
         <span>Right-drag to orbit • Scroll to zoom • <kbd>F11</kbd> fullscreen • <kbd>Esc</kbd> cancels</span>
       </footer>
     </main>
@@ -190,7 +192,14 @@
         <h2 id="modalTitle">Victory!</h2>
         <p id="modalText">The realm is safe.</p>
         <div class="final-stats"><span>Waves <strong id="finalWaves">30</strong></span><span>Enemies defeated <strong id="finalKills">0</strong></span></div>
-        <button id="restartButton" class="start-wave-button">Play again</button>
+        <div id="passiveRewardSummary" class="passive-reward-summary hidden">
+          <span>Run rewards</span>
+          <div id="passiveRewardList" class="passive-reward-list"></div>
+        </div>
+        <div class="result-actions">
+          <button id="passiveTreeResultButton" class="menu-secondary-button">Passive Tree</button>
+          <button id="restartButton" class="start-wave-button">Play again</button>
+        </div>
       </div>
     </div>
 
@@ -201,14 +210,14 @@
           <div><p class="panel-kicker">THE FALLEN MERCHANT'S WARES</p><h2 id="merchantStoreTitle">Claim a Relic</h2></div>
           <div class="merchant-store-gold"><span>Gold</span><strong id="merchantStoreGold">0</strong></div>
         </div>
-        <p class="merchant-store-copy">Merchants travel with every event. Their shops hold at most 10 relics; buying one improves future stock, and maximum favour unlocks orange-framed Unique relics.</p>
+        <p class="merchant-store-copy">Merchants travel with every event. Their shops hold five relics; claim one to improve future stock, then the Merchant closes shop. Maximum favour unlocks orange-framed Unique relics.</p>
         <div id="merchantStoreItems" class="merchant-store-items"></div>
         <div id="merchantFavour" class="merchant-favour">
           <div class="merchant-favour-heading"><span>Merchant favour</span><strong id="merchantFavourValue">0 / 5</strong></div>
           <div id="merchantFavourTrack" class="merchant-favour-track" role="progressbar" aria-label="Merchant favour" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0">
             <div id="merchantFavourFill" class="merchant-favour-fill"></div>
           </div>
-          <small id="merchantFavourHint">Buy relics to earn favour and improve future shops.</small>
+          <small id="merchantFavourHint">Choose one relic to claim and earn Merchant favour.</small>
         </div>
         <button id="closeMerchantStoreButton" class="start-wave-button">Return to battle</button>
       </div>
@@ -245,6 +254,7 @@
           <p class="menu-subtitle">Raise your defenses. Break the siege. Let no boss reach the keep.</p>
           <button id="continueGameButton" class="menu-primary-button hidden">Continue</button>
           <button id="playMenuButton" class="menu-primary-button">Play</button>
+          <button id="passiveTreeMenuButton" class="menu-secondary-button">Passive Tree</button>
           <button id="settingsMenuButton" class="menu-secondary-button">Settings</button>
         </div>
 
@@ -255,8 +265,8 @@
           <div class="mode-card-list">
             <button id="campaignModeButton" class="mode-card">
               <span class="mode-icon">♜</span>
-              <span><strong>Thirty-Wave Campaign</strong><small>The original balanced campaign. Defeat all three bosses to win.</small></span>
-              <em>30 waves</em>
+              <span><strong>Forty-Wave Campaign</strong><small>The complete campaign. Defeat all four bosses to win.</small></span>
+              <em>40 waves</em>
             </button>
             <button id="endlessModeButton" class="mode-card endless-mode-card">
               <span class="mode-icon">∞</span>
@@ -280,23 +290,49 @@
       </div>
     </div>
 
+    <div id="passiveTreeModal" class="modal passive-tree-modal hidden" role="dialog" aria-modal="true" aria-labelledby="passiveTreeTitle">
+      <div class="passive-tree-card">
+        <div class="passive-tree-heading">
+          <div class="passive-tree-heading-icon">✦</div>
+          <div><p class="panel-kicker">STONEWATCH LEGACY</p><h2 id="passiveTreeTitle">Passive Tree</h2><p>Spend resources earned from completed runs to strengthen every future defense.</p></div>
+          <strong id="passiveTreeProgress" class="passive-tree-progress">0 / 27 nodes unlocked</strong>
+        </div>
+        <div id="passiveResourceList" class="passive-resource-list"></div>
+        <p class="passive-tree-copy">Unlock branches from the central Hearth of Stonewatch. Nodes must be purchased toward the outside, with stronger bonuses at greater distance. Ruby and Sapphire nodes improve stats; special nodes require Emeralds.</p>
+        <div id="passiveTreeStage" class="passive-tree-stage" aria-label="Scrollable passive tree">
+          <div id="passiveTreeCanvas" class="passive-tree-canvas">
+            <svg id="passiveTreeLines" class="passive-tree-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+            <div class="passive-tree-core"><span>✦</span><strong>Hearth of Stonewatch</strong><small>Starting point</small></div>
+            <div id="passiveTreeBranches"></div>
+          </div>
+        </div>
+        <aside id="passiveNodeTooltip" class="passive-node-tooltip hidden" role="tooltip" aria-live="polite">Hover an upgrade block to see its effect and cost.</aside>
+        <p id="passiveTreeStatus" class="passive-tree-status">Choose a connected node to begin your legacy.</p>
+        <button id="closePassiveTreeButton" class="start-wave-button">Return</button>
+      </div>
+    </div>
+
+    <div id="relicTooltip" class="relic-tooltip" role="tooltip" aria-hidden="true"></div>
+
     <script src="node_modules/three/build/three.min.js"></script>
-    <script src="graphics3d.js?v=20260903-ballista-paths"></script>
+    <script src="js/rendering/art-direction.js?v=20260904"></script>
+    <script src="graphics3d.js?v=20260904-art-direction"></script>
     <!-- Game modules are deliberately ordered from shared data through startup. -->
-    <script src="js/game/config.js?v=20260901-umbral-form"></script>
-    <script src="js/game/content.js?v=20260903-boss-summons"></script>
-    <script src="js/game/state.js?v=20260903-boss-summons"></script>
-    <script src="js/game/defenses.js?v=20260903-ballista-paths"></script>
-    <script src="js/game/troops.js?v=20260903-ogre-paths"></script>
-    <script src="js/game/upgrade-paths.js?v=20260903-ballista-paths"></script>
-    <script src="js/game/relics-and-trees.js?v=20260901-unique-relics"></script>
-    <script src="js/game/control-effects.js?v=20260903-ballista-paths"></script>
-    <script src="js/game/simulation.js?v=20260903-boss-summons"></script>
-    <script src="js/game/combat.js?v=20260903-ballista-paths"></script>
+    <script src="js/game/config.js?v=20260904-five-relic-shop"></script>
+    <script src="js/game/content.js?v=20260904-zeus-damage"></script>
+    <script src="js/game/progression.js?v=20260904-passive-tree-hover-scroll"></script>
+    <script src="js/game/state.js?v=20260904-passive-tree"></script>
+    <script src="js/game/defenses.js?v=20260904-passive-tree"></script>
+    <script src="js/game/troops.js?v=20260904-passive-tree"></script>
+    <script src="js/game/upgrade-paths.js?v=20260903-evolved-boomers"></script>
+    <script src="js/game/relics-and-trees.js?v=20260904-single-purchase"></script>
+    <script src="js/game/control-effects.js?v=20260903-glacier-yeti"></script>
+    <script src="js/game/simulation.js?v=20260904-passive-tree"></script>
+    <script src="js/game/combat.js?v=20260904-passive-tree"></script>
     <script src="js/game/fallback-renderer.js?v=20260831-mine-income"></script>
-    <script src="js/game/interface.js?v=20260903-ballista-paths"></script>
+    <script src="js/game/interface.js?v=20260904-art-direction"></script>
     <script src="js/game/monster-index.js?v=20260831-mine-income"></script>
-    <script src="js/game/input.js?v=20260903-ballista-paths"></script>
+    <script src="js/game/input.js?v=20260904-passive-tree-hover-scroll"></script>
     <script src="js/game/main.js?v=20260831-mine-income"></script>
   </body>
 </html>

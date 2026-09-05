@@ -62,6 +62,12 @@ function freshState() {
     paused: false,
     speed: 1,
     totalKills: 0,
+    totalDamageDealt: 0,
+    waveStartLives: 20,
+    wavesWithoutLifeLoss: 0,
+    passiveRewards: null,
+    passiveRewardsAwarded: false,
+    passiveTreeOpen: false,
     goldIncomeRemainder: 0,
     ended: false,
     elapsed: 0
@@ -74,6 +80,8 @@ function resetGame(mode = activeGameMode) {
   document.getElementById("modal").classList.add("hidden");
   document.getElementById("merchantStoreModal").classList.add("hidden");
   document.getElementById("monsterIndexModal").classList.add("hidden");
+  document.getElementById("passiveTreeModal").classList.add("hidden");
+  document.getElementById("passiveRewardSummary").classList.add("hidden");
   document.getElementById("mainMenu").classList.add("hidden");
   document.getElementById("pauseOverlay").classList.add("hidden");
   document.getElementById("pauseButton").textContent = "Ⅱ";
@@ -97,6 +105,7 @@ function startWave() {
   if (state.waveActive || state.ended || state.menuOpen || !wave) return;
   const event = getWaveEvent(waveNumber);
   state.waveActive = true;
+  state.waveStartLives = state.lives;
   state.merchantStorePending = false;
   state.bossDefeatedThisWave = false;
   state.merchantStoreGateType = event?.bossType || null;
@@ -141,6 +150,8 @@ function spawnEnemy(type, options = {}) {
     attackSwing: 0,
     fireBreathCooldown: !bossMinion && type === "dragon" ? 1.1 : 0,
     fireBreathTimer: 0,
+    snowballCooldown: !bossMinion && type === "yeti" ? base.snowballInterval : 0,
+    snowballThrowTimer: 0,
     summonCooldown: !bossMinion && type === "covenwitch" ? 3.5 : 0,
     summonsRemaining: !bossMinion && type === "covenwitch" ? 6 : 0,
     rangedCooldown: !bossMinion && type === "covenwitch" ? 1.2 : 0,

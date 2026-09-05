@@ -35,18 +35,62 @@ function fireProjectile(tower, target, stats, archerIndex = null, overrides = {}
     target,
     owner: tower,
     type: tower.type,
-    damage: stats.damage,
-    damageType: base.damageType,
-    splash: stats.splash,
+    damage: overrides.damage ?? stats.damage,
+    damageType: overrides.damageType || base.damageType,
+    splash: overrides.splash ?? stats.splash,
     splashDamage: overrides.splashDamage,
-    speed: stats.projectileSpeed || base.projectileSpeed,
+    speed: overrides.speed || stats.projectileSpeed || base.projectileSpeed,
     color: projectileColor,
     variant,
     dead: false
   });
 }
 
+function nextArcaneBounceTarget(projectile, previousTarget) {
+  const base = towerTypes.mage;
+  const nearby = state.enemies.filter(enemy => enemy !== previousTarget && !enemy.dead && !enemy.reached && !enemy.thrown &&
+    Math.hypot(enemy.x - previousTarget.x, enemy.y - previousTarget.y) <= base.arcaneBounceRange);
+  const unvisited = nearby.filter(enemy => !projectile.arcaneVisitedTargets.includes(enemy));
+  const candidates = unvisited.length ? unvisited : nearby;
+  candidates.sort((a, b) =>
+    Math.hypot(a.x - previousTarget.x, a.y - previousTarget.y) - Math.hypot(b.x - previousTarget.x, b.y - previousTarget.y) ||
+    enemyProgress(b) - enemyProgress(a));
+  return candidates[0] || null;
+}
+
+function beginArcaneBounce(projectile, primaryTarget) {
+  const base = towerTypes.mage;
+  projectile.x = primaryTarget.x;
+  projectile.y = primaryTarget.y;
+  projectile.variant = "arcaneBounce";
+  projectile.damage *= base.arcaneBounceDamageRatio;
+  projectile.splash = 0;
+  projectile.splashDamage = 0;
+  projectile.speed = base.arcaneBounceSpeed;
+  projectile.bouncesRemaining = base.arcaneBounceCount;
+  projectile.arcaneVisitedTargets = [primaryTarget];
+  projectile.arcaneLastTarget = primaryTarget;
+  projectile.target = nextArcaneBounceTarget(projectile, primaryTarget);
+  return Boolean(projectile.target);
+}
+
+function continueArcaneBounce(projectile, target) {
+  projectile.x = target.x;
+  projectile.y = target.y;
+  if (!projectile.arcaneVisitedTargets.includes(target)) projectile.arcaneVisitedTargets.push(target);
+  projectile.bouncesRemaining--;
+  if (projectile.bouncesRemaining <= 0) return false;
+  projectile.arcaneLastTarget = target;
+  projectile.target = nextArcaneBounceTarget(projectile, target);
+  return Boolean(projectile.target);
+}
+
 function hitEnemy(projectile, target) {
+  if (projectile.variant === "arcaneBounce") {
+    burst(target.x, target.y, projectile.color, 7);
+    damageEnemy(target, projectile.damage, projectile.owner, projectile.damageType);
+    return continueArcaneBounce(projectile, target);
+  }
   if (projectile.splash > 0) {
     burst(target.x, target.y, projectile.color, projectile.variant === "ufoMassiveLaser" ? 24 : projectile.variant === "ogreRock" ? 22 : 12);
     for (const enemy of state.enemies) {
@@ -57,6 +101,9 @@ function hitEnemy(projectile, target) {
           applyFrostSlow(enemy);
         }
       }
+    }
+    if (projectile.owner.type === "mage" && projectile.owner.specialization === "arcane") {
+      return beginArcaneBounce(projectile, target);
     }
   } else {
     if (projectile.variant === "ufoLaser" || projectile.variant === "ufoLaserRed" || projectile.variant === "ufoMassiveLaser") {
@@ -76,11 +123,12 @@ function hitEnemy(projectile, target) {
     if (projectile.variant === "flamingBolt" && !target.dead) igniteEnemy(target, damageDealt, projectile.owner);
     if (projectile.variant === "lightningBolt" && !target.dead) shockEnemy(target, projectile.owner);
   }
+  return false;
 }
 
 function applyFrostSlow(enemy) {
-  enemy.slowStrength = Math.max(enemy.slowStrength, .38);
-  enemy.slowTimer = Math.max(enemy.slowTimer, 2.75);
+  enemy.slowStrength = Math.max(enemy.slowStrength, towerTypes.mage.frostSlowStrength);
+  enemy.slowTimer = Math.max(enemy.slowTimer, towerTypes.mage.frostSlowDuration);
 }
 
 function damageEnemy(enemy, amount, owner, damageType = "physical", source = owner, options = {}) {
@@ -91,6 +139,7 @@ function damageEnemy(enemy, amount, owner, damageType = "physical", source = own
   const damageTakenMultiplier = batMultiplier * shockMultiplier;
   const actual = options.fixedDamage ? amount : amount * (1 - THREE.MathUtils.clamp(resistance || 0, 0, .8)) * damageTakenMultiplier;
   enemy.hp -= actual;
+  if (state.towers.includes(owner) || state.towers.includes(source)) state.totalDamageDealt += Math.max(0, actual);
   enemy.lastDamageType = damageType;
   enemy.lastResistance = resistance || 0;
   enemy.lastDamageTakenMultiplier = damageTakenMultiplier;
@@ -122,6 +171,7 @@ function spawnEnemyDebris(enemy) {
     dragon: ["#9c372d", "#63251f", "#d7aa48"],
     horseman: ["#a7d3c5", "#4b6862", "#ef8a32"],
     cyclops: ["#887653", "#5a4933", "#b58a3d"],
+    yeti: ["#d9f1ef", "#8fc9d4", "#315d70", "#8ee8ff"],
     merchant: ["#7d382c", "#d49a45", "#315c58", "#d8bd79"],
     pirate: ["#913732", "#d7c39b", "#3c2720"],
     werewolf: ["#69605a", "#3d3835", "#c3b49a"],
@@ -134,8 +184,8 @@ function spawnEnemyDebris(enemy) {
     covenwitch: ["#7657a3", "#312442", "#9de7d8"],
     riftlord: ["#7e202c", "#36131a", "#f06a36"]
   };
-  const counts = { goblin: 9, skeleton: 11, orc: 13, ogre: 16, dragon: 24, horseman: 28, cyclops: 32, merchant: 15, pirate: 11, werewolf: 13, viking: 14, wraith: 13, demon: 16, davyjones: 22, moonalpha: 23, longship: 26, covenwitch: 22, riftlord: 28 };
-  const heights = { goblin: .34, skeleton: .43, orc: .5, ogre: .63, dragon: .82, horseman: 1.05, cyclops: 1.15, merchant: .68, pirate: .44, werewolf: .52, viking: .54, wraith: .58, demon: .66, davyjones: .85, moonalpha: .9, longship: .72, covenwitch: .88, riftlord: 1.05 };
+  const counts = { goblin: 9, skeleton: 11, orc: 13, ogre: 16, dragon: 24, horseman: 28, cyclops: 32, yeti: 38, merchant: 15, pirate: 11, werewolf: 13, viking: 14, wraith: 13, demon: 16, davyjones: 22, moonalpha: 23, longship: 26, covenwitch: 22, riftlord: 28 };
+  const heights = { goblin: .34, skeleton: .43, orc: .5, ogre: .63, dragon: .82, horseman: 1.05, cyclops: 1.15, yeti: 1.28, merchant: .68, pirate: .44, werewolf: .52, viking: .54, wraith: .58, demon: .66, davyjones: .85, moonalpha: .9, longship: .72, covenwitch: .88, riftlord: 1.05 };
   const palette = palettes[enemy.type] || palettes.goblin;
   const count = counts[enemy.type] || 10;
   const baseHeight = heights[enemy.type] || .4;
@@ -180,6 +230,7 @@ function burst(x, y, color, amount) {
 
 function endGame(victory, defeatReason = "") {
   state.ended = true;
+  const rewards = awardPassiveRunRewards(victory);
   const modal = document.getElementById("modal");
   document.getElementById("modalIcon").textContent = victory ? "♛" : "♜";
   document.getElementById("modalKicker").textContent = victory ? "THE KEEP STANDS" : "THE WALLS HAVE FALLEN";
@@ -187,5 +238,6 @@ function endGame(victory, defeatReason = "") {
   document.getElementById("modalText").textContent = victory ? "Your defenses held. Songs of Stonewatch will echo through the realm." : defeatReason || "The invaders breached the keep. Rebuild, adjust your towers, and meet them again.";
   document.getElementById("finalWaves").textContent = state.wave;
   document.getElementById("finalKills").textContent = state.totalKills;
+  renderPassiveRewardSummary(rewards);
   modal.classList.remove("hidden");
 }

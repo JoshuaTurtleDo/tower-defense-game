@@ -24,7 +24,7 @@ function ensureRallyIndex(tower) {
 
 function knightMaxHp(tower) {
   const baseHp = tower.specialization === "graveyard" ? 90 : tower.specialization === "gladiators" ? 240 : 72 * Math.pow(1.5, tower.level - 1);
-  return Math.round(baseHp * relicMultiplier(tower, "troopHealth"));
+  return Math.round(baseHp * relicMultiplier(tower, "troopHealth") * passiveTowerMultiplier(tower, "troopHealth"));
 }
 
 function barracksUnitType(tower) {
@@ -180,14 +180,60 @@ function knightRallyPoint(knight) {
   return { x: point.x + dx / length * offset, y: point.y + dy / length * offset };
 }
 
+function explodeEvolvedBoomer(zombie) {
+  const tower = zombie.owner;
+  const base = towerTypes.barracks;
+  if (!tower?.evolvedBoomers || zombie.unitType !== "zombie") return [];
+  const targets = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && Math.hypot(enemy.x - zombie.x, enemy.y - zombie.y) <= base.evolvedBoomersRadius);
+  const colors = ["#75ff3d", "#baff58", "#35d92f", "#d2ff70"];
+
+  function addGooBlock(angle, speed, index) {
+    const size = 2.8 + Math.random() * 3.8;
+    const blockWorldSize = .035 + size * .006;
+    state.particles.push({
+      kind: "gooDebris",
+      x: zombie.x,
+      y: zombie.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      height: .18 + Math.random() * .22,
+      groundHeight: .15 + blockWorldSize / 2,
+      verticalVelocity: 1.7 + Math.random() * 2.1,
+      rotationX: Math.random() * Math.PI,
+      rotationY: Math.random() * Math.PI,
+      rotationZ: Math.random() * Math.PI,
+      spinX: (Math.random() - .5) * 13,
+      spinY: (Math.random() - .5) * 13,
+      spinZ: (Math.random() - .5) * 13,
+      settled: false,
+      groundDuration: base.evolvedBoomersGooDuration,
+      groundTimer: base.evolvedBoomersGooDuration,
+      life: base.evolvedBoomersGooDuration,
+      maxLife: base.evolvedBoomersGooDuration,
+      color: colors[index % colors.length],
+      size
+    });
+  }
+
+  for (let index = 0; index < 28; index++) addGooBlock(Math.random() * Math.PI * 2, 20 + Math.random() * 75, index);
+  targets.forEach((enemy, targetIndex) => {
+    const targetAngle = Math.atan2(enemy.y - zombie.y, enemy.x - zombie.x);
+    for (let index = 0; index < 3; index++) addGooBlock(targetAngle + (Math.random() - .5) * .34, 42 + Math.random() * 45, targetIndex * 3 + index);
+    damageEnemy(enemy, base.evolvedBoomersDamage, tower, "physical", zombie);
+  });
+  return targets;
+}
+
 function defeatKnight(knight) {
+  const evolvedExplosion = knight.unitType === "zombie" && knight.owner?.evolvedBoomers;
   knight.alive = false;
   knight.hp = 0;
   knight.target = null;
   if (knight.unitType === "zombie" || knight.unitType === "vampireMinion") {
     knight.expired = true;
     knight.respawnTimer = 0;
-    burst(knight.x, knight.y, knight.unitType === "vampireMinion" ? "#a71931" : "#6f8b55", 9);
+    if (evolvedExplosion) explodeEvolvedBoomer(knight);
+    else burst(knight.x, knight.y, knight.unitType === "vampireMinion" ? "#a71931" : "#6f8b55", 9);
   } else {
     knight.respawnTimer = knight.unitType === "togga" ? towerTypes.ogre.warriorRespawnDuration : knight.unitType === "gladiator" ? 10 : 8;
     knight.retreating = false;
@@ -226,7 +272,8 @@ function enemyMeleeDamage(enemy) {
     riftlord: 95,
     dragon: 150,
     horseman: 190,
-    cyclops: 240
+    cyclops: 240,
+    yeti: 300
   }[enemy.type] || 12;
   if (enemyTypes[enemy.type]?.boss && !enemy.isBossMinion) return baseDamage * (enemy.damageMultiplier || 1);
   return baseDamage * (enemy.damageMultiplier || 1) * (1 + Math.max(0, state.wave - 1) * .04);

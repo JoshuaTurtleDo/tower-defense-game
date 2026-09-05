@@ -247,3 +247,38 @@ function updateThrownEnemy(enemy, dt) {
   enemy.throwOwner = null;
   if (!enemy.dead && owner) damageEnemy(enemy, damage, owner, "physical");
 }
+
+function fireYetiSnowball(yeti) {
+  const base = enemyTypes.yeti;
+  const targets = state.towers.filter(tower => Math.hypot(tower.x - yeti.x, tower.y - yeti.y) <= base.snowballRange);
+  if (!targets.length) return false;
+  const target = targets[Math.floor(Math.random() * targets.length)];
+  const angle = Math.atan2(target.y - yeti.y, target.x - yeti.x);
+  state.projectiles.push({
+    x: yeti.x + Math.cos(angle) * 24,
+    y: yeti.y + Math.sin(angle) * 24,
+    target,
+    owner: yeti,
+    type: "yetiSnowball",
+    variant: "yetiSnowball",
+    targetsTower: true,
+    speed: base.snowballSpeed,
+    color: "#dffbff",
+    phase: Math.random() * Math.PI * 2,
+    dead: false
+  });
+  yeti.snowballCooldown = base.snowballInterval;
+  yeti.snowballThrowTimer = .8;
+  yeti.attackSwing = .8;
+  yeti.combatAngle = angle;
+  return true;
+}
+
+function freezeDefense(tower, duration = enemyTypes.yeti.defenseFreezeDuration) {
+  if (!tower || !state.towers.includes(tower)) return false;
+  tower.freezeTimer = Math.max(tower.freezeTimer || 0, duration);
+  burst(tower.x, tower.y, "#dffbff", 22);
+  burst(tower.x, tower.y, "#74cfe8", 12);
+  if (state.selectedTower === tower) showInspectPanel(tower);
+  return true;
+}

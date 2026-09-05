@@ -9,7 +9,11 @@ const archerCloseup = process.argv.includes("--archer-closeup");
 const eventShowcase = process.argv.includes("--event-showcase");
 const eventBossShowcase = process.argv.includes("--event-boss-showcase");
 const horsemanCloseup = process.argv.includes("--horseman-closeup");
+const yetiCloseup = process.argv.includes("--yeti-closeup");
+const flameBallistaCloseup = process.argv.includes("--flame-ballista-closeup");
 const witchCombat = process.argv.includes("--witch-combat");
+const artShowcase = process.argv.includes("--art-showcase");
+const menuShowcase = process.argv.includes("--menu-showcase");
 
 async function capturePreview() {
   const window = new BrowserWindow({
@@ -30,6 +34,9 @@ async function capturePreview() {
   window.showInactive();
   await new Promise(resolve => setTimeout(resolve, 250));
   const showcaseState = await window.webContents.executeJavaScript(`(() => {
+    state.gameStarted = true;
+    state.menuOpen = false;
+    document.getElementById("mainMenu").classList.add("hidden");
     state.gold = 9999;
     const showcase = [
       ["archer", 2, 1], ["mage", 4, 1], ["ballista", 6, 1],
@@ -167,6 +174,58 @@ async function capturePreview() {
       graphics3D.orbitTarget.copy(focus);
       graphics3D.setOrbitFromPosition(new THREE.Vector3(focus.x + 2.3, focus.y + 1.55, focus.z - 3.15));
     }
+    if (${yetiCloseup}) {
+      state.towers = [];
+      state.knights = [];
+      state.selectedTower = null;
+      state.enemies = [];
+      state.projectiles = [];
+      spawnEnemy("yeti");
+      const yeti = state.enemies[0];
+      yeti.x = 5.5 * CELL;
+      yeti.y = .5 * CELL;
+      yeti.pathIndex = 7;
+      yeti.moving = false;
+      yeti.speed = 0;
+      showBuildPanel();
+      updateUI();
+      const focus = graphics3D.worldFromGame(yeti.x, yeti.y, 1.2);
+      graphics3D.orbitTarget.copy(focus);
+      graphics3D.setOrbitFromPosition(new THREE.Vector3(focus.x + 2.9, focus.y + 2.15, focus.z - 3.85));
+    }
+    if (${flameBallistaCloseup}) {
+      state.towers = [];
+      state.knights = [];
+      state.enemies = [];
+      state.projectiles = [];
+      state.selectedBuild = "ballista";
+      placeTower(1, 1);
+      const ballista = state.towers[0];
+      upgradeTower();
+      upgradeTower();
+      ballista.col = 5;
+      ballista.row = 6;
+      ballista.x = 5.5 * CELL;
+      ballista.y = 6.5 * CELL;
+      spawnEnemy("ogre");
+      const target = state.enemies[0];
+      target.x = 9.5 * CELL;
+      target.y = 6.5 * CELL;
+      target.pathIndex = pathPoints.length - 2;
+      target.moving = false;
+      target.speed = 0;
+      ballista.angle = Math.atan2(target.y - ballista.y, target.x - ballista.x);
+      state.selectedTower = ballista;
+      fireProjectile(ballista, target, towerStats(ballista));
+      const bolt = state.projectiles[0];
+      bolt.x = ballista.x + 55;
+      bolt.y = ballista.y;
+      showInspectPanel(ballista);
+      updateUI();
+      const focus = graphics3D.worldFromGame(ballista.x, ballista.y, .55);
+      graphics3D.orbitTarget.copy(focus);
+      graphics3D.setOrbitFromPosition(new THREE.Vector3(focus.x + 2.25, focus.y + 1.75, focus.z - 2.75));
+    }
     if (${witchCombat}) {
       state.towers = [];
       state.knights = [];
@@ -196,6 +255,20 @@ async function capturePreview() {
       graphics3D.orbitTarget.copy(focus);
       graphics3D.setOrbitFromPosition(new THREE.Vector3(focus.x + 2.4, focus.y + 1.8, focus.z - 3.25));
     }
+    if (${artShowcase}) {
+      for (const type of ["archer", "barracks", "ghost", "vampire", "castle", "ufo"]) {
+        if (state.towers.some(tower => tower.type === type)) continue;
+        state.selectedBuild = type;
+        let placed = false;
+        for (let row = 1; row < ROWS && !placed; row++) for (let col = 1; col < COLS - 1 && !placed; col++) {
+          if (canPlace(col, row)) { placeTower(col, row); placed = true; }
+        }
+      }
+      state.selectedTower = null;
+      state.selectedBuild = null;
+      showBuildPanel(); updateUI();
+    }
+    if (${menuShowcase}) openMainMenu();
     return { gold: state.gold, towers: state.towers.length, enemies: state.enemies.length };
   })()`);
   console.log(JSON.stringify(showcaseState));
@@ -205,8 +278,8 @@ async function capturePreview() {
   const image = await window.webContents.capturePage();
   const outputDirectory = path.join(__dirname, "..", "out");
   fs.mkdirSync(outputDirectory, { recursive: true });
-  const outputName = ogreCloseup ? "ogre-closeup.png" : wizardCloseup ? "wizard-closeup.png" : archerCloseup ? "archer-closeup.png" : eventShowcase ? "event-showcase.png" : eventBossShowcase ? "event-miniboss-showcase.png" : horsemanCloseup ? "horseman-skeletal-closeup.png" : witchCombat ? "witch-ranged-combat.png" : "visual-preview.png";
-  const outputPath = path.join(outputDirectory, outputName);
+  const outputName = ogreCloseup ? "ogre-closeup.png" : wizardCloseup ? "wizard-closeup.png" : archerCloseup ? "archer-closeup.png" : eventShowcase ? "event-showcase.png" : eventBossShowcase ? "event-miniboss-showcase.png" : horsemanCloseup ? "horseman-skeletal-closeup.png" : yetiCloseup ? "glacier-yeti-closeup.png" : flameBallistaCloseup ? "flame-ballista-closeup.png" : witchCombat ? "witch-ranged-combat.png" : "visual-preview.png";
+  const outputPath = path.join(outputDirectory, artShowcase ? "fantasy-overhaul.png" : menuShowcase ? "fantasy-menu.png" : outputName);
   fs.writeFileSync(outputPath, image.toPNG());
   console.log(outputPath);
   app.quit();

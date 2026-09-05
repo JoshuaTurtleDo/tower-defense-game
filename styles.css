@@ -100,6 +100,7 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .tip-box strong { color: #d9ceb5; }
 
 .relic-inventory-panel { margin-top: 13px; padding: 10px; border: 1px solid rgba(218,170,72,.28); border-radius: 5px; background: rgba(8,16,11,.38); }
+.relic-inventory-panel.active { border-color: rgba(240,200,106,.72); box-shadow: inset 0 0 14px rgba(225,185,91,.08); }
 .relic-panel-heading { display: flex; align-items: center; justify-content: space-between; color: #a99e87; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
 .relic-panel-heading strong { color: var(--gold-bright); }
 .relic-inventory-items, .equipped-relics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -111,8 +112,23 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .relic-chip:hover, .relic-chip.selected, .equipped-relic-slot.filled:hover { border-color: #f0c86a; box-shadow: 0 0 10px rgba(225,175,70,.3); }
 .relic-chip.selected { background: linear-gradient(#70552a, #392a18); transform: translateY(-2px); }
 .relic-chip strong { position: absolute; right: -4px; bottom: -4px; min-width: 15px; height: 15px; display: grid; place-items: center; padding: 0 3px; border-radius: 8px; color: #23180a; background: #edc96b; font-size: 8px; }
+.relic-chip[draggable="true"] { cursor: grab; }
+.relic-chip.dragging { opacity: .45; }
+.relic-tooltip { position: fixed; z-index: 30; width: 220px; padding: 9px 11px; border: 1px solid #a8833d; border-radius: 5px; color: #f4e5bd; background: linear-gradient(145deg, #263b2b, #101a13); box-shadow: 0 8px 24px rgba(0,0,0,.6), inset 0 1px rgba(255,231,165,.08); pointer-events: none; opacity: 0; transform: translateY(3px); transition: opacity .12s ease, transform .12s ease; }
+.relic-tooltip.visible { opacity: 1; transform: translateY(0); }
+.relic-tooltip strong { display: block; color: #ffe3a0; font: 700 12px/1.2 Georgia, serif; }
+.relic-tooltip > span { display: block; margin-top: 3px; color: #d4b66f; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.relic-tooltip p { margin: 6px 0 0; color: #d6d0c0; font-size: 10px; line-height: 1.35; }
+.relic-tooltip-rare { border-color: #438dc6; box-shadow: 0 8px 24px rgba(0,0,0,.6), 0 0 10px rgba(71,174,244,.18); }
+.relic-tooltip-rare strong { color: #b9e5ff; }
+.relic-tooltip-epic { border-color: #a354cc; box-shadow: 0 8px 24px rgba(0,0,0,.6), 0 0 11px rgba(204,91,255,.2); }
+.relic-tooltip-epic strong { color: #edc1ff; }
+.relic-tooltip-unique { border-color: #ff812e; box-shadow: 0 8px 24px rgba(0,0,0,.6), 0 0 12px rgba(255,111,28,.25); }
+.relic-tooltip-unique strong { color: #ffd09b; }
 .equipped-relics-panel { margin: -3px 0 14px; padding: 9px; border: 1px solid rgba(218,170,72,.22); border-radius: 5px; background: rgba(8,16,11,.3); }
 .equipped-relic-slot { width: 38px; height: 38px; color: #6d725f; background: rgba(11,19,13,.58); cursor: default; }
+.equipped-relic-slot:not(.filled) { border-style: dashed; cursor: copy; }
+.equipped-relic-slot.drag-over { border-color: #ffe28c; background: rgba(113,83,30,.58); box-shadow: 0 0 12px rgba(255,210,104,.42); }
 .equipped-relic-slot.filled { color: #f5cf72; background: linear-gradient(#3b4933, #19251b); cursor: pointer; }
 
 .wave-card { margin-top: auto; padding-top: 18px; }
@@ -127,6 +143,7 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .enemy-pip.ogre { background: #706540; }
 .enemy-pip.merchant { color: #2a1909; background: #d9aa55; border-color: #ffe19a; box-shadow: 0 0 9px rgba(231, 177, 74, .46); }
 .enemy-pip.dragon { color: #f6c762; background: #812f29; box-shadow: 0 0 10px rgba(202,66,48,.5); }
+.enemy-pip.yeti { color: #173b4a; background: #b9e8ef; border-color: #e9ffff; box-shadow: 0 0 11px rgba(126,224,244,.68); }
 .enemy-pip.pirate { color: #f3d5a4; background: #7e2e2b; }
 .enemy-pip.werewolf { color: #f0c66f; background: #504944; }
 .enemy-pip.viking { color: #e0edf0; background: #41677b; }
@@ -160,6 +177,7 @@ h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 3vw, 36px); 
 .action-button span { font-size: 9px; }
 .branch-hint { margin: -2px 0 9px; color: #aebfca; font-size: 9px; line-height: 1.45; }
 .zeus-action { color: #10233b; border-color: #bfeaff; background: linear-gradient(#d8f5ff, #62b9ee); box-shadow: inset 0 1px rgba(255,255,255,.55), 0 0 13px rgba(89,190,255,.3); }
+.boomer-action { color: #10230d; border-color: #c9ff74; background: linear-gradient(#baff58, #4f9c31); box-shadow: inset 0 1px rgba(255,255,255,.4), 0 0 13px rgba(111,255,63,.28); }
 .tree-emblem { color: #9ac16d; background: radial-gradient(circle, rgba(70,112,55,.46), rgba(17,46,29,.72)); border-color: #66864c; }
 .tree-panel-copy { margin: 12px 0 15px; color: #a7ac9b; font-size: 10px; line-height: 1.55; }
 .tree-stat-list { margin-bottom: 14px; }
@@ -188,6 +206,56 @@ kbd { padding: 1px 4px; border: 1px solid #5b554b; border-radius: 3px; backgroun
 .modal-card > p:not(.panel-kicker) { color: var(--muted); line-height: 1.6; }
 .final-stats { display: flex; justify-content: center; gap: 30px; margin: 22px 0; color: var(--muted); font-size: 10px; text-transform: uppercase; }
 .final-stats strong { display: block; margin-top: 4px; color: var(--ink); font-family: Georgia, serif; font-size: 22px; }
+.result-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.passive-reward-summary { margin: 18px 0 20px; padding: 10px 13px; border: 1px solid rgba(219,177,75,.36); border-radius: 6px; background: rgba(13,24,17,.58); }
+.passive-reward-summary > span { display: block; color: #d9bf7a; font-size: 9px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.passive-reward-list { display: flex; justify-content: center; gap: 13px; margin-top: 8px; }
+.passive-resource { min-width: 62px; display: inline-grid; grid-template-columns: 22px auto; grid-template-rows: 1fr 1fr; align-items: center; column-gap: 5px; text-align: left; }
+.passive-resource i { grid-row: 1 / span 2; display: grid; place-items: center; font-size: 22px; font-style: normal; }
+.passive-resource strong { color: #f0e5c4; font-family: Georgia, serif; font-size: 16px; line-height: 1; }
+.passive-resource small { color: #9f9682; font-size: 7px; text-transform: uppercase; letter-spacing: .07em; }
+.passive-resource.emerald i, .node-cost.emerald { color: #6ff0ae; }
+.passive-resource.sapphire i, .node-cost.sapphire { color: #6cc9ff; }
+.passive-resource.ruby i, .node-cost.ruby { color: #ff707b; }
+
+.passive-tree-modal { z-index: 21; background: rgba(5,10,7,.93); }
+.passive-tree-card { width: min(1120px, 100%); max-height: calc(100vh - 30px); display: flex; flex-direction: column; padding: 25px; overflow: hidden; background: radial-gradient(circle at 50% 50%, rgba(75,106,62,.18), transparent 30rem), linear-gradient(145deg, #263b2b, #0d1811 72%); border: 1px solid #c39844; border-radius: 9px; box-shadow: inset 0 1px rgba(255,229,157,.09), 0 25px 85px #000; }
+.passive-tree-heading { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; }
+.passive-tree-heading-icon { width: 56px; height: 56px; display: grid; place-items: center; border: 1px solid #d2aa53; border-radius: 50%; color: #ffe18c; background: #3d3520; box-shadow: 0 0 18px rgba(231,193,92,.16); font-size: 28px; }
+.passive-tree-heading h2 { margin: 0; font-family: Georgia, serif; font-size: 31px; font-weight: 500; }
+.passive-tree-heading p:not(.panel-kicker) { margin: 3px 0 0; color: #a99e88; font-size: 10px; }
+.passive-tree-progress { padding: 8px 11px; color: #f0cc72; border: 1px solid rgba(219,177,75,.35); border-radius: 14px; background: rgba(16,25,18,.7); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.passive-tree-copy { margin: 14px 0 8px; padding: 8px 11px; color: #a99e88; border-left: 2px solid #9b7637; background: rgba(13,22,16,.45); font-size: 9px; line-height: 1.45; }
+.passive-tree-stage { position: relative; min-height: clamp(420px, 58vh, 550px); flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; border: 1px solid rgba(194,157,76,.17); border-radius: 7px; background: radial-gradient(circle at 50% 50%, rgba(208,170,72,.08), transparent 12rem), rgba(7,14,10,.25); }
+.passive-tree-canvas { position: relative; width: 100%; min-width: 980px; height: 680px; }
+.passive-tree-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.passive-tree-lines line { stroke: rgba(206,169,74,.34); stroke-width: .55; stroke-dasharray: 1.3 1.1; }
+.passive-tree-core { position: absolute; left: 50%; top: 50%; z-index: 2; width: 145px; height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; transform: translate(-50%, -50%); border: 2px solid #e3ba5a; border-radius: 50%; color: #f8e3a0; background: radial-gradient(circle, #5e4b25, #211d13 70%); box-shadow: 0 0 0 5px rgba(205,164,63,.08), 0 0 28px rgba(227,185,81,.3); text-align: center; }
+.passive-tree-core span { font-size: 25px; }
+.passive-tree-core strong { font: 700 11px/1.1 Georgia, serif; }
+.passive-tree-core small { color: #c7b987; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
+.passive-branch { position: absolute; z-index: 3; width: 155px; padding: 6px; transform: translate(-50%, -50%); border: 1px solid rgba(197,160,77,.25); border-radius: 6px; background: rgba(16,29,19,.88); box-shadow: 0 5px 14px rgba(0,0,0,.28); }
+.passive-branch h3 { margin: 0; color: #e5ca82; font: 700 11px/1.1 Georgia, serif; text-align: center; }
+.passive-branch > small { display: block; margin-top: 3px; color: #8f9b82; font-size: 7px; text-align: center; text-transform: uppercase; letter-spacing: .06em; }
+.passive-node-list { display: grid; gap: 4px; margin-top: 6px; }
+.passive-node { min-height: 49px; display: grid; grid-template-columns: 22px 1fr; grid-template-rows: auto auto; column-gap: 6px; align-items: center; padding: 6px; color: #e8dfc8; text-align: left; border: 1px solid #6f6039; border-radius: 7px; background: linear-gradient(145deg, rgba(72,86,52,.72), rgba(14,26,17,.95)); box-shadow: inset 0 1px rgba(255,231,164,.07), 0 3px 8px rgba(0,0,0,.28); cursor: pointer; }
+.passive-node:hover:not(:disabled) { border-color: #efd078; background: linear-gradient(135deg, rgba(117,91,41,.68), rgba(25,42,24,.92)); transform: translateY(-1px); }
+.passive-node:disabled { cursor: default; }
+.passive-node b { grid-row: 1 / span 2; width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid #806d3d; border-radius: 50%; color: #e6c86f; background: #2c2819; font-size: 10px; }
+.passive-node > span { overflow: hidden; color: #f0d995; font: 700 9px/1.1 Georgia, serif; text-overflow: ellipsis; white-space: nowrap; }
+.passive-node em { overflow: hidden; color: #b3bba4; font-size: 7px; font-style: normal; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.passive-node > small { grid-column: 1 / span 2; min-height: 10px; margin-top: 3px; color: #d4b66f; font-size: 7px; line-height: 1.15; }
+.passive-node.purchased { border-color: #6da47f; background: linear-gradient(135deg, rgba(49,102,64,.72), rgba(14,35,21,.92)); }
+.passive-node.purchased b { color: #8ff0b5; border-color: #5cb27a; background: #1b4830; }
+.passive-node.special { border-color: #bc7136; background: linear-gradient(135deg, rgba(104,57,27,.72), rgba(35,20,14,.92)); }
+.passive-node.special b { color: #ffb468; border-color: #d27b38; background: #542915; }
+.node-cost { margin-right: 4px; font-weight: 800; }
+.passive-node-tooltip { margin: 8px 0 0; padding: 9px 12px; color: #d9d1bb; border: 1px solid rgba(222,177,76,.42); border-radius: 6px; background: rgba(12,23,15,.86); box-shadow: inset 0 1px rgba(255,233,171,.06); font-size: 9px; line-height: 1.35; }
+.passive-node-tooltip strong { display: block; margin-bottom: 2px; color: #f0cf7b; font: 700 12px/1.15 Georgia, serif; }
+.passive-node-tooltip p { margin: 0; color: #c5c2ad; }
+.passive-node-tooltip small { display: block; margin-top: 4px; color: #9ca78d; font-size: 8px; }
+.passive-node-tooltip .node-cost { font-size: 8px; }
+.passive-tree-status { min-height: 15px; margin: 8px 0 10px; color: #d2bd7f; font-size: 9px; text-align: center; }
 
 .merchant-store-modal { z-index: 12; background: rgba(5,7,5,.86); }
 .merchant-store-card { width: min(760px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: 28px; background: linear-gradient(145deg, #263b2b, #101a13 68%); border: 1px solid #d3a747; border-radius: 9px; box-shadow: inset 0 1px rgba(255,227,151,.1), 0 24px 75px #000; }
@@ -278,6 +346,12 @@ kbd { padding: 1px 4px; border: 1px solid #5b554b; border-radius: 3px; backgroun
 .setting-row small { margin-top: 4px; color: #9e9582; font-size: 9px; }
 .setting-row em { min-width: 70px; padding: 6px 9px; color: #ffe08a; text-align: center; border: 1px solid #77602f; border-radius: 12px; background: #312b1c; font-size: 9px; font-style: normal; font-weight: 800; text-transform: uppercase; }
 
+.passive-resource-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 14px 0 16px; }
+.passive-resource-list .passive-resource { min-height: 54px; padding: 8px 10px; border-radius: 6px; background: rgba(10, 18, 13, .72); }
+.passive-resource-list .passive-resource i { font-size: 21px; }
+.passive-resource-list .passive-resource strong { font-size: 17px; }
+.passive-resource-list .passive-resource small { font-size: 8px; }
+
 /* The iPhone app is landscape-only. Keep the battlefield and its scrollable
    command deck side-by-side instead of using the browser's narrow-screen stack. */
 @media (max-width: 1000px) and (orientation: landscape) and (pointer: coarse) {
@@ -356,6 +430,11 @@ kbd { padding: 1px 4px; border: 1px solid #5b554b; border-radius: 3px; backgroun
   .monster-index-heading { grid-template-columns: auto 1fr; }
   .monster-index-progress { grid-column: 1 / -1; justify-self: start; }
   .monster-index-grid { grid-template-columns: 1fr; }
+  .passive-tree-modal { align-items: start; overflow-y: auto; }
+  .passive-tree-card { width: min(940px, 100%); min-height: 0; padding: 18px; }
+  .passive-resource-list { gap: 5px; }
+  .passive-resource-list .passive-resource { padding: 7px 5px; }
+  .passive-tree-stage { min-height: 500px; }
 }
 
 /* Keep these final so they win over the general tablet stacking rules above. */

@@ -44,8 +44,7 @@ canvas.addEventListener("pointermove", event => {
   hoverCell = graphics3D.pickGrid(event.clientX, event.clientY);
   if (!hoverCell) return;
   const hoveredTree = graphics3D.pickTree(event.clientX, event.clientY);
-  const hoveredTower = state.towers.some(tower => tower.col === hoverCell.col && tower.row === hoverCell.row);
-  canvas.style.cursor = state.selectedRelic ? (hoveredTower ? "pointer" : "not-allowed") : hoveredTree ? (state.selectedBuild ? "not-allowed" : "pointer") : state.selectedBuild ? (canPlace(hoverCell.col, hoverCell.row) ? "crosshair" : "not-allowed") : "default";
+  canvas.style.cursor = hoveredTree ? (state.selectedBuild ? "not-allowed" : "pointer") : state.selectedBuild ? (canPlace(hoverCell.col, hoverCell.row) ? "crosshair" : "not-allowed") : "default";
 });
 
 function finishCameraDrag(event, cancelled = false) {
@@ -56,8 +55,7 @@ function finishCameraDrag(event, cancelled = false) {
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   hoverCell = graphics3D.pickGrid(event.clientX, event.clientY);
   const hoveredTree = graphics3D.pickTree(event.clientX, event.clientY);
-  const hoveredTower = hoverCell && state.towers.some(tower => tower.col === hoverCell.col && tower.row === hoverCell.row);
-  canvas.style.cursor = state.selectedRelic ? (hoveredTower ? "pointer" : "not-allowed") : hoveredTree ? (state.selectedBuild ? "not-allowed" : "pointer") : state.selectedBuild && hoverCell ? (canPlace(hoverCell.col, hoverCell.row) ? "crosshair" : "not-allowed") : "default";
+  canvas.style.cursor = hoveredTree ? (state.selectedBuild ? "not-allowed" : "pointer") : state.selectedBuild && hoverCell ? (canPlace(hoverCell.col, hoverCell.row) ? "crosshair" : "not-allowed") : "default";
 }
 
 canvas.addEventListener("pointerup", event => finishCameraDrag(event));
@@ -80,12 +78,6 @@ canvas.addEventListener("click", event => {
     return;
   }
   const picked = graphics3D.pickGrid(event.clientX, event.clientY);
-  if (state.selectedRelic) {
-    const tower = picked && state.towers.find(item => item.col === picked.col && item.row === picked.row);
-    if (tower) equipSelectedRelic(tower);
-    else showAnnouncement("Relics must be placed onto a compatible defense");
-    return;
-  }
   const treeId = graphics3D.pickTree(event.clientX, event.clientY);
   if (treeId) {
     const tree = state.trees.find(item => item.id === treeId);
@@ -108,6 +100,7 @@ document.getElementById("startWaveButton").addEventListener("click", startWave);
 document.getElementById("upgradeButton").addEventListener("click", upgradeTower);
 document.getElementById("frostUpgradeButton").addEventListener("click", chooseFrostPath);
 document.getElementById("graveUpgradeButton").addEventListener("click", chooseGravestonePath);
+document.getElementById("evolvedBoomersUpgradeButton").addEventListener("click", upgradeEvolvedBoomers);
 document.getElementById("slingUpgradeButton").addEventListener("click", chooseSlingshooterPath);
 document.getElementById("stoneThrowUpgradeButton").addEventListener("click", chooseStoneThrowPath);
 document.getElementById("zeusBowUpgradeButton").addEventListener("click", chooseZeusBowPath);
@@ -128,6 +121,19 @@ document.getElementById("cameraResetButton").addEventListener("click", () => gra
 document.getElementById("monsterIndexButton").addEventListener("click", openMonsterIndex);
 document.getElementById("closeMonsterIndexButton").addEventListener("click", closeMonsterIndex);
 document.getElementById("menuButton").addEventListener("click", openMainMenu);
+document.getElementById("passiveTreeMenuButton").addEventListener("click", () => openPassiveTree("menu"));
+document.getElementById("passiveTreeResultButton").addEventListener("click", () => openPassiveTree("result"));
+document.getElementById("closePassiveTreeButton").addEventListener("click", closePassiveTree);
+const passiveTreeStage = document.getElementById("passiveTreeStage");
+passiveTreeStage.addEventListener("wheel", event => {
+  // Keep tree scrolling contained here; the battlefield's wheel handler only
+  // belongs to the canvas and must never zoom while the tree is open.
+  event.stopPropagation();
+  const delta = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * 16 : event.deltaY;
+  const before = passiveTreeStage.scrollTop;
+  passiveTreeStage.scrollTop = Math.max(0, Math.min(passiveTreeStage.scrollHeight - passiveTreeStage.clientHeight, before + delta));
+  if (passiveTreeStage.scrollTop !== before) event.preventDefault();
+}, { passive: false });
 document.getElementById("continueGameButton").addEventListener("click", resumeGame);
 document.getElementById("playMenuButton").addEventListener("click", () => showMenuView("play"));
 document.getElementById("settingsMenuButton").addEventListener("click", () => showMenuView("settings"));
@@ -157,6 +163,10 @@ function isSpaceHotkey(event) {
 
 window.addEventListener("keydown", event => {
   if (event.key === "Escape") {
+    if (state.passiveTreeOpen) {
+      closePassiveTree();
+      return;
+    }
     if (state.monsterIndexOpen) {
       closeMonsterIndex();
       return;

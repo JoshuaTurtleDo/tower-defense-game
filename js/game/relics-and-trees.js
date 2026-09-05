@@ -6,17 +6,18 @@ function merchantStockCounts() {
   const encounter = state.merchantEncounterCount || Math.max(1, Math.ceil(state.wave / 6));
   if (encounter <= 1) return { common: 5, rare: 0, epic: 0, unique: 0 };
 
-  // The second Merchant always introduces the higher tiers. Each relic bought
-  // shifts one Common slot in future shops toward Rare, then Epic stock.
-  const progression = Math.min(5, state.merchantRelicsPurchased || 0);
-  if (progression === 0) return { common: 5, rare: 3, epic: 1, unique: 0 };
-  if (progression >= MAX_MERCHANT_FAVOUR) return { common: 0, rare: 6, epic: 3, unique: 1 };
-  return {
-    common: 5 - progression,
-    rare: 4 + Math.floor(progression / 2),
-    epic: 1 + Math.ceil(progression / 2),
-    unique: 0
-  };
+  // Five-slot shops begin with the second Merchant's guaranteed 3 Rares and
+  // 1 Epic. Each purchase replaces the weakest remaining slot with a higher
+  // tier, culminating in 4 Epics and 1 Unique at maximum favour.
+  const progression = Math.min(MAX_MERCHANT_FAVOUR, state.merchantRelicsPurchased || 0);
+  return [
+    { common: 1, rare: 3, epic: 1, unique: 0 },
+    { common: 0, rare: 3, epic: 2, unique: 0 },
+    { common: 0, rare: 2, epic: 3, unique: 0 },
+    { common: 0, rare: 1, epic: 4, unique: 0 },
+    { common: 0, rare: 0, epic: 5, unique: 0 },
+    { common: 0, rare: 0, epic: 4, unique: 1 }
+  ][progression];
 }
 
 function takeRotatingRelics(pool, count, offset) {
@@ -74,11 +75,13 @@ function closeMerchantStore() {
 }
 function buyMerchantRelic(type) {
   const relic = merchantRelics[type];
-  if (!state.storeOpen || !relic || !state.merchantStoreStock.includes(type) || state.gold < relic.cost) return;
+  if (!state.storeOpen || !relic || state.merchantStoreStock.length !== state.merchantStoreOffering.length || !state.merchantStoreStock.includes(type) || state.gold < relic.cost) return;
   state.gold -= relic.cost;
   state.inventory.push(type);
   state.merchantRelicsPurchased++;
-  state.merchantStoreStock = state.merchantStoreStock.filter(item => item !== type);
+  // Each Merchant's visit allows exactly one purchase. Emptying the stock
+  // also makes every remaining card visibly unavailable in the refreshed UI.
+  state.merchantStoreStock = [];
   showAnnouncement(`${relic.name} added to your relic satchel`);
   renderMerchantStore();
   updateUI();
@@ -97,7 +100,7 @@ function renderMerchantStore() {
     button.className = `merchant-item-card relic-tier-${tier}`;
     button.dataset.relic = type;
     button.disabled = !available || state.gold < relic.cost;
-    button.innerHTML = `<span class="merchant-item-icon">${relic.icon}</span><span class="merchant-item-copy"><strong>${relic.name}</strong><span class="relic-tier-label">${tier}</span><small>${relic.description}</small></span><span class="merchant-item-price">${available ? `${relic.cost} gold` : "Sold"}</span>`;
+    button.innerHTML = `<span class="merchant-item-icon">${relic.icon}</span><span class="merchant-item-copy"><strong>${relic.name}</strong><span class="relic-tier-label">${tier}</span><small>${relic.description}</small></span><span class="merchant-item-price">${available ? `${relic.cost} gold` : "Sold out"}</span>`;
     button.addEventListener("click", () => buyMerchantRelic(type));
     list.appendChild(button);
   }
@@ -108,40 +111,95 @@ function renderMerchantStore() {
   document.getElementById("merchantFavourValue").textContent = `${favour} / ${MAX_MERCHANT_FAVOUR}`;
   document.getElementById("merchantFavourFill").style.width = `${percent}%`;
   track.setAttribute("aria-valuenow", favour);
-  document.getElementById("merchantFavourHint").textContent = favour >= MAX_MERCHANT_FAVOUR
+  const purchaseLimitReached = state.merchantStoreOffering.length > 0 && state.merchantStoreStock.length === 0;
+  document.getElementById("merchantFavourHint").textContent = purchaseLimitReached
+    ? "One relic claimed — this Merchant's shop is closed."
+    : favour >= MAX_MERCHANT_FAVOUR
     ? "Maximum favour — future shops offer the strongest available relic mix."
     : favour === 0
-      ? "Buy relics to earn favour and improve future shops."
+      ? "Choose one relic to claim and earn Merchant favour."
       : `${MAX_MERCHANT_FAVOUR - favour} more purchase${MAX_MERCHANT_FAVOUR - favour === 1 ? "" : "s"} to reach maximum favour.`;
+}
+
+function hideRelicTooltip() {
+  const tooltip = document.getElementById("relicTooltip");
+  if (!tooltip) return;
+  tooltip.classList.remove("visible");
+  tooltip.setAttribute("aria-hidden", "true");
+}
+
+function showRelicTooltip(element, type) {
+  const relic = merchantRelics[type];
+  const tooltip = document.getElementById("relicTooltip");
+  if (!relic || !tooltip) return;
+  const tier = relic.tier || "common";
+  tooltip.className = `relic-tooltip relic-tooltip-${tier}`;
+  tooltip.innerHTML = `<strong>${relic.name}</strong><span>${tier} relic</span><p>${relic.description}</p>`;
+  tooltip.setAttribute("aria-hidden", "false");
+  tooltip.classList.add("visible");
+  const rect = element.getBoundingClientRect();
+  const width = 220;
+  const maxLeft = Math.max(10, window.innerWidth - width - 10);
+  const left = Math.min(maxLeft, Math.max(10, rect.left));
+  const tooltipHeight = tooltip.offsetHeight || 72;
+  const top = rect.bottom + tooltipHeight < window.innerHeight ? rect.bottom + 8 : rect.top - tooltipHeight - 8;
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${Math.max(10, top)}px`;
+}
+
+function bindRelicTooltip(element, type) {
+  if (!type) return;
+  element.addEventListener("mouseenter", () => showRelicTooltip(element, type));
+  element.addEventListener("mouseleave", hideRelicTooltip);
+  element.addEventListener("focus", () => showRelicTooltip(element, type));
+  element.addEventListener("blur", hideRelicTooltip);
 }
 
 function renderInventory() {
   const list = document.getElementById("relicInventoryItems");
   if (!list) return;
+  hideRelicTooltip();
   const counts = {};
   state.inventory.forEach(type => counts[type] = (counts[type] || 0) + 1);
-  if (!counts[state.selectedRelic]) state.selectedRelic = null;
+  const activeDefense = state.selectedTower && state.towers.includes(state.selectedTower) ? state.selectedTower : null;
+  const inventoryPanel = document.getElementById("relicInventoryPanel");
+  inventoryPanel?.classList.toggle("active", Boolean(activeDefense));
   document.getElementById("relicInventoryCount").textContent = `${state.inventory.length}`;
   list.innerHTML = "";
   for (const [type, count] of Object.entries(counts)) {
     const relic = merchantRelics[type];
     const button = document.createElement("button");
     const tier = relic.tier || "common";
-    button.className = `relic-chip relic-tier-${tier}${state.selectedRelic === type ? " selected" : ""}`;
-    button.title = `${tier[0].toUpperCase()}${tier.slice(1)} ${relic.name}: ${relic.description}. Select, then click a compatible defense.`;
+    button.className = `relic-chip relic-tier-${tier}`;
+    button.draggable = Boolean(activeDefense);
+    button.title = activeDefense
+      ? `${tier[0].toUpperCase()}${tier.slice(1)} ${relic.name}: ${relic.description}. Click to equip or drag to a slot.`
+      : `${tier[0].toUpperCase()}${tier.slice(1)} ${relic.name}: ${relic.description}. Select a defense first.`;
     button.innerHTML = `<span>${relic.icon}</span><strong>${count}</strong>`;
+    bindRelicTooltip(button, type);
     button.addEventListener("click", () => {
-      state.selectedRelic = state.selectedRelic === type ? null : type;
-      state.selectedBuild = null;
-      document.querySelectorAll(".tower-card").forEach(card => card.classList.remove("selected"));
-      renderInventory();
-      showAnnouncement(state.selectedRelic ? `${relic.name} selected — click a defense to equip it` : "Relic placement cancelled");
+      if (!activeDefense) {
+        showAnnouncement("Select a defense before equipping a relic");
+        return;
+      }
+      equipRelic(activeDefense, type);
     });
+    button.addEventListener("dragstart", event => {
+      if (!activeDefense) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer?.setData("text/relic-type", type);
+      event.dataTransfer?.setData("text/plain", type);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy";
+      button.classList.add("dragging");
+    });
+    button.addEventListener("dragend", () => button.classList.remove("dragging"));
     list.appendChild(button);
   }
-  document.getElementById("relicInventoryHint").textContent = state.selectedRelic
-    ? `${merchantRelics[state.selectedRelic].name} selected • click a defense`
-    : state.inventory.length ? "Select a relic, then click a defense to equip it." : "Defeat an Event Merchant or establish a Treasure Cove to uncover relics.";
+  document.getElementById("relicInventoryHint").textContent = activeDefense
+    ? state.inventory.length ? `Equipping to ${towerTypes[activeDefense.type].name} • click a relic or drag it to a slot.` : "This defense has no relics available in your satchel."
+    : state.inventory.length ? "Select a defense to equip a relic." : "Defeat an Event Merchant or establish a Treasure Cove to uncover relics.";
 }
 
 function excavateTreasureCoveRelic(cove) {
@@ -160,7 +218,7 @@ function excavateTreasureCoveRelic(cove) {
 function rollTreasureCoveRoundRelics() {
   let produced = 0;
   for (const cove of state.towers) {
-    if (cove.type !== "mine" || cove.specialization !== "treasureCove" || cove.workers <= 0) continue;
+    if (cove.type !== "mine" || cove.specialization !== "treasureCove" || cove.workers <= 0 || cove.freezeTimer > 0) continue;
     if (Math.random() < treasureCoveRelicChance(cove)) {
       excavateTreasureCoveRelic(cove);
       produced++;
@@ -180,7 +238,10 @@ function refreshBarracksRelicHealth(tower) {
 }
 
 function equipSelectedRelic(tower) {
-  const type = state.selectedRelic;
+  return equipRelic(tower, state.selectedRelic);
+}
+
+function equipRelic(tower, type) {
   const relic = merchantRelics[type];
   if (!tower || !relic || !state.inventory.includes(type)) return false;
   tower.items ||= [];
@@ -220,6 +281,7 @@ function unequipRelic(tower, index) {
 function renderEquippedRelics(tower) {
   const list = document.getElementById("equippedRelics");
   if (!list) return;
+  hideRelicTooltip();
   tower.items ||= [];
   document.getElementById("equippedRelicCount").textContent = `${tower.items.length} / ${MAX_RELICS_PER_TOWER}`;
   list.innerHTML = "";
@@ -232,12 +294,24 @@ function renderEquippedRelics(tower) {
       button.textContent = relic.icon;
       const tier = relic.tier || "common";
       button.title = `${tier[0].toUpperCase()}${tier.slice(1)} ${relic.name}: ${relic.description}. Click to unequip.`;
+      bindRelicTooltip(button, type);
       button.addEventListener("click", () => unequipRelic(tower, slot));
     } else {
       button.textContent = "+";
-      button.title = "Empty relic slot";
-      button.disabled = true;
+      button.title = "Empty relic slot — drop a relic here";
     }
+    button.addEventListener("dragover", event => {
+      event.preventDefault();
+      button.classList.add("drag-over");
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    });
+    button.addEventListener("dragleave", () => button.classList.remove("drag-over"));
+    button.addEventListener("drop", event => {
+      event.preventDefault();
+      button.classList.remove("drag-over");
+      const droppedType = event.dataTransfer?.getData("text/relic-type") || event.dataTransfer?.getData("text/plain");
+      if (droppedType) equipRelic(tower, droppedType);
+    });
     list.appendChild(button);
   }
 }

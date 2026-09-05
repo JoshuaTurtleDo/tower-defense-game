@@ -25,6 +25,7 @@ function update(dt) {
     if (enemy.dead) continue;
     enemy.attackSwing = Math.max(0, enemy.attackSwing - dt);
     enemy.fireBreathTimer = Math.max(0, (enemy.fireBreathTimer || 0) - dt);
+    enemy.snowballThrowTimer = Math.max(0, (enemy.snowballThrowTimer || 0) - dt);
     enemy.blocked = false;
     enemy.moving = false;
     if (enemy.thrown) {
@@ -38,6 +39,10 @@ function update(dt) {
     if (state.wave >= BOSS_SUMMON_UNLOCK_WAVE && !enemy.isBossMinion && (enemy.isBoss || enemy.isMiniBoss)) {
       enemy.bossSummonTimer -= dt;
       if (enemy.bossSummonTimer <= 0) summonBossMinions(enemy);
+    }
+    if (!enemy.isBossMinion && enemy.type === "yeti") {
+      enemy.snowballCooldown -= dt;
+      if (enemy.snowballCooldown <= 0) fireYetiSnowball(enemy);
     }
     if (!enemy.isBossMinion && enemy.type === "covenwitch" && enemy.summonsRemaining > 0) {
       enemy.summonCooldown -= dt;
@@ -117,7 +122,33 @@ function update(dt) {
     tower.fearPulse = Math.max(0, (tower.fearPulse || 0) - dt);
     tower.bloodDrainTimer = Math.max(0, (tower.bloodDrainTimer || 0) - dt);
     tower.batCursePulse = Math.max(0, (tower.batCursePulse || 0) - dt);
-    if (tower.type === "mine" || tower.type === "castle") {
+    const wasFrozen = tower.freezeTimer > 0;
+    tower.freezeTimer = Math.max(0, (tower.freezeTimer || 0) - dt);
+    if (tower.freezeTimer > 0) {
+      if (state.selectedTower === tower) showFrozenDefenseStatus(tower);
+      continue;
+    }
+    if (wasFrozen && state.selectedTower === tower) showInspectPanel(tower);
+    if (tower.type === "mine") {
+      continue;
+    }
+    if (tower.type === "castle") {
+      if (hasPassiveUnlock("castleCannon")) {
+        tower.cannonCooldown = Math.max(0, (tower.cannonCooldown || 0) - dt);
+        const cannonRange = 175 * passiveTowerMultiplier(tower, "range");
+        const targets = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && Math.hypot(enemy.x - tower.x, enemy.y - tower.y) <= cannonRange);
+        targets.sort((a, b) => enemyProgress(b) - enemyProgress(a));
+        const target = targets[0];
+        if (target) {
+          tower.angle = Math.atan2(target.y - tower.y, target.x - tower.x);
+          if (tower.cannonCooldown <= 0) {
+            fireProjectile(tower, target, { damage: 200, damageType: "physical", splash: CELL * .75, projectileSpeed: 460 }, null, {
+              variant: "castleCannon", color: "#ffcf68", damage: 200, damageType: "physical", splash: CELL * .75, splashDamage: 120, speed: 460
+            });
+            tower.cannonCooldown = 2.5;
+          }
+        }
+      }
       continue;
     }
     if (tower.type === "vampire") {
@@ -306,8 +337,15 @@ function update(dt) {
 
   for (const projectile of state.projectiles) {
     if (projectile.dead) continue;
-    const target = projectile.target;
-    if (!target || (projectile.hostile ? !target.alive || target.expired : target.dead || target.reached)) {
+    let target = projectile.target;
+    if (projectile.variant === "arcaneBounce" && (!target || target.dead || target.reached || target.thrown)) {
+      target = nextArcaneBounceTarget(projectile, projectile.arcaneLastTarget);
+      projectile.target = target;
+    }
+    const invalidTowerTarget = projectile.targetsTower && (!target || !state.towers.includes(target));
+    const invalidUnitTarget = !projectile.targetsTower && projectile.hostile && (!target || !target.alive || target.expired);
+    const invalidEnemyTarget = !projectile.targetsTower && !projectile.hostile && (!target || target.dead || target.reached);
+    if (invalidTowerTarget || invalidUnitTarget || invalidEnemyTarget) {
       projectile.dead = true;
       continue;
     }
@@ -316,9 +354,11 @@ function update(dt) {
     const distance = Math.hypot(dx, dy);
     const step = projectile.speed * dt;
     if (distance <= step + 6) {
-      if (projectile.hostile) hitBarracksWithMagic(projectile, target);
-      else hitEnemy(projectile, target);
-      projectile.dead = true;
+      let continues = false;
+      if (projectile.targetsTower) freezeDefense(target);
+      else if (projectile.hostile) hitBarracksWithMagic(projectile, target);
+      else continues = hitEnemy(projectile, target) === true;
+      projectile.dead = !continues;
     } else {
       projectile.x += dx / distance * step;
       projectile.y += dy / distance * step;
@@ -326,7 +366,7 @@ function update(dt) {
   }
 
   for (const particle of state.particles) {
-    if (particle.kind === "debris") {
+    if (particle.kind === "debris" || particle.kind === "gooDebris") {
       if (!particle.settled) {
         particle.x += particle.vx * dt;
         particle.y += particle.vy * dt;
@@ -342,8 +382,8 @@ function update(dt) {
           particle.vx = 0;
           particle.vy = 0;
           particle.settled = true;
-          particle.groundTimer = 3;
-          particle.life = 3;
+          particle.groundTimer = particle.groundDuration || 3;
+          particle.life = particle.groundTimer;
         }
       } else {
         particle.groundTimer -= dt;
@@ -369,6 +409,8 @@ function update(dt) {
   if (!state.ended && state.waveActive && !state.spawnQueue.length && !state.enemies.length) {
     state.waveActive = false;
     state.activeEvent = null;
+    if (state.lives >= state.waveStartLives) state.wavesWithoutLifeLoss++;
+    else state.wavesWithoutLifeLoss = 0;
     dismissVampireMinions();
     const minePayout = payGoldMineRoundIncome();
     const coveRelics = rollTreasureCoveRoundRelics();
@@ -386,7 +428,7 @@ function update(dt) {
 function payGoldMineRoundIncome() {
   let totalPayout = 0;
   for (const mine of state.towers) {
-    if (mine.type !== "mine" || mine.specialization === "treasureCove" || mine.workers <= 0) continue;
+    if (mine.type !== "mine" || mine.specialization === "treasureCove" || mine.workers <= 0 || mine.freezeTimer > 0) continue;
     const ringMultiplier = relicMultiplier(mine, "mineIncome");
     const exactIncome = mine.workers * MINE_GOLD_PER_WORKER_PER_ROUND * ringMultiplier + (mine.incomeRemainder || 0);
     const payout = Math.floor(exactIncome + 1e-9);
