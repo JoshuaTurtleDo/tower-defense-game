@@ -148,12 +148,6 @@ At level 2, each Alien UFO gains a permanent final-upgrade choice:
 
 ## Project files
 
-The fantasy art direction uses offline painted material textures, soft grass variation, stone road edging, flowers, layered evergreen branches, weathered masonry and timber, metal accents, and short glowing spell trails. Warm sunlight and cool fill lighting keep units readable against the original dark green battlefield background. Defense icons and menu frames share a muted gold-and-forest palette. Decorative grass and road edging do not affect placement or combat.
-
-- `js/rendering/art-direction.js` owns procedural textures, batched scenery, unit accents, spell trails, and illustrated defense icons.
-- `css/art-direction.css` owns the shared fantasy interface styling.
-- `npm run capture -- --art-showcase` and `npm run capture -- --menu-showcase` save visual previews under `out/`.
-
 - `index.html` contains the page structure and interface.
 - `styles.css` controls the visual design and responsive layout.
 - `js/game/` contains the gameplay as small purpose-based modules. Its own `README.md` is a map showing exactly where each kind of feature belongs.

@@ -14,7 +14,7 @@ class ThreeGraphics {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.08;
+    this.renderer.toneMappingExposure = 1.34;
 
     this.camera = new THREE.PerspectiveCamera(39, 1, .1, 60);
     this.orbitTarget = new THREE.Vector3(0, 0, .45);
@@ -44,7 +44,6 @@ class ThreeGraphics {
     this.showHealthBars = true;
 
     this.makeMaterials();
-    FantasyArt.materials(this);
     this.buildLighting();
     this.buildWorld();
     this.buildIndicators();
@@ -77,9 +76,9 @@ class ThreeGraphics {
   }
 
   buildLighting() {
-    const hemi = new THREE.HemisphereLight(0xd5e7ec, 0x263925, 1.85);
+    const hemi = new THREE.HemisphereLight(0xf2ead2, 0x13281c, 2.35);
     this.scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xffe2b3, 3.25);
+    const sun = new THREE.DirectionalLight(0xffd28a, 4.1);
     sun.position.set(-8, 14, -9);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -91,12 +90,11 @@ class ThreeGraphics {
     sun.shadow.camera.far = 30;
     sun.shadow.bias = -.0005;
     sun.shadow.normalBias = .025;
-    sun.shadow.radius = 2;
     this.scene.add(sun);
-    const rim = new THREE.DirectionalLight(0xf0bc79, 1.05);
+    const rim = new THREE.DirectionalLight(0xffa640, 1.45);
     rim.position.set(9, 8, 7);
     this.scene.add(rim);
-    const coolFill = new THREE.DirectionalLight(0x92b9df, .85);
+    const coolFill = new THREE.DirectionalLight(0x8cc8b1, .65);
     coolFill.position.set(4, 6, -8);
     this.scene.add(coolFill);
     const warmFill = new THREE.PointLight(0xf0a13c, 12, 13, 2);
@@ -119,7 +117,7 @@ class ThreeGraphics {
       for (let col = 0; col < COLS; col++) {
         const tone = (col * 17 + row * 31) % 3;
         const material = tone === 0 ? this.mat.grassA : tone === 1 ? this.mat.grassB : this.mat.grassC;
-        const tile = this.mesh(new THREE.BoxGeometry(1.005, .055, 1.005), material, col - COLS / 2 + .5, 0, row - ROWS / 2 + .5);
+        const tile = this.mesh(new THREE.BoxGeometry(1.015, .055 + (tone === 2 ? .015 : 0), 1.015), material, col - COLS / 2 + .5, 0, row - ROWS / 2 + .5);
         tile.receiveShadow = true;
       }
     }
@@ -133,7 +131,6 @@ class ThreeGraphics {
     this.createRoadRibbon(this.offsetCurvePoints(smoothRoadPoints, -.17), .035, .139, this.mat.soilMark);
     this.addRoadStones(smoothRoadPoints);
     this.addScenery();
-    FantasyArt.world(this, smoothRoadPoints);
   }
 
   offsetCurvePoints(points, distance) {
@@ -150,12 +147,8 @@ class ThreeGraphics {
   createRoadRibbon(points, width, elevation, material) {
     const positions = [];
     const indices = [];
-    const uvs = [];
-    let distanceAlong = 0;
     const halfWidth = width / 2;
     for (let i = 0; i < points.length; i++) {
-      if (i > 0) distanceAlong += points[i].distanceTo(points[i - 1]);
-      uvs.push(0, distanceAlong, 1, distanceAlong);
       const previous = points[Math.max(0, i - 1)];
       const next = points[Math.min(points.length - 1, i + 1)];
       const tangentX = next.x - previous.x;
@@ -175,7 +168,6 @@ class ThreeGraphics {
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
@@ -224,7 +216,6 @@ class ThreeGraphics {
     this.mesh(new THREE.ConeGeometry(.42, .7, 7), crownMat, 0, .64, 0, crown);
     this.mesh(new THREE.ConeGeometry(.34, .66, 7), variant % 3 ? this.mat.leafMid : this.mat.leafLight, 0, .98, 0, crown);
     this.mesh(new THREE.ConeGeometry(.23, .52, 7), this.mat.leafLight, 0, 1.3, 0, crown);
-    FantasyArt.tree(this, crown, variant);
     const animationEntry = { object: crown, phase: variant * .71, strength: .012 + (variant % 3) * .003 };
     this.animatedScenery.push(animationEntry);
     group.userData.treeId = id;
@@ -445,7 +436,6 @@ class ThreeGraphics {
     this.syncKnights(state.knights);
     this.syncEnemies(state.enemies);
     this.syncProjectiles(state.projectiles);
-    FantasyArt.trails(this, state.projectiles);
     this.syncParticles(state.particles);
     this.updateIndicators(state, hoverCell, canPlace, towerStats);
     this.renderer.render(this.scene, this.camera);
@@ -552,16 +542,6 @@ class ThreeGraphics {
         group.userData.castleAura.material.opacity = .22 + Math.sin(performance.now() * .0045 + tower.col) * .06;
       }
       if (group.userData.turret) group.userData.turret.rotation.y = -tower.angle;
-      if (group.userData.ballistaFlames) {
-        const now = performance.now() * .001;
-        group.userData.ballistaFlames.forEach((flame, index) => {
-          const flicker = Math.sin(now * 11 + flame.userData.phase) * .12;
-          flame.scale.set(1 + flicker, 1 - flicker * .45, 1 + flicker);
-          flame.position.y = flame.userData.baseY + Math.sin(now * 8 + index * 1.7) * .018;
-          flame.rotation.y = Math.sin(now * 6 + index) * .12;
-        });
-        group.userData.ballistaFireLight.intensity = 3.8 + Math.sin(now * 13) * 1.1;
-      }
       if (group.userData.zeusCrystal) {
         const now = performance.now() * .001;
         const pulse = 1 + Math.sin(now * 9 + tower.col) * .16;
@@ -2333,7 +2313,6 @@ class ThreeGraphics {
     else if (type === "wraith") this.buildWraith(modelRoot);
     else if (type === "demon") this.buildDemon(modelRoot);
     else this.buildGoblin(modelRoot);
-    FantasyArt.enemy(this, modelRoot, type);
     Object.assign(group.userData, modelRoot.userData);
     group.userData.enemyModelRoot = modelRoot;
     this.buildBatForm(group);

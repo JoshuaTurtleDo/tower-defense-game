@@ -27,7 +27,7 @@ function showInspectPanel(tower) {
   renderInventory();
   const base = towerTypes[tower.type];
   const emblem = document.getElementById("selectedEmblem");
-  emblem.innerHTML = FantasyArt.icon(tower.type);
+  emblem.textContent = base.emblem;
   emblem.className = `tower-emblem ${base.className}`;
   document.getElementById("selectedName").textContent = base.name;
   renderEquippedRelics(tower);

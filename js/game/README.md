@@ -4,8 +4,6 @@ Stonewatch Keep uses ordinary browser scripts so it still runs by double-clickin
 
 ## Where to make changes
 
-Presentation loads before these gameplay modules: Three.js, then `js/rendering/art-direction.js` (seeded material textures, instanced scenery, unit accents, spell trails, and defense icons), then `graphics3d.js` (models and rendering). `css/art-direction.css` layers the fantasy theme over the layout rules in `styles.css`. Keep visual tuning in these presentation files.
-
 1. `config.js` — board dimensions, road geometry, shared constants, and small content-building helpers.
 2. `content.js` — tower/enemy stats, the 40 campaign waves, themed events, and endless-wave generation. Start here for most balance or roster changes.
 3. `progression.js` — persistent Emerald, Sapphire, and Ruby resources, end-of-run rewards, and the nine-branch Passive Tree.

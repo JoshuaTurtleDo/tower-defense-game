@@ -12,8 +12,6 @@ const horsemanCloseup = process.argv.includes("--horseman-closeup");
 const yetiCloseup = process.argv.includes("--yeti-closeup");
 const flameBallistaCloseup = process.argv.includes("--flame-ballista-closeup");
 const witchCombat = process.argv.includes("--witch-combat");
-const artShowcase = process.argv.includes("--art-showcase");
-const menuShowcase = process.argv.includes("--menu-showcase");
 
 async function capturePreview() {
   const window = new BrowserWindow({
@@ -34,9 +32,6 @@ async function capturePreview() {
   window.showInactive();
   await new Promise(resolve => setTimeout(resolve, 250));
   const showcaseState = await window.webContents.executeJavaScript(`(() => {
-    state.gameStarted = true;
-    state.menuOpen = false;
-    document.getElementById("mainMenu").classList.add("hidden");
     state.gold = 9999;
     const showcase = [
       ["archer", 2, 1], ["mage", 4, 1], ["ballista", 6, 1],
@@ -255,20 +250,6 @@ async function capturePreview() {
       graphics3D.orbitTarget.copy(focus);
       graphics3D.setOrbitFromPosition(new THREE.Vector3(focus.x + 2.4, focus.y + 1.8, focus.z - 3.25));
     }
-    if (${artShowcase}) {
-      for (const type of ["archer", "barracks", "ghost", "vampire", "castle", "ufo"]) {
-        if (state.towers.some(tower => tower.type === type)) continue;
-        state.selectedBuild = type;
-        let placed = false;
-        for (let row = 1; row < ROWS && !placed; row++) for (let col = 1; col < COLS - 1 && !placed; col++) {
-          if (canPlace(col, row)) { placeTower(col, row); placed = true; }
-        }
-      }
-      state.selectedTower = null;
-      state.selectedBuild = null;
-      showBuildPanel(); updateUI();
-    }
-    if (${menuShowcase}) openMainMenu();
     return { gold: state.gold, towers: state.towers.length, enemies: state.enemies.length };
   })()`);
   console.log(JSON.stringify(showcaseState));
@@ -279,7 +260,7 @@ async function capturePreview() {
   const outputDirectory = path.join(__dirname, "..", "out");
   fs.mkdirSync(outputDirectory, { recursive: true });
   const outputName = ogreCloseup ? "ogre-closeup.png" : wizardCloseup ? "wizard-closeup.png" : archerCloseup ? "archer-closeup.png" : eventShowcase ? "event-showcase.png" : eventBossShowcase ? "event-miniboss-showcase.png" : horsemanCloseup ? "horseman-skeletal-closeup.png" : yetiCloseup ? "glacier-yeti-closeup.png" : flameBallistaCloseup ? "flame-ballista-closeup.png" : witchCombat ? "witch-ranged-combat.png" : "visual-preview.png";
-  const outputPath = path.join(outputDirectory, artShowcase ? "fantasy-overhaul.png" : menuShowcase ? "fantasy-menu.png" : outputName);
+  const outputPath = path.join(outputDirectory, outputName);
   fs.writeFileSync(outputPath, image.toPNG());
   console.log(outputPath);
   app.quit();
