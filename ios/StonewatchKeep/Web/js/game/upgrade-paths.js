@@ -18,6 +18,25 @@ function chooseGravestonePath() {
   showInspectPanel(tower);
   updateUI();
 }
+
+function evolvedBoomersCost(tower) {
+  if (!tower || tower.type !== "barracks" || tower.specialization !== "graveyard" || tower.level !== 3 || tower.evolvedBoomers) return null;
+  return towerTypes.barracks.evolvedBoomersCost;
+}
+
+function upgradeEvolvedBoomers() {
+  const tower = state.selectedTower;
+  const cost = evolvedBoomersCost(tower);
+  if (cost === null || state.gold < cost) return;
+  state.gold -= cost;
+  tower.spent += cost;
+  tower.evolvedBoomers = true;
+  burst(tower.x, tower.y, "#75ff3d", 24);
+  burst(tower.x, tower.y, "#caff62", 12);
+  showAnnouncement("Evolved Boomers unlocked — fallen Zombies now erupt in toxic goo");
+  showInspectPanel(tower);
+  updateUI();
+}
 function chooseFrostPath() {
   const tower = state.selectedTower;
   if (!tower || tower.type !== "mage" || tower.level !== 2) return;
@@ -61,6 +80,42 @@ function chooseSlingshooterPath() {
   tower.volleyTimer = 0;
   burst(tower.x, tower.y, "#c79a58", 28);
   showAnnouncement("Slingshooter Path unlocked — boulders now damage groups");
+  showInspectPanel(tower);
+  updateUI();
+}
+
+function chooseStoneThrowPath() {
+  const tower = state.selectedTower;
+  if (!tower || tower.type !== "ogre" || tower.level !== 2) return;
+  const cost = upgradeCost(tower);
+  if (cost === null || state.gold < cost) return;
+  state.gold -= cost;
+  tower.spent += cost;
+  tower.level++;
+  tower.specialization = "stoneThrow";
+  tower.cooldown = 0;
+  tower.stoneThrowTimer = 0;
+  state.knights = state.knights.filter(unit => unit.owner !== tower);
+  tower.toggaUnit = null;
+  burst(tower.x, tower.y, "#9d8d64", 30);
+  showAnnouncement("StoneThrow Path unlocked — crushing boulders damage groups");
+  showInspectPanel(tower);
+  updateUI();
+}
+
+function chooseZeusBowPath() {
+  const tower = state.selectedTower;
+  if (!tower || tower.type !== "ballista" || tower.level !== 2) return;
+  const cost = upgradeCost(tower);
+  if (cost === null || state.gold < cost) return;
+  state.gold -= cost;
+  tower.spent += cost;
+  tower.level++;
+  tower.specialization = "zeusBow";
+  tower.cooldown = 0;
+  burst(tower.x, tower.y, "#78cfff", 30);
+  burst(tower.x, tower.y, "#fff4a8", 16);
+  showAnnouncement("Zeus's Bow unlocked — lightning exposes and stuns its targets");
   showInspectPanel(tower);
   updateUI();
 }

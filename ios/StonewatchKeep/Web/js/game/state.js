@@ -62,6 +62,12 @@ function freshState() {
     paused: false,
     speed: 1,
     totalKills: 0,
+    totalDamageDealt: 0,
+    waveStartLives: 20,
+    wavesWithoutLifeLoss: 0,
+    passiveRewards: null,
+    passiveRewardsAwarded: false,
+    passiveTreeOpen: false,
     goldIncomeRemainder: 0,
     ended: false,
     elapsed: 0
@@ -74,6 +80,8 @@ function resetGame(mode = activeGameMode) {
   document.getElementById("modal").classList.add("hidden");
   document.getElementById("merchantStoreModal").classList.add("hidden");
   document.getElementById("monsterIndexModal").classList.add("hidden");
+  document.getElementById("passiveTreeModal").classList.add("hidden");
+  document.getElementById("passiveRewardSummary").classList.add("hidden");
   document.getElementById("mainMenu").classList.add("hidden");
   document.getElementById("pauseOverlay").classList.add("hidden");
   document.getElementById("pauseButton").textContent = "Ⅱ";
@@ -97,6 +105,7 @@ function startWave() {
   if (state.waveActive || state.ended || state.menuOpen || !wave) return;
   const event = getWaveEvent(waveNumber);
   state.waveActive = true;
+  state.waveStartLives = state.lives;
   state.merchantStorePending = false;
   state.bossDefeatedThisWave = false;
   state.merchantStoreGateType = event?.bossType || null;
@@ -116,18 +125,20 @@ function spawnEnemy(type, options = {}) {
   discoverMonster(type);
   const bossMinion = Boolean(options.bossMinion);
   const scale = 1 + Math.max(0, state.wave - 1) * .11;
-  const minionScale = bossMinion ? base.bossSummonScale || .05 : 1;
+  const minionHealthScale = bossMinion ? base.bossSummonHealthScale || .02 : 1;
+  const minionDamageScale = bossMinion ? base.bossSummonDamageScale || .05 : 1;
+  const bossSummonsUnlocked = state.wave >= BOSS_SUMMON_UNLOCK_WAVE;
   state.enemies.push({
     type,
     x: pathPoints[0].x,
     y: pathPoints[0].y,
     pathIndex: 1,
-    hp: base.hp * scale * minionScale,
-    maxHp: base.hp * scale * minionScale,
+    hp: base.hp * scale * minionHealthScale,
+    maxHp: base.hp * scale * minionHealthScale,
     speed: base.speed * (1 + Math.max(0, state.wave - 1) * .012),
     reward: bossMinion ? 0 : base.reward,
-    damage: base.damage * minionScale,
-    damageMultiplier: minionScale,
+    damage: base.damage * minionDamageScale,
+    damageMultiplier: minionDamageScale,
     isBoss: !bossMinion && Boolean(base.boss),
     isMiniBoss: !bossMinion && Boolean(base.miniBoss),
     isBossMinion: bossMinion,
@@ -139,10 +150,12 @@ function spawnEnemy(type, options = {}) {
     attackSwing: 0,
     fireBreathCooldown: !bossMinion && type === "dragon" ? 1.1 : 0,
     fireBreathTimer: 0,
+    snowballCooldown: !bossMinion && type === "yeti" ? base.snowballInterval : 0,
+    snowballThrowTimer: 0,
     summonCooldown: !bossMinion && type === "covenwitch" ? 3.5 : 0,
     summonsRemaining: !bossMinion && type === "covenwitch" ? 6 : 0,
     rangedCooldown: !bossMinion && type === "covenwitch" ? 1.2 : 0,
-    bossSummonTimer: !bossMinion && (base.boss || base.miniBoss) ? base.bossSummonInterval : 0,
+    bossSummonTimer: !bossMinion && bossSummonsUnlocked && (base.boss || base.miniBoss) ? base.bossSummonInterval : 0,
     bossSummonsMade: 0,
     blocked: false,
     moving: true,
@@ -152,6 +165,9 @@ function spawnEnemy(type, options = {}) {
     throwSpin: 0,
     slowTimer: 0,
     slowStrength: 0,
+    stunTimer: 0,
+    burnEffects: [],
+    shockTimer: 0,
     fearTimer: 0,
     fearCooldown: 0,
     fearTargetIndex: 0,

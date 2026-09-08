@@ -6,6 +6,14 @@ function showBuildPanel() {
   document.getElementById("buildPanel").classList.remove("hidden");
   document.getElementById("inspectPanel").classList.add("hidden");
   document.getElementById("treePanel").classList.add("hidden");
+  renderInventory();
+}
+
+function showFrozenDefenseStatus(tower) {
+  if (!tower || tower.freezeTimer <= 0) return;
+  const specialRow = document.getElementById("specialStatRow");
+  specialRow.classList.remove("hidden");
+  document.getElementById("specialStat").textContent = `Frozen solid • disabled for ${tower.freezeTimer.toFixed(1)}s`;
 }
 
 function showInspectPanel(tower) {
@@ -16,16 +24,20 @@ function showInspectPanel(tower) {
   document.getElementById("buildPanel").classList.add("hidden");
   document.getElementById("inspectPanel").classList.remove("hidden");
   document.getElementById("treePanel").classList.add("hidden");
+  renderInventory();
   const base = towerTypes[tower.type];
   const emblem = document.getElementById("selectedEmblem");
-  emblem.textContent = base.emblem;
+  emblem.innerHTML = window.DefenseIcons?.icon(tower.type) || base.emblem;
   emblem.className = `tower-emblem ${base.className}`;
   document.getElementById("selectedName").textContent = base.name;
   renderEquippedRelics(tower);
   const upgradeButton = document.getElementById("upgradeButton");
   const frostButton = document.getElementById("frostUpgradeButton");
   const graveButton = document.getElementById("graveUpgradeButton");
+  const evolvedBoomersButton = document.getElementById("evolvedBoomersUpgradeButton");
   const slingButton = document.getElementById("slingUpgradeButton");
+  const stoneThrowButton = document.getElementById("stoneThrowUpgradeButton");
+  const zeusBowButton = document.getElementById("zeusBowUpgradeButton");
   const nightspawnButton = document.getElementById("nightspawnUpgradeButton");
   const twinLaserButton = document.getElementById("twinLaserUpgradeButton");
   const massiveBeamButton = document.getElementById("massiveBeamUpgradeButton");
@@ -64,7 +76,10 @@ function showInspectPanel(tower) {
     branchHint.classList.add("hidden");
     frostButton.classList.add("hidden");
     graveButton.classList.add("hidden");
+    evolvedBoomersButton.classList.add("hidden");
     slingButton.classList.add("hidden");
+    stoneThrowButton.classList.add("hidden");
+    zeusBowButton.classList.add("hidden");
     nightspawnButton.classList.add("hidden");
     twinLaserButton.classList.add("hidden");
     massiveBeamButton.classList.add("hidden");
@@ -92,21 +107,24 @@ function showInspectPanel(tower) {
     document.getElementById("speedLabel").textContent = "Stacking";
     document.getElementById("killsLabel").textContent = "Defenses empowered";
     document.getElementById("damageStat").textContent = "+20% damage, range & speed";
-    document.getElementById("rangeStat").textContent = "8 surrounding tiles";
+    document.getElementById("rangeStat").textContent = `${TINY_CASTLE_AURA_RADIUS}-tile radius`;
     document.getElementById("speedStat").textContent = "One aura maximum";
     document.getElementById("killsStat").textContent = buffedTowers.length;
     damageTypeRow.classList.add("hidden");
     branchHint.classList.add("hidden");
     frostButton.classList.add("hidden");
     graveButton.classList.add("hidden");
+    evolvedBoomersButton.classList.add("hidden");
     slingButton.classList.add("hidden");
+    stoneThrowButton.classList.add("hidden");
+    zeusBowButton.classList.add("hidden");
     nightspawnButton.classList.add("hidden");
     twinLaserButton.classList.add("hidden");
     massiveBeamButton.classList.add("hidden");
     specialRow.classList.remove("hidden");
     document.getElementById("specialStat").textContent = buffedTowers.length
-      ? `${buffedTowers.length} adjacent defense${buffedTowers.length === 1 ? "" : "s"} receiving the Royal Command aura`
-      : "Place combat defenses on a neighboring tile to empower them";
+      ? `${buffedTowers.length} defense${buffedTowers.length === 1 ? "" : "s"} within ${TINY_CASTLE_AURA_RADIUS} tiles receiving the Royal Command aura`
+      : `Place combat defenses within ${TINY_CASTLE_AURA_RADIUS} tiles to empower them`;
   } else {
     const stats = towerStats(tower);
     const isBarracks = tower.type === "barracks";
@@ -117,20 +135,23 @@ function showInspectPanel(tower) {
     const isVampire = tower.type === "vampire";
     const draculaEmpowered = isVampire && hasRelic(tower, "draculaCloak");
     const isUfo = tower.type === "ufo";
+    const isEvolvedBoomers = isBarracks && tower.specialization === "graveyard" && tower.evolvedBoomers;
     const castleBuffed = hasTinyCastleAura(tower);
-    const barracksUnit = tower.specialization === "graveyard" ? "Zombie" : tower.specialization === "gladiators" ? "Gladiator" : "Knight";
+    const barracksUnit = tower.specialization === "graveyard" ? isEvolvedBoomers ? "Evolved Boomer" : "Zombie" : tower.specialization === "gladiators" ? "Gladiator" : "Knight";
     const damageType = base.damageType;
     const damageTypeStat = document.getElementById("damageTypeStat");
     damageTypeRow.classList.remove("hidden");
     damageTypeStat.textContent = damageType === "magic" ? "Magic" : damageType === "physical" ? "Physical" : "Control";
     damageTypeStat.className = `damage-type ${damageType}`;
-    document.getElementById("selectedLevel").textContent = `Level ${tower.level}`;
-    document.getElementById("damageLabel").textContent = umbralEmpowered ? "Possess targets" : isGhost ? "Fear targets" : isBarracks ? `${barracksUnit} damage` : isOgreTower ? "Impact damage" : "Damage";
-    document.getElementById("rangeLabel").textContent = umbralEmpowered ? "Umbral range" : isGhost ? "Fear range" : isBarracks ? "Command range" : isOgreTower ? "Grab range" : "Range";
+    document.getElementById("selectedLevel").textContent = isEvolvedBoomers ? "Level 4 • Evolved" : `Level ${tower.level}`;
+    const isToggaWarrior = isOgreTower && tower.specialization === "togga";
+    const isStoneThrowOgre = isOgreTower && tower.specialization === "stoneThrow";
+    document.getElementById("damageLabel").textContent = umbralEmpowered ? "Possess targets" : isGhost ? "Fear targets" : isBarracks ? `${barracksUnit} damage` : isToggaWarrior ? "Ground-pound damage" : isStoneThrowOgre ? "Direct-hit damage" : isOgreTower ? "Impact damage" : "Damage";
+    document.getElementById("rangeLabel").textContent = umbralEmpowered ? "Umbral range" : isGhost ? "Fear range" : isBarracks ? "Command range" : isToggaWarrior ? "Patrol range" : isStoneThrowOgre ? "Blast radius" : isOgreTower ? "Grab range" : "Range";
     document.getElementById("speedLabel").textContent = "Attack time";
     document.getElementById("killsLabel").textContent = umbralEmpowered ? "Enemies possessed" : isGhost ? "Enemies feared" : "Enemies felled";
     document.getElementById("damageStat").textContent = isGhost ? stats.fearCount : Math.round(stats.damage);
-    document.getElementById("rangeStat").textContent = Math.round(stats.range);
+    document.getElementById("rangeStat").textContent = isStoneThrowOgre ? `${Math.round(stats.splash / CELL * 10) / 10} tile` : Math.round(stats.range);
     document.getElementById("speedStat").textContent = `${stats.cooldown.toFixed(2)}s`;
     document.getElementById("killsStat").textContent = umbralEmpowered ? tower.enemiesPossessed : isGhost ? tower.enemiesFeared : tower.kills;
     const cost = upgradeCost(tower);
@@ -138,30 +159,43 @@ function showInspectPanel(tower) {
     const choosingBarracksPath = tower.type === "barracks" && tower.level === 2;
     const choosingArcherPath = tower.type === "archer" && tower.level === 2;
     const choosingVampirePath = tower.type === "vampire" && tower.level === 2;
-    const choosingBallistaFlame = tower.type === "ballista" && tower.level === 2;
+    const choosingOgrePath = isOgreTower && tower.level === 2;
+    const choosingBallistaPath = tower.type === "ballista" && tower.level === 2;
     const choosingUfoPath = isUfo && tower.level === 2;
+    const evolvedCost = evolvedBoomersCost(tower);
+    const choosingEvolvedBoomers = evolvedCost !== null;
     const completedMagePath = tower.type === "mage" && tower.level === 3;
     const completedBarracksPath = tower.type === "barracks" && tower.level === 3;
     const completedArcherPath = tower.type === "archer" && tower.level === 3;
     const completedVampirePath = tower.type === "vampire" && tower.level === 3;
-    const completedBallistaFlame = tower.type === "ballista" && tower.level === 3;
+    const completedOgrePath = isOgreTower && tower.level === 3;
+    const completedBallistaPath = tower.type === "ballista" && tower.level === 3;
     const completedUfoPath = isUfo && tower.level === 3;
-    upgradeButton.classList.toggle("hidden", choosingUfoPath);
-    document.getElementById("selectedName").textContent = umbralEmpowered ? "Umbral Horror" : draculaEmpowered ? "Dracula Vampire" : completedArcherPath ? tower.specialization === "slingshooters" ? "Royal Slingshooters" : "Royal Riflemen" : completedBallistaFlame ? "Flamebolt Ballista" : completedUfoPath ? tower.specialization === "twinlaser" ? "Twin-Laser UFO" : "Massive-Beam UFO" : base.name;
-    document.getElementById("upgradeLabel").textContent = choosingMagePath ? "Arcane Path" : choosingBarracksPath ? "Gladiator Path" : choosingArcherPath ? "Riflemen Path" : choosingVampirePath ? "Bloodstorm Path" : choosingUfoPath ? "UFO Path" : choosingBallistaFlame || completedBallistaFlame ? "Flaming Greatbolt" : completedMagePath ? `${tower.specialization === "frost" ? "Frost" : "Arcane"} Path` : completedBarracksPath ? `${tower.specialization === "graveyard" ? "Gravestone" : "Gladiator"} Path` : completedArcherPath ? `${tower.specialization === "slingshooters" ? "Slingshooter" : "Riflemen"} Path` : completedVampirePath ? `${tower.specialization === "nightspawn" ? "Nightspawn" : "Bloodstorm"} Path` : completedUfoPath ? `${tower.specialization === "twinlaser" ? "Twin Lasers" : "Massive Beam"} Path` : "Upgrade";
+    upgradeButton.classList.toggle("hidden", choosingUfoPath || choosingEvolvedBoomers);
+    document.getElementById("selectedName").textContent = isEvolvedBoomers ? "Evolved Boomers" : isToggaWarrior ? "Togga's Strongest Warrior" : isStoneThrowOgre ? "StoneThrow Ogre" : umbralEmpowered ? "Umbral Horror" : draculaEmpowered ? "Dracula Vampire" : completedArcherPath ? tower.specialization === "slingshooters" ? "Royal Slingshooters" : "Royal Riflemen" : completedBallistaPath ? tower.specialization === "zeusBow" ? "Zeus's Bow" : "Flame Bazooka" : completedUfoPath ? tower.specialization === "twinlaser" ? "Twin-Laser UFO" : "Massive-Beam UFO" : base.name;
+    document.getElementById("upgradeLabel").textContent = choosingMagePath ? "Arcane Path" : choosingBarracksPath ? "Gladiator Path" : choosingArcherPath ? "Riflemen Path" : choosingVampirePath ? "Bloodstorm Path" : choosingOgrePath ? "Togga's Strongest Warrior" : choosingBallistaPath ? "Flame Bazooka" : choosingUfoPath ? "UFO Path" : completedMagePath ? `${tower.specialization === "frost" ? "Frost" : "Arcane"} Path` : completedBarracksPath ? `${tower.specialization === "graveyard" ? "Gravestone" : "Gladiator"} Path` : completedArcherPath ? `${tower.specialization === "slingshooters" ? "Slingshooter" : "Riflemen"} Path` : completedVampirePath ? `${tower.specialization === "nightspawn" ? "Nightspawn" : "Bloodstorm"} Path` : completedOgrePath ? `${tower.specialization === "togga" ? "Togga Warrior" : "StoneThrow"} Path` : completedBallistaPath ? `${tower.specialization === "zeusBow" ? "Zeus's Bow" : "Flame Bazooka"} Path` : completedUfoPath ? `${tower.specialization === "twinlaser" ? "Twin Lasers" : "Massive Beam"} Path` : "Upgrade";
     document.getElementById("upgradeCost").textContent = cost === null ? "Max level" : `${cost} gold`;
     upgradeButton.disabled = cost === null || state.gold < cost;
-    branchHint.classList.toggle("hidden", !choosingMagePath && !choosingBarracksPath && !choosingArcherPath && !choosingVampirePath && !choosingUfoPath);
-    branchHint.textContent = choosingMagePath ? "Choose this wizard's final discipline. This choice is permanent." : choosingBarracksPath ? "Choose this barracks' final warband. This choice is permanent." : choosingArcherPath ? "Choose this squad's final weapon. This choice is permanent." : choosingVampirePath ? "Choose this Vampire's final blood discipline. This choice is permanent." : "Choose this UFO's final weapon. This choice is permanent.";
+    branchHint.classList.toggle("hidden", !choosingMagePath && !choosingBarracksPath && !choosingArcherPath && !choosingVampirePath && !choosingOgrePath && !choosingBallistaPath && !choosingUfoPath && !choosingEvolvedBoomers);
+    branchHint.textContent = choosingMagePath ? "Choose this wizard's final discipline. This choice is permanent." : choosingBarracksPath ? "Choose this barracks' final warband. This choice is permanent." : choosingArcherPath ? "Choose this squad's final weapon. This choice is permanent." : choosingVampirePath ? "Choose this Vampire's final blood discipline. This choice is permanent." : choosingOgrePath ? "Choose Togga's permanent final fighting style." : choosingBallistaPath ? "Choose this Ballista's permanent final ammunition." : choosingEvolvedBoomers ? "Further evolve the Gravestone's Zombies into volatile Boomers." : "Choose this UFO's final weapon. This choice is permanent.";
     frostButton.classList.toggle("hidden", !choosingMagePath);
     document.getElementById("frostUpgradeCost").textContent = cost === null ? "Max level" : `${cost} gold`;
     frostButton.disabled = cost === null || state.gold < cost;
     graveButton.classList.toggle("hidden", !choosingBarracksPath);
     document.getElementById("graveUpgradeCost").textContent = cost === null ? "Max level" : `${cost} gold`;
     graveButton.disabled = cost === null || state.gold < cost;
+    evolvedBoomersButton.classList.toggle("hidden", !choosingEvolvedBoomers);
+    document.getElementById("evolvedBoomersUpgradeCost").textContent = evolvedCost === null ? "Purchased" : `${evolvedCost} gold`;
+    evolvedBoomersButton.disabled = evolvedCost === null || state.gold < evolvedCost;
     slingButton.classList.toggle("hidden", !choosingArcherPath);
     document.getElementById("slingUpgradeCost").textContent = cost === null ? "Max level" : `${cost} gold`;
     slingButton.disabled = cost === null || state.gold < cost;
+    stoneThrowButton.classList.toggle("hidden", !choosingOgrePath);
+    document.getElementById("stoneThrowUpgradeCost").textContent = cost === null ? "Max level" : `${cost} gold`;
+    stoneThrowButton.disabled = cost === null || state.gold < cost;
+    zeusBowButton.classList.toggle("hidden", !choosingBallistaPath);
+    document.getElementById("zeusBowUpgradeCost").textContent = cost === null ? "Max level" : `${cost} gold`;
+    zeusBowButton.disabled = cost === null || state.gold < cost;
     nightspawnButton.classList.toggle("hidden", !choosingVampirePath);
     document.getElementById("nightspawnUpgradeCost").textContent = cost === null ? "Max level" : `${cost} gold`;
     nightspawnButton.disabled = cost === null || state.gold < cost;
@@ -171,19 +205,30 @@ function showInspectPanel(tower) {
     massiveBeamButton.classList.toggle("hidden", !choosingUfoPath);
     document.getElementById("massiveBeamUpgradeCost").textContent = cost === null ? "Max level" : `${cost} gold`;
     massiveBeamButton.disabled = cost === null || state.gold < cost;
-    const hasOwnSpecial = completedMagePath || completedBallistaFlame || completedUfoPath || isBarracks || isOgreTower || isArcherSquad || isGhost || isVampire;
+    const hasOwnSpecial = completedMagePath || completedBallistaPath || completedUfoPath || isBarracks || isOgreTower || isArcherSquad || isGhost || isVampire;
     specialRow.classList.toggle("hidden", !hasOwnSpecial && !castleBuffed);
     if (completedMagePath) {
-      document.getElementById("specialStat").textContent = tower.specialization === "frost" ? "38% group slow" : "Maximum damage";
-    } else if (completedBallistaFlame) {
-      document.getElementById("specialStat").textContent = "Flaming bolt with a fiery impact";
+      document.getElementById("specialStat").textContent = tower.specialization === "frost"
+        ? `${Math.round(towerTypes.mage.frostSlowStrength * 100)}% slow in a 1-tile blast for ${towerTypes.mage.frostSlowDuration}s`
+        : "+20% damage • 5 half-tile chain hits at 20% each";
+    } else if (completedBallistaPath) {
+      document.getElementById("specialStat").textContent = tower.specialization === "zeusBow"
+        ? "3s shock: +10% damage taken • 0.2s stun"
+        : "2s burn: 50% of initial hit damage";
     } else if (isBarracks) {
       const readyUnits = state.knights.filter(unit => unit.owner === tower && unit.alive && !unit.expired).length;
-      if (tower.specialization === "graveyard") document.getElementById("specialStat").textContent = `${readyUnits} / 8 zombies • raises one every 4s`;
+      if (isEvolvedBoomers) document.getElementById("specialStat").textContent = `${readyUnits} / 8 Boomers • 150 death damage • 0.5-tile blast • 5s goo`;
+      else if (tower.specialization === "graveyard") document.getElementById("specialStat").textContent = `${readyUnits} / 8 zombies • raises one every 4s`;
       else if (tower.specialization === "gladiators") document.getElementById("specialStat").textContent = `${readyUnits} / 3 gladiators ready`;
       else document.getElementById("specialStat").textContent = `${readyUnits} / ${barracksCapacity(tower)} knights ready`;
     } else if (isOgreTower) {
-      document.getElementById("specialStat").textContent = `Throws ${Math.round(stats.knockback / CELL * 10) / 10} tiles backward`;
+      if (isToggaWarrior) {
+        const unit = ensureToggaWarrior(tower);
+        const status = !unit.alive ? `respawning in ${Math.ceil(unit.respawnTimer)}s` : unit.retreating ? `recovering for ${Math.ceil(unit.retreatTimer)}s` : state.waveActive ? `blocking ${unit.engagedEnemies.length} / ${towerTypes.ogre.warriorBlockers}` : "waiting at his tile";
+        document.getElementById("specialStat").textContent = `${Math.ceil(unit.hp)} / ${unit.maxHp} HP • ${status} • hits 6 + 1s stun`;
+      } else if (isStoneThrowOgre) {
+        document.getElementById("specialStat").textContent = `${Math.round(stats.splashDamage)} splash damage • boulder returns after every throw`;
+      } else document.getElementById("specialStat").textContent = `Throws ${Math.round(stats.knockback / CELL * 10) / 10} tiles backward`;
     } else if (isArcherSquad) {
       document.getElementById("specialStat").textContent = tower.specialization === "riflemen" ? "Heavy 3-shot rifle volley" : tower.specialization === "slingshooters" ? "72 range area boulder" : "3-shot rapid volley";
     } else if (isGhost) {
@@ -209,6 +254,7 @@ function showInspectPanel(tower) {
     }
     if (castleBuffed && hasOwnSpecial) document.getElementById("specialStat").textContent += " • Tiny Castle aura active";
   }
+  showFrozenDefenseStatus(tower);
   document.getElementById("sellValue").textContent = `${Math.round(tower.spent * .65)} gold`;
 }
 
@@ -249,7 +295,7 @@ function beginGameMode(mode) {
   state.gameStarted = true;
   state.menuOpen = false;
   document.getElementById("mainMenu").classList.add("hidden");
-  showAnnouncement(mode === "endless" ? "Endless Siege — survive for as long as you can" : "Thirty-Wave Campaign — defend the keep");
+  showAnnouncement(mode === "endless" ? "Endless Siege — survive for as long as you can" : "Forty-Wave Campaign — defend the keep");
   updateUI();
 }
 

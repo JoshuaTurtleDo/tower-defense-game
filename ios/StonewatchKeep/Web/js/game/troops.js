@@ -1,6 +1,6 @@
 "use strict";
 
-// Barracks troops, Vampire minions, enemy troop attacks, and troop simulation.
+// Barracks troops, Vampire minions, Togga, enemy troop attacks, and friendly-unit simulation.
 
 function barracksCapacity(tower) {
   if (tower.specialization === "graveyard") return 8;
@@ -24,7 +24,7 @@ function ensureRallyIndex(tower) {
 
 function knightMaxHp(tower) {
   const baseHp = tower.specialization === "graveyard" ? 90 : tower.specialization === "gladiators" ? 240 : 72 * Math.pow(1.5, tower.level - 1);
-  return Math.round(baseHp * relicMultiplier(tower, "troopHealth"));
+  return Math.round(baseHp * relicMultiplier(tower, "troopHealth") * passiveTowerMultiplier(tower, "troopHealth"));
 }
 
 function barracksUnitType(tower) {
@@ -85,6 +85,53 @@ function ensureBarracksKnights(tower, healExisting = false) {
     } else knight.hp = Math.min(knight.hp, knight.maxHp);
   }
 }
+
+function spawnToggaWarrior(tower) {
+  ensureRallyIndex(tower);
+  const unit = {
+    owner: tower,
+    unitType: "togga",
+    slot: 0,
+    x: tower.x,
+    y: tower.y,
+    hp: towerTypes.ogre.warriorHp,
+    maxHp: towerTypes.ogre.warriorHp,
+    alive: true,
+    expired: false,
+    target: null,
+    engagedEnemies: [],
+    attackCooldown: 0,
+    respawnTimer: 0,
+    retreating: false,
+    retreatTimer: 0,
+    angle: tower.angle,
+    hitFlash: 0,
+    swing: 0,
+    groundPound: 0,
+    moving: false,
+    clashing: false,
+    phase: Math.random() * Math.PI * 2
+  };
+  state.knights.push(unit);
+  tower.toggaUnit = unit;
+  return unit;
+}
+
+function ensureToggaWarrior(tower, healExisting = false) {
+  if (!tower || tower.type !== "ogre" || tower.specialization !== "togga") return null;
+  let unit = state.knights.find(candidate => candidate.owner === tower && candidate.unitType === "togga" && !candidate.expired);
+  if (!unit) unit = spawnToggaWarrior(tower);
+  tower.toggaUnit = unit;
+  unit.maxHp = towerTypes.ogre.warriorHp;
+  if (healExisting) {
+    unit.hp = unit.maxHp;
+    unit.alive = true;
+    unit.respawnTimer = 0;
+    unit.retreating = false;
+    unit.retreatTimer = 0;
+  }
+  return unit;
+}
 function raiseVampireMinion(tower, enemy) {
   ensureRallyIndex(tower);
   const slot = tower.minionsRaised || 0;
@@ -124,6 +171,7 @@ function knightRallyPoint(knight) {
   const dx = next.x - previous.x;
   const dy = next.y - previous.y;
   const length = Math.hypot(dx, dy) || 1;
+  if (knight.unitType === "togga") return { x: point.x, y: point.y };
   const isVampireMinion = knight.unitType === "vampireMinion";
   const spacing = knight.unitType === "zombie" ? 15 : isVampireMinion ? 14 : 21;
   const formationSlot = isVampireMinion ? knight.slot % 7 : knight.slot;
@@ -132,17 +180,66 @@ function knightRallyPoint(knight) {
   return { x: point.x + dx / length * offset, y: point.y + dy / length * offset };
 }
 
+function explodeEvolvedBoomer(zombie) {
+  const tower = zombie.owner;
+  const base = towerTypes.barracks;
+  if (!tower?.evolvedBoomers || zombie.unitType !== "zombie") return [];
+  const targets = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && Math.hypot(enemy.x - zombie.x, enemy.y - zombie.y) <= base.evolvedBoomersRadius);
+  const colors = ["#75ff3d", "#baff58", "#35d92f", "#d2ff70"];
+
+  function addGooBlock(angle, speed, index) {
+    const size = 2.8 + Math.random() * 3.8;
+    const blockWorldSize = .035 + size * .006;
+    state.particles.push({
+      kind: "gooDebris",
+      x: zombie.x,
+      y: zombie.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      height: .18 + Math.random() * .22,
+      groundHeight: .15 + blockWorldSize / 2,
+      verticalVelocity: 1.7 + Math.random() * 2.1,
+      rotationX: Math.random() * Math.PI,
+      rotationY: Math.random() * Math.PI,
+      rotationZ: Math.random() * Math.PI,
+      spinX: (Math.random() - .5) * 13,
+      spinY: (Math.random() - .5) * 13,
+      spinZ: (Math.random() - .5) * 13,
+      settled: false,
+      groundDuration: base.evolvedBoomersGooDuration,
+      groundTimer: base.evolvedBoomersGooDuration,
+      life: base.evolvedBoomersGooDuration,
+      maxLife: base.evolvedBoomersGooDuration,
+      color: colors[index % colors.length],
+      size
+    });
+  }
+
+  for (let index = 0; index < 28; index++) addGooBlock(Math.random() * Math.PI * 2, 20 + Math.random() * 75, index);
+  targets.forEach((enemy, targetIndex) => {
+    const targetAngle = Math.atan2(enemy.y - zombie.y, enemy.x - zombie.x);
+    for (let index = 0; index < 3; index++) addGooBlock(targetAngle + (Math.random() - .5) * .34, 42 + Math.random() * 45, targetIndex * 3 + index);
+    damageEnemy(enemy, base.evolvedBoomersDamage, tower, "physical", zombie);
+  });
+  return targets;
+}
+
 function defeatKnight(knight) {
+  const evolvedExplosion = knight.unitType === "zombie" && knight.owner?.evolvedBoomers;
   knight.alive = false;
   knight.hp = 0;
   knight.target = null;
   if (knight.unitType === "zombie" || knight.unitType === "vampireMinion") {
     knight.expired = true;
     knight.respawnTimer = 0;
-    burst(knight.x, knight.y, knight.unitType === "vampireMinion" ? "#a71931" : "#6f8b55", 9);
+    if (evolvedExplosion) explodeEvolvedBoomer(knight);
+    else burst(knight.x, knight.y, knight.unitType === "vampireMinion" ? "#a71931" : "#6f8b55", 9);
   } else {
-    knight.respawnTimer = knight.unitType === "gladiator" ? 10 : 8;
-    burst(knight.x, knight.y, knight.unitType === "gladiator" ? "#d1a34e" : "#aebbc0", 9);
+    knight.respawnTimer = knight.unitType === "togga" ? towerTypes.ogre.warriorRespawnDuration : knight.unitType === "gladiator" ? 10 : 8;
+    knight.retreating = false;
+    knight.retreatTimer = 0;
+    knight.engagedEnemies = [];
+    burst(knight.x, knight.y, knight.unitType === "togga" ? "#9d7e45" : knight.unitType === "gladiator" ? "#d1a34e" : "#aebbc0", knight.unitType === "togga" ? 22 : 9);
   }
   if (state.selectedTower === knight.owner) showInspectPanel(knight.owner);
 }
@@ -175,7 +272,8 @@ function enemyMeleeDamage(enemy) {
     riftlord: 95,
     dragon: 150,
     horseman: 190,
-    cyclops: 240
+    cyclops: 240,
+    yeti: 300
   }[enemy.type] || 12;
   if (enemyTypes[enemy.type]?.boss && !enemy.isBossMinion) return baseDamage * (enemy.damageMultiplier || 1);
   return baseDamage * (enemy.damageMultiplier || 1) * (1 + Math.max(0, state.wave - 1) * .04);
@@ -183,6 +281,109 @@ function enemyMeleeDamage(enemy) {
 
 function bossIgnoresBarracks(enemy) {
   return Boolean((enemy.isBoss || enemy.isMiniBoss) && !enemy.barracksProvoked);
+}
+
+function moveFriendlyUnit(unit, destination, speed, dt) {
+  const dx = destination.x - unit.x;
+  const dy = destination.y - unit.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance > 3) {
+    unit.angle = Math.atan2(dy, dx);
+    const step = Math.min(distance, speed * dt);
+    unit.x += dx / distance * step;
+    unit.y += dy / distance * step;
+    unit.moving = true;
+  }
+  return distance;
+}
+
+function updateToggaWarrior(unit, dt) {
+  const tower = unit.owner;
+  const base = towerTypes.ogre;
+  unit.hitFlash = Math.max(0, unit.hitFlash - dt);
+  unit.swing = Math.max(0, unit.swing - dt);
+  unit.groundPound = Math.max(0, unit.groundPound - dt);
+  unit.attackCooldown = Math.max(0, unit.attackCooldown - dt);
+  unit.moving = false;
+  unit.clashing = false;
+  unit.engagedEnemies = [];
+
+  if (!unit.alive) {
+    unit.respawnTimer -= dt;
+    if (unit.respawnTimer <= 0) {
+      unit.alive = true;
+      unit.hp = unit.maxHp;
+      unit.x = tower.x;
+      unit.y = tower.y;
+      unit.target = null;
+      unit.attackCooldown = 0;
+      burst(unit.x, unit.y, "#d0b062", 24);
+      if (state.selectedTower === tower) showInspectPanel(tower);
+    }
+    return;
+  }
+
+  if (!unit.retreating && unit.hp <= base.warriorRetreatHealth) {
+    unit.retreating = true;
+    unit.retreatTimer = base.warriorRetreatDuration;
+    unit.target = null;
+    showAnnouncement("Togga retreats to recover his strength");
+    if (state.selectedTower === tower) showInspectPanel(tower);
+  }
+
+  if (unit.retreating) {
+    const distanceHome = moveFriendlyUnit(unit, tower, 125, dt);
+    if (distanceHome <= 3) {
+      unit.x = tower.x;
+      unit.y = tower.y;
+      unit.moving = false;
+      unit.retreatTimer = Math.max(0, unit.retreatTimer - dt);
+      if (unit.retreatTimer <= 0) {
+        unit.retreating = false;
+        unit.hp = unit.maxHp;
+        unit.attackCooldown = 0;
+        burst(unit.x, unit.y, "#d8b966", 20);
+        if (state.selectedTower === tower) showInspectPanel(tower);
+      }
+    }
+    return;
+  }
+
+  if (!state.waveActive) {
+    unit.target = null;
+    moveFriendlyUnit(unit, tower, 110, dt);
+    return;
+  }
+
+  const stats = towerStats(tower);
+  const candidates = state.enemies.filter(enemy => !enemy.dead && !enemy.reached && !enemy.thrown && enemy.fearTimer <= 0 && enemy.possessionTimer <= 0 && Math.hypot(enemy.x - tower.x, enemy.y - tower.y) <= stats.range);
+  candidates.sort((first, second) => enemyProgress(second) - enemyProgress(first));
+  unit.target = candidates[0] || null;
+  const closeEnemies = candidates.filter(enemy => Math.hypot(enemy.x - unit.x, enemy.y - unit.y) <= 38);
+  closeEnemies.sort((first, second) => Math.hypot(first.x - unit.x, first.y - unit.y) - Math.hypot(second.x - unit.x, second.y - unit.y));
+  unit.engagedEnemies = closeEnemies.slice(0, base.warriorBlockers);
+
+  if (unit.engagedEnemies.length) {
+    unit.clashing = true;
+    unit.target = unit.engagedEnemies[0];
+    unit.angle = Math.atan2(unit.target.y - unit.y, unit.target.x - unit.x);
+    if (unit.attackCooldown <= 0) {
+      const victims = unit.engagedEnemies.slice(0, base.warriorAttackTargets);
+      for (const enemy of victims) {
+        damageEnemy(enemy, stats.damage, tower, "physical", unit);
+        if (!enemy.dead) enemy.stunTimer = Math.max(enemy.stunTimer || 0, base.warriorStunDuration);
+      }
+      unit.attackCooldown = stats.cooldown;
+      unit.swing = .72;
+      unit.groundPound = .72;
+      burst(unit.x, unit.y, "#c7aa68", 28);
+      if (state.selectedTower === tower) showInspectPanel(tower);
+    }
+    return;
+  }
+
+  const destination = unit.target || knightRallyPoint(unit);
+  moveFriendlyUnit(unit, destination, 92, dt);
 }
 
 function breatheDragonFire(dragon, blocker) {
@@ -324,6 +525,10 @@ function updateKnights(dt) {
     if (knight.expired) continue;
     const tower = knight.owner;
     if (!state.towers.includes(tower)) continue;
+    if (knight.unitType === "togga") {
+      updateToggaWarrior(knight, dt);
+      continue;
+    }
     knight.hitFlash = Math.max(0, knight.hitFlash - dt);
     knight.swing = Math.max(0, knight.swing - dt);
     knight.moving = false;
