@@ -4,6 +4,7 @@
 // Keeping these separate from the 3D renderer lets the battlefield use its
 // original materials while the armory retains its newer illustrated icons.
 const defenseIconPaths = {
+  cannon: '<path d="M8 26 33 12 40 23 16 32ZM31 13 38 24M10 38H41M27 30 37 38"/><circle cx="16" cy="36" r="7"/><circle cx="16" cy="36" r="2"/><path d="m40 9 4-3M43 16H47"/>',
   archer: '<path d="M12 5Q36 24 12 43L19 24Z"/><path d="M7 24H40M33 18L40 24 33 30"/>',
   mage: '<path d="M24 4 7 34H41ZM12 40H36M16 28 24 9 32 28"/><path d="m35 5 2 4 4 2-4 2-2 4-2-4-4-2 4-2Z"/>',
   ballista: '<path d="M7 12Q24 27 41 12M7 12 24 33 41 12M24 5V40M19 10 24 5 29 10M12 42 24 33 36 42"/>',

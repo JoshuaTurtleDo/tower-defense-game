@@ -142,6 +142,14 @@ function drawTower(tower) {
     ctx.fillStyle = "#24211d"; ctx.fillRect(-4, 3, 8, 13);
     ctx.strokeStyle = "#453d2d"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(0, -35); ctx.stroke();
     ctx.fillStyle = "#315b75"; ctx.beginPath(); ctx.moveTo(1, -34); ctx.lineTo(13, -30); ctx.lineTo(1, -26); ctx.closePath(); ctx.fill();
+  } else if (tower.type === "cannon") {
+    ctx.rotate(tower.angle);
+    ctx.fillStyle = "#68452d"; ctx.fillRect(-18, -13, 30, 26);
+    ctx.fillStyle = "#222b30"; ctx.fillRect(-14, -9, 42, 18);
+    ctx.fillStyle = "#b39454"; ctx.fillRect(21, -10, 4, 20);
+    for (const y of [-16, 16]) {
+      ctx.fillStyle = "#35383c"; ctx.beginPath(); ctx.arc(-7, y, 8, 0, Math.PI * 2); ctx.fill();
+    }
   } else if (tower.type === "mage") {
     ctx.fillStyle = "#3f3452"; ctx.beginPath(); ctx.moveTo(-16, 12); ctx.lineTo(0,-25); ctx.lineTo(16,12); ctx.closePath(); ctx.fill();
     ctx.shadowColor = color; ctx.shadowBlur = 12; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0,-23,6 + tower.level,0,Math.PI*2); ctx.fill();

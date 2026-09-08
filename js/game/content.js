@@ -3,6 +3,7 @@
 // Editable tower, enemy, campaign-wave, event, and endless-mode definitions.
 
 const towerTypes = {
+  cannon: { name: "Royal Cannon", cost: 200, range: 128, damage: 60, damageType: "physical", cooldown: 2.5, projectileSpeed: 380, color: "#f5af58", splash: CELL, emblem: "◉", className: "cannon-emblem" },
   archer: { name: "Royal Archers", cost: 70, range: 145, damage: 16.8, rifleDamageMultiplier: 2.365, slingshooterDamage: 120, damageType: "physical", cooldown: 1.35, projectileSpeed: 480, color: "#d6d19c", splash: 0, emblem: "➶", className: "archer-emblem" },
   mage: { name: "Royal Wizard", cost: 130, upgradeCostMultiplier: .9, range: 128, damage: 35, damageType: "magic", cooldown: 1.15, projectileSpeed: 330, color: "#a788eb", splash: 62, arcaneDamageMultiplier: 1.2, arcaneBounceCount: 5, arcaneBounceDamageRatio: .2, arcaneBounceRange: CELL * .5, arcaneBounceSpeed: 460, frostSplashRadius: CELL, frostSlowStrength: .38, frostSlowDuration: 2.75, emblem: "✦", className: "mage-emblem" },
   ballista: { name: "Royal Ballista", cost: 160, upgradeCostMultiplier: .9, range: 215, damage: 120, zeusDamage: 350, damageType: "physical", cooldown: 2.05, projectileSpeed: 650, color: "#e5a654", splash: 0, flameBurnRatio: .5, flameBurnDuration: 2, shockDuration: 3, shockDamageTakenMultiplier: 1.1, shockStunDuration: .2, emblem: "✧", className: "ballista-emblem" },
@@ -19,6 +20,9 @@ const BOSS_SUMMON_UNLOCK_WAVE = 20;
 const bossSummonDefaults = { bossSummonInterval: 15, bossSummonCount: 5, bossSummonHealthScale: .02, bossSummonDamageScale: .05 };
 
 const enemyTypes = {
+  thief: { name: "Hooded Thief", hp: 155, speed: 66, reward: 18, damage: 2, color: "#66547b", physicalResistance: .12, magicResistance: .08, symbol: "T", scale: 1.04, barWidth: 34, barOffset: 31 },
+  // Existing event bosses average 1,260 base HP; the leader has 70% of that.
+  thiefleader: { ...bossSummonDefaults, name: "Thief Leader", hp: 882, theftInterval: 5, theftRate: .01, speed: 43, reward: 130, damage: 5, color: "#79618f", physicalResistance: .18, magicResistance: .18, symbol: "TL", scale: 1.5, barWidth: 57, barOffset: 47, modelScale: 1.5, miniBoss: true },
   goblin: { name: "Goblin", hp: 48, speed: 78, reward: 8, damage: 1, color: "#66833e", physicalResistance: 0, magicResistance: 0, symbol: "G", scale: .82, barWidth: 27, barOffset: 23 },
   skeleton: { name: "Skeleton", hp: 88, speed: 59, reward: 11, damage: 1, color: "#d8d0b7", physicalResistance: 0, magicResistance: .25, symbol: "☠", scale: .94, barWidth: 30, barOffset: 27 },
   orc: { name: "Armored Orc", hp: 178, speed: 43, reward: 17, damage: 2, color: "#536f3c", physicalResistance: .3, magicResistance: .1, symbol: "O", scale: 1.08, barWidth: 35, barOffset: 30 },
@@ -89,10 +93,19 @@ const waveEvents = {
   18: { name: "Viking Invasion", description: "Frost Vikings drag a war longship down the road beside an opportunistic Merchant.", type: "viking", bossType: "longship", units: [...sequence("viking", 16, .19), { type: "longship", gap: .8 }, { type: "merchant", gap: .55 }] },
   24: { name: "Spectral Procession", description: "A Coven Witch summons more Wraiths while an opportunistic Merchant follows.", type: "wraith", bossType: "covenwitch", units: [...sequence("wraith", 18, .17), { type: "covenwitch", gap: .75 }, { type: "merchant", gap: .55 }] },
   30: { name: "Infernal Rift", description: "Rift Demons march beneath a gigantic Rift Overlord and an opportunistic Merchant.", type: "demon", bossType: "riftlord", units: [...sequence("demon", 20, .16), { type: "riftlord", gap: .85 }, { type: "merchant", gap: .55 }] },
-  36: { name: "Davy Jones' Revenge", description: "A larger Pirate fleet returns under Davy Jones with another opportunistic Merchant.", type: "pirate", bossType: "davyjones", units: [...sequence("pirate", 24, .15), { type: "davyjones", gap: .7 }, { type: "merchant", gap: .52 }] }
+  36: { name: "Thieves' Ambush", description: "Hooded thieves escort their Leader, who steals 1% of your gold every 5 seconds while alive. A Merchant follows.", type: "thief", bossType: "thiefleader", units: [...sequence("thief", 18, .18), { type: "thiefleader", gap: .75 }, { type: "merchant", gap: .55 }] }
 };
 
-const eventThemeCycle = [waveEvents[6], waveEvents[12], waveEvents[18], waveEvents[24], waveEvents[30]];
+const eventThemeCycle = Object.values(waveEvents);
+
+function shuffledEventOrder(random = Math.random) {
+  const order = eventThemeCycle.map((_, index) => index);
+  for (let index = order.length - 1; index > 0; index--) {
+    const other = Math.floor(random() * (index + 1));
+    [order[index], order[other]] = [order[other], order[index]];
+  }
+  return order;
+}
 
 const CAMPAIGN_WAVE_COUNT = waves.length;
 
@@ -127,14 +140,14 @@ function getWaveDefinition(waveNumber, mode = state?.gameMode || "campaign") {
   };
 }
 function getWaveEvent(waveNumber, mode = state?.gameMode || "campaign") {
-  if (waveNumber <= CAMPAIGN_WAVE_COUNT) return waveEvents[waveNumber] || null;
-  if (mode !== "endless" || waveNumber % 6 !== 0) return null;
+  if (waveNumber < 6 || waveNumber % 6 !== 0 || (waveNumber > CAMPAIGN_WAVE_COUNT && mode !== "endless")) return null;
   const cycle = Math.floor((waveNumber - 1) / CAMPAIGN_WAVE_COUNT);
   const eventIndex = waveNumber / 6 - 1;
-  const template = eventThemeCycle[eventIndex % eventThemeCycle.length];
+  const order = state.eventOrder;
+  const template = eventThemeCycle[order[eventIndex % order.length]];
   return {
     ...template,
-    name: `${template.name} • Endless Cycle ${cycle + 1}`,
+    name: cycle > 0 ? `${template.name} • Endless Cycle ${cycle + 1}` : template.name,
     units: scaleEndlessUnits(template.units, cycle)
   };
 }

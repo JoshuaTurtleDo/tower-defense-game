@@ -205,9 +205,11 @@ function showInspectPanel(tower) {
     massiveBeamButton.classList.toggle("hidden", !choosingUfoPath);
     document.getElementById("massiveBeamUpgradeCost").textContent = cost === null ? "Max level" : `${cost} gold`;
     massiveBeamButton.disabled = cost === null || state.gold < cost;
-    const hasOwnSpecial = completedMagePath || completedBallistaPath || completedUfoPath || isBarracks || isOgreTower || isArcherSquad || isGhost || isVampire;
+    const hasOwnSpecial = tower.type === "cannon" || completedMagePath || completedBallistaPath || completedUfoPath || isBarracks || isOgreTower || isArcherSquad || isGhost || isVampire;
     specialRow.classList.toggle("hidden", !hasOwnSpecial && !castleBuffed);
-    if (completedMagePath) {
+    if (tower.type === "cannon") {
+      document.getElementById("specialStat").textContent = `${Math.round(stats.splash / CELL * 100) / 100}-tile blast`;
+    } else if (completedMagePath) {
       document.getElementById("specialStat").textContent = tower.specialization === "frost"
         ? `${Math.round(towerTypes.mage.frostSlowStrength * 100)}% slow in a 1-tile blast for ${towerTypes.mage.frostSlowDuration}s`
         : "+20% damage • 5 half-tile chain hits at 20% each";

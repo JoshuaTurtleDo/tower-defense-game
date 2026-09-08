@@ -2,6 +2,28 @@
 
 // The main per-frame world simulation for waves, enemies, defenses, and projectiles.
 
+function updateThiefLeader(enemy, dt) {
+  if (enemy.type !== "thiefleader" || enemy.isBossMinion || enemy.dead || enemy.reached) return;
+  const base = enemyTypes.thiefleader;
+  enemy.theftPulse = Math.max(0, enemy.theftPulse - dt);
+  enemy.theftTimer -= dt;
+  while (enemy.theftTimer <= 0) {
+    enemy.theftTimer += base.theftInterval;
+    // Carry fractional coins forward so the HUD and purchases stay in whole gold.
+    const amount = state.gold * base.theftRate + enemy.theftRemainder;
+    const stolen = Math.min(state.gold, Math.floor(amount));
+    enemy.theftRemainder = amount - Math.floor(amount);
+    state.gold -= stolen;
+    enemy.theftPulse = .8;
+    if (stolen > 0) {
+      burst(enemy.x, enemy.y, "#f5cc65", 12);
+      showAnnouncement(`Thief Leader stole ${stolen} gold!`);
+      updateUI();
+      if (state.selectedTower) showInspectPanel(state.selectedTower);
+    }
+  }
+}
+
 function update(dt) {
   if (state.paused || state.ended || state.storeOpen || state.monsterIndexOpen || state.menuOpen) return;
   state.elapsed += dt;
@@ -23,6 +45,7 @@ function update(dt) {
     updateBatForm(enemy, dt);
     updateBallistaStatusEffects(enemy, dt);
     if (enemy.dead) continue;
+    updateThiefLeader(enemy, dt);
     enemy.attackSwing = Math.max(0, enemy.attackSwing - dt);
     enemy.fireBreathTimer = Math.max(0, (enemy.fireBreathTimer || 0) - dt);
     enemy.snowballThrowTimer = Math.max(0, (enemy.snowballThrowTimer || 0) - dt);

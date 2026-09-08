@@ -266,6 +266,8 @@ function enemyMeleeDamage(enemy) {
     wraith: 30,
     demon: 40.5,
     davyjones: 55,
+    thief: 18,
+    thiefleader: 55,
     moonalpha: 65,
     longship: 75,
     covenwitch: 60,

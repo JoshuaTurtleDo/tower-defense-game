@@ -12,6 +12,11 @@ function fireProjectile(tower, target, stats, archerIndex = null, overrides = {}
   const lightningBallista = tower.type === "ballista" && tower.specialization === "zeusBow";
   const projectileColor = overrides.color || (lightningBallista ? "#78d8ff" : flamingBallista ? "#ff7429" : tower.type === "mage" && tower.specialization === "frost" ? "#8fe8f4" : base.color);
   let variant = null;
+  if (tower.type === "cannon") {
+    variant = "cannonball";
+    tower.cannonFiredAt = performance.now();
+    burst(tower.x + Math.cos(tower.angle) * 25, tower.y + Math.sin(tower.angle) * 25, "#ffd47a", 7);
+  }
   if (tower.type === "archer") variant = tower.specialization === "slingshooters" ? "slingRock" : tower.specialization === "riflemen" ? "rifle" : "arrow";
   else if (flamingBallista) variant = "flamingBolt";
   else if (lightningBallista) variant = "lightningBolt";
@@ -38,7 +43,7 @@ function fireProjectile(tower, target, stats, archerIndex = null, overrides = {}
     damage: overrides.damage ?? stats.damage,
     damageType: overrides.damageType || base.damageType,
     splash: overrides.splash ?? stats.splash,
-    splashDamage: overrides.splashDamage,
+    splashDamage: overrides.splashDamage ?? (tower.type === "cannon" ? stats.damage : undefined),
     speed: overrides.speed || stats.projectileSpeed || base.projectileSpeed,
     color: projectileColor,
     variant,
@@ -173,6 +178,8 @@ function spawnEnemyDebris(enemy) {
     cyclops: ["#887653", "#5a4933", "#b58a3d"],
     yeti: ["#d9f1ef", "#8fc9d4", "#315d70", "#8ee8ff"],
     merchant: ["#7d382c", "#d49a45", "#315c58", "#d8bd79"],
+    thief: ["#41434a", "#755381", "#4a2c1b"],
+    thiefleader: ["#32233f", "#755381", "#e1aa3d"],
     pirate: ["#913732", "#d7c39b", "#3c2720"],
     werewolf: ["#69605a", "#3d3835", "#c3b49a"],
     viking: ["#56778b", "#c2b99f", "#7b5233"],

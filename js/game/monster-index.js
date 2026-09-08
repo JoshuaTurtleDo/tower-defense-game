@@ -27,7 +27,7 @@ function monsterThreatLabel(type, monster) {
   if (monster.boss) return "Realm Boss";
   if (monster.miniBoss) return "Event Boss";
   if (monster.ignoresBarracks) return "Special Enemy";
-  if (["pirate", "werewolf", "viking", "wraith", "demon"].includes(type)) return "Event Enemy";
+  if (["pirate", "werewolf", "viking", "wraith", "demon", "thief"].includes(type)) return "Event Enemy";
   return "Common Enemy";
 }
 
@@ -100,6 +100,7 @@ function renderMonsterIndex() {
     addMonsterStat(stats, "Magic resistance", `${Math.round(monster.magicResistance * 100)}%`, "magic-resistance");
     addMonsterStat(stats, "Movement speed", Math.round(monster.speed));
     addMonsterStat(stats, "Keep damage", monster.damage);
+    if (monster.theftInterval) addMonsterStat(stats, "Gold theft", `1% every ${monster.theftInterval}s`);
     card.append(heading, stats);
     grid.appendChild(card);
   }

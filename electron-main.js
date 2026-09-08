@@ -58,6 +58,26 @@ function createWindow() {
           hasCanvas: document.querySelector("#gameCanvas") instanceof HTMLCanvasElement,
           hasThree: typeof window.THREE === "object",
           hasGraphics: typeof window.ThreeGraphics === "function",
+          nonGlowingGraphics: (() => {
+            graphics3D.render(state, hoverCell, canPlace, towerStats);
+            let decorativeLights = 0;
+            let activeDecorativeLights = 0;
+            let emissiveMaterials = 0;
+            let untoneMappedEffects = 0;
+            graphics3D.scene.traverse(object => {
+              if (object.isPointLight && !object.userData.environmentLight) {
+                decorativeLights++;
+                if (object.visible && object.intensity > 0) activeDecorativeLights++;
+              }
+              if (!object.isMesh) return;
+              const materials = Array.isArray(object.material) ? object.material : [object.material];
+              materials.forEach(material => {
+                if (material?.emissive && material.emissiveIntensity > 0 && material.emissive.getHex() !== 0) emissiveMaterials++;
+                if (material?.isMeshBasicMaterial && material.toneMapped === false) untoneMappedEffects++;
+              });
+            });
+            return graphics3D.decorativeGlowEnabled === false && decorativeLights > 0 && activeDecorativeLights === 0 && emissiveMaterials === 0 && untoneMappedEffects === 0;
+          })(),
           hasWheelZoom: typeof window.ThreeGraphics?.prototype?.zoomBy === "function",
           hasCameraReset: Boolean(document.querySelector("#cameraResetButton")),
           speedHotkey: (() => {
@@ -92,9 +112,9 @@ function createWindow() {
                 const units = getWaveDefinition(waveNumber, "endless").units;
                 return units.some(unit => unit.type === bossType) && !units.some(unit => unit.type === "merchant");
               });
-              const loopedThemes = [[36, "pirate"], [42, "werewolf"], [48, "viking"], [54, "wraith"], [60, "demon"]].every(([waveNumber, type]) => {
+              const loopedThemes = [42, 48, 54, 60, 66, 72].every(waveNumber => {
                 const event = getWaveEvent(waveNumber, "endless");
-                return event?.type === type && event.units.filter(unit => unit.type === "merchant").length === 1;
+                return event?.bossType === getWaveEvent(waveNumber - 36, "endless").bossType && event.units.filter(unit => unit.type === "merchant").length === 1;
               });
               state.wave = 40;
               startWave();
@@ -122,6 +142,80 @@ function createWindow() {
               return initialMenuVisible && modeChoicesVisible && endlessStarted && growingArmy && loopedBosses && loopedThemes && continuesAfterForty && campaignStopsAtForty && settingsControlsExist && healthBarsToggle;
             } catch (error) {
               return "Menu and modes error: " + (error.stack || error.message);
+            }
+          })(),
+          cannonDefense: (() => {
+            try {
+              resetGame();
+              state.selectedBuild = "cannon";
+              placeTower(1, 1);
+              const cannon = state.towers[0];
+              const placed = cannon?.type === "cannon" && state.gold === 50 && placementCost("cannon") === 220;
+              const stats = towerStats(cannon);
+              for (const offset of [0, CELL * .9, CELL * 1.1]) {
+                spawnEnemy("ogre");
+                const enemy = state.enemies[state.enemies.length - 1];
+                Object.assign(enemy, { x: 400 + offset, y: 400, hp: 1000, maxHp: 1000, physicalResistance: 0 });
+              }
+              fireProjectile(cannon, state.enemies[0], stats);
+              const ball = state.projectiles[0];
+              graphics3D.render(state, hoverCell, canPlace, towerStats);
+              const visuals = graphics3D.towerMeshes.get(cannon)?.userData.cannonBarrel && graphics3D.projectileMeshes.has(ball);
+              hitEnemy(ball, state.enemies[0]);
+              const splashWorks = state.enemies[0].hp === 940 && state.enemies[1].hp === 940 && state.enemies[2].hp === 1000;
+              showInspectPanel(cannon);
+              const ui = document.querySelector('[data-tower="cannon"] .tower-emblem svg') && document.getElementById("specialStat").textContent.includes("1-tile");
+              const baseRadius = stats.splash === CELL;
+              state.gold = 9999;
+              upgradeTower();
+              const levelTwoRadius = Math.abs(towerStats(cannon).splash - CELL * 1.1) < .001;
+              upgradeTower();
+              const levelThreeRadius = Math.abs(towerStats(cannon).splash - CELL * 1.2) < .001;
+              const wizardRange = stats.range === 128 && stats.range === towerTypes.mage.range && Math.abs(towerStats(cannon).range - 128 * 1.16) < .001;
+              return Boolean(placed && visuals && ui && splashWorks && ball.variant === "cannonball" && stats.damage === 60 && baseRadius && levelTwoRadius && levelThreeRadius && wizardRange);
+            } catch (error) {
+              return "Cannon error: " + (error.stack || error.message);
+            }
+          })(),
+          thiefLeader: (() => {
+            try {
+              resetGame();
+              const order = [...state.eventOrder];
+              const bosses = [6, 12, 18, 24, 30, 36].map(wave => getWaveEvent(wave).bossType);
+              const lineup = new Set(bosses).size === 6 && bosses.includes("thiefleader") &&
+                JSON.stringify(order) === JSON.stringify(state.eventOrder) &&
+                getWaveEvent(42, "endless").bossType === bosses[0] && getWaveEvent(42, "campaign") === null && getWaveEvent(7) === null;
+              const shuffleWorks = shuffledEventOrder(() => 0).join() !== shuffledEventOrder(() => .999).join();
+              spawnEnemy("thiefleader");
+              const leader = state.enemies[0];
+              leader.speed = 0;
+              const hpWorks = Math.abs(leader.hp - (850 + 1100 + 1350 + 1200 + 1800) / 5 * .7) < .001;
+              state.gold = 1000;
+              update(4.9);
+              const waits = state.gold === 1000;
+              update(.11);
+              const firstTheft = state.gold === 990;
+              state.gold = 500;
+              update(5);
+              const currentBalance = state.gold === 495;
+              state.paused = true;
+              update(10);
+              const pauses = state.gold === 495;
+              state.paused = false;
+              leader.dead = true;
+              update(10);
+              const stopsAtDeath = state.gold === 495;
+              spawnEnemy("thiefleader", { bossMinion: true });
+              state.enemies[state.enemies.length - 1].speed = 0;
+              update(6);
+              const copiesDoNotSteal = state.gold === 495;
+              spawnEnemy("thiefleader");
+              const escaped = state.enemies[state.enemies.length - 1];
+              escaped.reached = true;
+              update(6);
+              return lineup && shuffleWorks && hpWorks && waits && firstTheft && currentBalance && pauses && stopsAtDeath && copiesDoNotSteal && state.gold === 495;
+            } catch (error) {
+              return "Thief Leader error: " + (error.stack || error.message);
             }
           })(),
           supportCastle: (() => {
@@ -360,7 +454,7 @@ function createWindow() {
               const startsEmpty = document.getElementById("monsterIndexGrid").classList.contains("hidden") && !document.getElementById("monsterIndexEmpty").classList.contains("hidden");
 
               spawnEnemy("goblin");
-              const discoveryRecorded = discoveredMonsters.has("goblin") && document.getElementById("monsterIndexCount").textContent === "1/19";
+              const discoveryRecorded = discoveredMonsters.has("goblin") && document.getElementById("monsterIndexCount").textContent === "1/" + Object.keys(enemyTypes).length;
               resetGame("campaign");
               const survivesNewBattle = discoveredMonsters.has("goblin");
 
@@ -1258,9 +1352,9 @@ function createWindow() {
           })(),
           merchantEscort: (() => {
             try {
-              const eventPairs = [[6, "davyjones"], [12, "moonalpha"], [18, "longship"], [24, "covenwitch"], [30, "riftlord"], [36, "davyjones"]];
+              const eventPairs = [6, 12, 18, 24, 30, 36].map(waveNumber => [waveNumber, getWaveEvent(waveNumber).bossType]);
               const scheduledWithEvents = eventPairs.every(([waveNumber, bossType]) => {
-                const units = waveEvents[waveNumber].units;
+                const units = getWaveEvent(waveNumber).units;
                 const bossIndex = units.findIndex(unit => unit.type === bossType);
                 const merchantIndices = units.map((unit, index) => unit.type === "merchant" ? index : -1).filter(index => index >= 0);
                 return merchantIndices.length === 1 && bossIndex >= 0 && merchantIndices[0] === bossIndex + 1;
@@ -1682,14 +1776,15 @@ function createWindow() {
               const cadenceCorrect = eventWaves.join(",") === "6,12,18,24,30,36";
               const eventTypes = eventWaves.map(wave => waveEvents[wave].type);
               const miniBossTypes = eventWaves.map(wave => waveEvents[wave].bossType);
-              const themesCorrect = eventTypes.join(",") === "pirate,werewolf,viking,wraith,demon,pirate";
-              const bossesCorrect = miniBossTypes.join(",") === "davyjones,moonalpha,longship,covenwitch,riftlord,davyjones" && miniBossTypes.every(type => enemyTypes[type].miniBoss);
+              const themesCorrect = eventTypes.join(",") === "pirate,werewolf,viking,wraith,demon,thief";
+              const bossesCorrect = miniBossTypes.join(",") === "davyjones,moonalpha,longship,covenwitch,riftlord,thiefleader" && miniBossTypes.every(type => enemyTypes[type].miniBoss);
               const allHaveFloods = eventWaves.every(wave => {
                 const event = waveEvents[wave];
                 return event.units.filter(unit => unit.type === event.type).length >= 14 && event.units.filter(unit => unit.type === event.bossType).length === 1;
               });
 
               resetGame();
+              state.eventOrder = [0, 1, 2, 3, 4, 5];
               state.wave = 5;
               updateUI();
               const previewWorks = document.querySelector("#nextWaveText").textContent.includes("Pirate Raid") &&
@@ -1816,7 +1911,7 @@ function createWindow() {
             }
           })()
         })`);
-        const ok = result.title === "Stonewatch Keep" && result.hasCanvas && result.hasThree &&
+        const ok = result.thiefLeader === true && result.cannonDefense === true && result.title === "Stonewatch Keep" && result.hasCanvas && result.hasThree && result.nonGlowingGraphics === true &&
           result.hasGraphics && result.hasWheelZoom && result.hasCameraReset && result.speedHotkey === true && result.towerCards >= 10 && result.menuModes === true && result.supportCastle === true && result.ufoDefense === true && result.ufoPaths === true && result.bossSummons === true && result.bossBarracksRetaliation === true && result.monsterIndex === true && result.treeObstacles === true && result.archerVolley === true && result.archerPaths === true && result.ballistaPaths === true && result.vampireDrain === true && result.vampirePaths === true && result.ghostFear === true && result.damageTypes === true && result.combatBalance === true && result.arcaneWizard === true && result.placementScaling === true && result.ogrePaths === true && result.barracksPaths === true && result.dragonFire === true && result.bossRoster === true && result.yetiBoss === true && result.campaignWaves === true && result.merchantEscort === true && result.merchantRelicStore === true && result.relicTiers === true && result.uniqueRelic === true && result.umbralRelic === true && result.treasureCove === true && result.incomeScaling === true && result.themedEvents === true && result.passiveTree === true;
         finishSmokeTest(ok ? 0 : 1, { ok, ...result });
       } catch (error) {

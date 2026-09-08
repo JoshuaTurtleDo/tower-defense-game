@@ -12,6 +12,8 @@ const horsemanCloseup = process.argv.includes("--horseman-closeup");
 const yetiCloseup = process.argv.includes("--yeti-closeup");
 const flameBallistaCloseup = process.argv.includes("--flame-ballista-closeup");
 const witchCombat = process.argv.includes("--witch-combat");
+const cannonCloseup = process.argv.includes("--cannon-closeup");
+const thiefCloseup = process.argv.includes("--thief-closeup");
 
 async function capturePreview() {
   const window = new BrowserWindow({
@@ -250,6 +252,50 @@ async function capturePreview() {
       graphics3D.orbitTarget.copy(focus);
       graphics3D.setOrbitFromPosition(new THREE.Vector3(focus.x + 2.4, focus.y + 1.8, focus.z - 3.25));
     }
+    if (${cannonCloseup}) {
+      resetGame();
+      state.trees = [];
+      state.gameStarted = true;
+      state.menuOpen = false;
+      document.getElementById("mainMenu").classList.add("hidden");
+      state.gold = 9999;
+      state.selectedBuild = "cannon";
+      placeTower(7, 5);
+      const cannon = state.towers[0];
+      spawnEnemy("ogre");
+      const target = state.enemies[0];
+      target.x = cannon.x + CELL * 2;
+      target.y = cannon.y;
+      target.speed = 0;
+      cannon.angle = 0;
+      fireProjectile(cannon, target, towerStats(cannon));
+      state.projectiles[0].x = cannon.x + CELL;
+      state.paused = true;
+      document.getElementById("pauseOverlay").classList.add("hidden");
+      showInspectPanel(cannon);
+      updateUI();
+      const focus = graphics3D.worldFromGame(cannon.x, cannon.y, .3);
+      graphics3D.orbitTarget.copy(focus);
+      graphics3D.setOrbitFromPosition(new THREE.Vector3(focus.x + 2.1, focus.y + 1.7, focus.z - 2.5));
+    }
+    if (${thiefCloseup}) {
+      resetGame();
+      state.gameStarted = true;
+      state.menuOpen = false;
+      document.getElementById("mainMenu").classList.add("hidden");
+      state.trees = [];
+      state.wave = 5;
+      state.eventOrder = [5, 0, 1, 2, 3, 4];
+      spawnEnemy("thiefleader");
+      const leader = state.enemies[0];
+      Object.assign(leader, { x: 5.5 * CELL, y: .5 * CELL, pathIndex: 7, moving: false, speed: 0 });
+      state.paused = true;
+      showBuildPanel();
+      updateUI();
+      const focus = graphics3D.worldFromGame(leader.x, leader.y, .65);
+      graphics3D.orbitTarget.copy(focus);
+      graphics3D.setOrbitFromPosition(new THREE.Vector3(focus.x + 1.6, focus.y + 1.1, focus.z + 2.4));
+    }
     return { gold: state.gold, towers: state.towers.length, enemies: state.enemies.length };
   })()`);
   console.log(JSON.stringify(showcaseState));
@@ -260,7 +306,7 @@ async function capturePreview() {
   const outputDirectory = path.join(__dirname, "..", "out");
   fs.mkdirSync(outputDirectory, { recursive: true });
   const outputName = ogreCloseup ? "ogre-closeup.png" : wizardCloseup ? "wizard-closeup.png" : archerCloseup ? "archer-closeup.png" : eventShowcase ? "event-showcase.png" : eventBossShowcase ? "event-miniboss-showcase.png" : horsemanCloseup ? "horseman-skeletal-closeup.png" : yetiCloseup ? "glacier-yeti-closeup.png" : flameBallistaCloseup ? "flame-ballista-closeup.png" : witchCombat ? "witch-ranged-combat.png" : "visual-preview.png";
-  const outputPath = path.join(outputDirectory, outputName);
+  const outputPath = path.join(outputDirectory, thiefCloseup ? "thief-leader-closeup.png" : cannonCloseup ? "cannon-closeup.png" : outputName);
   fs.writeFileSync(outputPath, image.toPNG());
   console.log(outputPath);
   app.quit();

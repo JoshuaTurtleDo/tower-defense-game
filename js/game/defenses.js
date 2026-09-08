@@ -97,6 +97,7 @@ function towerStats(tower) {
     drainCount: tower.type === "vampire" && tower.specialization === "bloodstorm" ? 5 : 1,
     laserCount: tower.type === "ufo" && tower.specialization === "twinlaser" ? 2 : 1
   };
+  if (tower.type === "cannon") stats.splash = base.splash + n * CELL * .1;
   if (tower.type === "mage" && tower.specialization === "arcane") {
     stats.damage *= base.arcaneDamageMultiplier;
   } else if (tower.type === "mage" && tower.specialization === "frost") {

@@ -44,14 +44,14 @@ After a run ends, the results screen shows the three resource icons and the amou
 
 ## Wave events
 
-Every sixth wave now triggers a themed event on top of the normal assault. The event enemies and one Event Merchant are interleaved into the ordinary spawn queue, appear in the next-wave preview, use their own detailed 3D models, and retain the same wave-based health and speed scaling as the rest of the army.
+Every sixth wave triggers a themed event on top of the normal assault. Each new run shuffles the six themes below, keeping each boss paired with its themed army. All six appear once before the same lineup repeats in endless mode. The event enemies and one Event Merchant are interleaved into the ordinary spawn queue, appear in the next-wave preview, use their own detailed 3D models, and retain the same wave-based health and speed scaling as the rest of the army.
 
-- **Wave 6 — Pirate Raid:** 14 quick Pirate Cutthroats land with the tentacle-faced mini-boss Davy Jones.
-- **Wave 12 — Moonlit Hunt:** 14 very fast Moonfang Werewolves join their oversized Moonfang Alpha.
-- **Wave 18 — Viking Invasion:** 16 physically armored Frost Vikings drag a full Viking Longship down the road.
-- **Wave 24 — Spectral Procession:** 18 magic-resistant Spectral Wraiths accompany a Coven Witch. The Witch summons two more Wraiths every 4.5 seconds, up to six additional ghosts. She also attacks Barracks troops from 150 units away with homing magical projectiles that explode across a 68-unit area instead of using melee attacks.
-- **Wave 30 — Infernal Rift:** 20 durable Rift Demons and a gigantic Rift Overlord flood the final Cyclops battle.
-- **Wave 36 — Davy Jones' Revenge:** a stronger returning Pirate fleet brings 24 Cutthroats, Davy Jones, and another Event Merchant.
+- **Pirate Raid:** 14 quick Pirate Cutthroats land with the tentacle-faced mini-boss Davy Jones.
+- **Moonlit Hunt:** 14 very fast Moonfang Werewolves join their oversized Moonfang Alpha.
+- **Viking Invasion:** 16 physically armored Frost Vikings drag a full Viking Longship down the road.
+- **Spectral Procession:** 18 magic-resistant Spectral Wraiths accompany a Coven Witch. The Witch summons two more Wraiths every 4.5 seconds, up to six additional ghosts. She also attacks Barracks troops from 150 units away with homing magical projectiles that explode across a 68-unit area instead of using melee attacks.
+- **Infernal Rift:** 20 durable Rift Demons march with a gigantic Rift Overlord.
+- **Thieves' Ambush:** 18 Hooded Thieves escort the hooded, cloaked Thief Leader. He has 882 base health (30% below the other event bosses' average), with normal wave scaling. Every five gameplay seconds while alive on the road, he steals 1% of the player's current gold. Fractional coins carry into later thefts; pausing freezes the timer, and death or escape stops it. His miniature summons cannot steal gold.
 
 Event mini-bosses have substantially more health, larger models, stronger attacks, unique resistance profiles, and immunity to the Stoneback Ogre's throw. Unlike the campaign bosses, they damage the keep normally instead of causing an immediate defeat on their own.
 
@@ -93,6 +93,7 @@ Defeated enemies break into creature-colored block debris. The pieces tumble ont
 
 ## Tower roles
 
+- **Royal Cannon:** costs 200 gold and fires an iron cannonball every 2.5 seconds at enemies up to three tiles away. Its blast deals 60 base physical damage to every enemy within a 1-tile radius, growing by 0.1 tile with each upgrade. Standard upgrades increase its stats; relics and Tiny Castle bonuses also apply.
 - **Royal Archers:** three ground-standing archers deal 16.8 base physical damage per arrow while firing a rapid one-two-three volley at a single target. Their final upgrade permanently chooses the Riflemen path, which deals about 95.46 damage per shot, or the Slingshooter path, which deals 120 area damage per rock.
 - **Royal Wizard:** costs 130 gold and deals 35 base magic area damage, making it especially effective against physically resistant troops. Its discounted upgrades cost 164 gold for level 2 and 228 gold for the final path choice. The Arcane final path deals 20% more primary damage.
 - **Royal Ballista:** expensive, slow, very long-ranged heavy damage. Its discounted upgrades cost 202 gold for level 2 and 281 gold for its permanent level-three choice.
